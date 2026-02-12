@@ -40,14 +40,17 @@ def wave_text(screen, text, position=None, font_size=72, color=(255, 255, 255), 
 
 def draw_animated_icons(screen, string="TYP0!", position=None, radius=100, font_size=48, color=(255, 255, 255), rotation_speed=2):
     """Draw animated icons around the title"""
+    if not string:
+        return
     if position is None:
         position = (screen.get_width() // 2, 200)
 
     time = pygame.time.get_ticks() / 1000  # Time in seconds
     angle = time * rotation_speed  # Rotate based on rotation_speed
-    for i in range(len(string)):
-        icon_x = position[0] + radius * math.cos(angle + i * (2 * math.pi / len(string)))
-        icon_y = position[1] + radius * math.sin(angle + i * (2 * math.pi / len(string)))
+    count = len(string)
+    for i in range(count):
+        icon_x = position[0] + radius * math.cos(angle + i * (2 * math.pi / count))
+        icon_y = position[1] + radius * math.sin(angle + i * (2 * math.pi / count))
         # Draw a letter from the string as an icon
         icon_font = pygame.font.Font(None, font_size)
         icon_text = icon_font.render(string[i % len(string)], True, color)
@@ -85,5 +88,10 @@ def loading_bar(screen, start_time, position=None, width=400, height=20, color=(
 
 def play_music(file):
     """Play background music"""
-    pygame.mixer.music.load(file)
-    pygame.mixer.music.play(-1)  # Loop indefinitely
+    try:
+        pygame.mixer.music.load(file)
+        pygame.mixer.music.play(-1)  # Loop indefinitely
+        return True
+    except pygame.error as exc:
+        print(f"Warning: failed to load music {file}: {exc}")
+        return False
