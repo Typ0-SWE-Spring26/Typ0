@@ -63,11 +63,11 @@ def draw_animated_icons(screen, string="TYP0!", position=None, radius=100, font_
     time = pygame.time.get_ticks() / 1000  # Time in seconds
     angle = time * rotation_speed  # Rotate based on rotation_speed
     count = len(string)
+    icon_font = pygame.font.Font(None, font_size)
     for i in range(count):
         icon_x = position[0] + radius * math.cos(angle + i * (2 * math.pi / count))
         icon_y = position[1] + radius * math.sin(angle + i * (2 * math.pi / count))
         # Draw a letter from the string as an icon
-        icon_font = pygame.font.Font(None, font_size)
         icon_text = icon_font.render(string[i % len(string)], True, color)
         icon_rect = icon_text.get_rect(center=(icon_x, icon_y))
         screen.blit(icon_text, icon_rect)
