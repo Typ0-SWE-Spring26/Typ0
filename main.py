@@ -1,10 +1,41 @@
+# /// script
+# [pygbag]
+# autorun = true
+# width = 800
+# height = 600
+# ///
+
 import asyncio
 import pygame
+from game_screens.startscreen import StartScreen
 
 async def main():
+    pygame.init()
+    screen = pygame.display.set_mode((800, 600))
+    pygame.display.set_caption("TYP0")
+
+    # Show start screen
+    start_screen = StartScreen(screen)
+    result = await start_screen.run()
+
+    if result == "quit":
+        pygame.quit()
+        return
+
     # Your game loop here
-    while True:
-        # Game logic
+    clock = pygame.time.Clock()
+    running = True
+
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
+        screen.fill((0, 0, 0))
+        pygame.display.flip()
+        clock.tick(60)
         await asyncio.sleep(0)  # Required for pygbag
+
+    pygame.quit()
 
 asyncio.run(main())
