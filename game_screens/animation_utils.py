@@ -82,3 +82,8 @@ def loading_bar(screen, start_time, position=None, width=400, height=20, color=(
     fill_width = progress * width
     pygame.draw.rect(screen, color, (bar_x, bar_y, fill_width, height))
     return progress >= 1.0  # Return True when bar is full
+
+def play_music(file):
+    """Play background music"""
+    pygame.mixer.music.load(file)
+    pygame.mixer.music.play(-1)  # Loop indefinitely
