@@ -6,9 +6,7 @@ class StartScreen:
     def __init__(self, screen):
         self.screen = screen
         self.gradient_top = (25, 25, 112)  # Midnight blue
-        self.gradient_bottom = (0, 0, 0)  # Black
-        self.font_large = pygame.font.Font(None, 72)
-        self.title_text = self.font_large.render("TYP0!", True, (255, 255, 255))
+        self.gradient_bottom = (48, 25, 52)  # Dark purple
         self.running = True
         self.start_time = pygame.time.get_ticks()
 
@@ -25,7 +23,7 @@ class StartScreen:
             animation_utils.draw_gradient(self.screen, self.gradient_top, self.gradient_bottom)
 
             # Draw the wave title text
-            animation_utils.wave_text(self.screen, "TYP0!", (self.screen.get_width() // 2, 200), font_size=72)
+            animation_utils.wave_text(self.screen, "TYP0!", (self.screen.get_width() // 2, 200), font_size=128)
 
             # Draw loading bar and check if complete
             loading_complete = animation_utils.loading_bar(self.screen, self.start_time)
@@ -38,6 +36,7 @@ class StartScreen:
                 keys = pygame.key.get_pressed()
                 if keys[pygame.K_SPACE]:
                     return "start"
+                
 
             pygame.display.flip()
             clock.tick(60)

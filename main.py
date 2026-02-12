@@ -18,6 +18,10 @@ async def main():
     start_screen = StartScreen(screen)
     result = await start_screen.run()
 
+    if result == "start":
+        # Transition to main game screen (not implemented here) - remove pass and add your game loop
+        pass
+
     if result == "quit":
         pygame.quit()
         return
