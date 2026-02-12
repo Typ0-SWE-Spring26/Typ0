@@ -110,3 +110,7 @@ def play_music(file):
     except pygame.error as exc:
         print(f"Warning: failed to load music {file}: {exc}")
         return False
+    
+def stop_music():
+    """Stop background music"""
+    pygame.mixer.music.stop()
