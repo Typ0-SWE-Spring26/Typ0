@@ -30,7 +30,14 @@ python main.py
 ```
 
 ### 5. Build for web
+
+#### Windows:
 ```powershell
+build.bat
+```
+
+#### Mac or Linux:
+```bash
 pygbag .
 ```
 
