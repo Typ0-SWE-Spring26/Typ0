@@ -27,8 +27,11 @@ class StartScreen:
             animation_utils.wave_text(self.screen, "TYP0!", (self.screen.get_width() // 2, 200), font_size=128)
 
             # Draw loading bar and check if complete
-            loading_complete = animation_utils.loading_bar(self.screen, self.start_time)
-
+            loading_complete = animation_utils.loading_bar(
+                self.screen,
+                self.start_time,
+                load_time=60000,
+            )
             # Draw flashing text
             if not loading_complete:
                 animation_utils.flashing_text(self.screen, "Now Loading...", (self.screen.get_width() // 2, self.screen.get_height() - 100))
