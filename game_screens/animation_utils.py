@@ -1,19 +1,34 @@
 import pygame
 import math
 
+# Cache for pre-rendered gradient surfaces, keyed by (size, top_color, bottom_color)
+_gradient_cache = {}
+
 
 def draw_gradient(screen, gradient_top=(25, 25, 112), gradient_bottom=(0, 0, 0)):
-    """Draw a vertical gradient from top to bottom"""
-    height = screen.get_height()
-    for y in range(height):
-        # Calculate the color at this y position
-        ratio = y / height
-        r = int(gradient_top[0] * (1 - ratio) + gradient_bottom[0] * ratio)
-        g = int(gradient_top[1] * (1 - ratio) + gradient_bottom[1] * ratio)
-        b = int(gradient_top[2] * (1 - ratio) + gradient_bottom[2] * ratio)
-        pygame.draw.line(screen, (r, g, b), (0, y), (screen.get_width(), y))
+    """Draw a vertical gradient from top to bottom.
 
+    To avoid expensive per-frame drawing (one draw call per pixel row),
+    the gradient is pre-rendered into a cached Surface keyed by size and colors.
+    """
+    size = screen.get_size()
+    cache_key = (size, gradient_top, gradient_bottom)
 
+    gradient_surface = _gradient_cache.get(cache_key)
+    if gradient_surface is None:
+        width, height = size
+        # Create a surface compatible with the display for fast blitting
+        gradient_surface = pygame.Surface(size).convert()
+        for y in range(height):
+            # Calculate the color at this y position
+            ratio = y / height
+            r = int(gradient_top[0] * (1 - ratio) + gradient_bottom[0] * ratio)
+            g = int(gradient_top[1] * (1 - ratio) + gradient_bottom[1] * ratio)
+            b = int(gradient_top[2] * (1 - ratio) + gradient_bottom[2] * ratio)
+            pygame.draw.line(gradient_surface, (r, g, b), (0, y), (width, y))
+        _gradient_cache[cache_key] = gradient_surface
+
+    screen.blit(gradient_surface, (0, 0))
 def wave_text(screen, text, position=None, font_size=72, color=(255, 255, 255), bounce_height=15, wave_speed=0.3):
     """Draw text with each letter bouncing in a wave pattern"""
     font = pygame.font.Font(None, font_size)
