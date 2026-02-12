@@ -1,5 +1,6 @@
 import pygame
 import asyncio
+import math
 
 class StartScreen:
     def __init__(self, screen):
@@ -23,6 +24,16 @@ class StartScreen:
             b = int(self.gradient_top[2] * (1 - ratio) + self.gradient_bottom[2] * ratio)
             pygame.draw.line(self.screen, (r, g, b), (0, y), (self.screen.get_width(), y))
 
+    def draw_animated_icons(self):
+        '''Draw animated icons around the title'''
+        time = pygame.time.get_ticks() / 1000  # Time in seconds
+        radius = 100
+        angle = time * 2  # Rotate at 2 radians per second
+        for i in range(5):
+            icon_x = self.screen.get_width() // 2 + radius * math.cos(angle + i * (2 * math.pi / 5))
+            icon_y = 200 + radius * math.sin(angle + i * (2 * math.pi / 5))
+            pygame.draw.circle(self.screen, (255, 255, 255), (int(icon_x), int(icon_y)), 10)
+
     async def run(self):
         clock = pygame.time.Clock()
 
@@ -36,6 +47,9 @@ class StartScreen:
 
             # Draw gradient background
             self.draw_gradient()
+
+            # Draw animated icons
+            self.draw_animated_icons()
 
             # Draw title
             title_rect = self.title_text.get_rect(center=(self.screen.get_width() // 2, 200))
