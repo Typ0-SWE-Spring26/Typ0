@@ -14,6 +14,11 @@ class GameOverScreen:
         self.gradient_top = (80, 10, 10)     # Dark red
         self.gradient_bottom = (20, 0, 0)    # Near black
         self.running = True
+        try:
+            pygame.mixer.music.load("assets/gameover.mp3")
+            pygame.mixer.music.play(0)  # 2Play once, no loop
+        except pygame.error as exc:
+            print(f"Warning: failed to load music assets/gameover.mp3: {exc}")
 
     async def run(self):
         clock = pygame.time.Clock()
@@ -60,9 +65,6 @@ class GameOverScreen:
                 "Press R to Retry  |  Q to Quit",
                 (self.screen.get_width() // 2, self.screen.get_height() - 80),
             )
-
-            # audio
-            animation_utils.play_music("assets/gameover_music.mp3")
 
             pygame.display.flip()
             clock.tick(60)
