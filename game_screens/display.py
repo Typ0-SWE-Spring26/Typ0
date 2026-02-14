@@ -1,6 +1,7 @@
 # Source - https://stackoverflow.com/a/64990819
 # Posted by Rabbid76, modified by community. See post 'Timeline' for change history
 # Retrieved 2026-02-14, License - CC BY-SA 4.0
+import pygame
 
 def button(x, y, w, h, img, imgon, action=None):
     mouse = pygame.mouse.get_pos()
