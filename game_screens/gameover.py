@@ -61,6 +61,9 @@ class GameOverScreen:
                 (self.screen.get_width() // 2, self.screen.get_height() - 80),
             )
 
+            # audio
+            animation_utils.play_music("assets/gameover_music.mp3")
+
             pygame.display.flip()
             clock.tick(60)
             await asyncio.sleep(0)  # Required for pygbag
