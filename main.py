@@ -8,6 +8,7 @@
 import asyncio
 import pygame
 from game_screens.startscreen import StartScreen
+from game_screens.gameover import GameOverScreen
 
 async def main():
     pygame.init()
@@ -34,6 +35,14 @@ async def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            # Ctrl + E to jump to game over screen (testing shortcut)
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_e and pygame.key.get_mods() & pygame.KMOD_CTRL:
+                    game_over = GameOverScreen(screen, score=0, reason="Testing - Ctrl+E shortcut")
+                    result = await game_over.run()
+                    if result == "quit":
+                        running = False
+                    # If result == "retry", continue the game loop
 
         screen.fill((0, 0, 0))
         pygame.display.flip()
