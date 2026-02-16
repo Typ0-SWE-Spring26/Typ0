@@ -1,4 +1,4 @@
-﻿# /// script
+# /// script
 # [pygbag]
 # autorun = true
 # width = 800
@@ -9,8 +9,8 @@ import asyncio
 import pygame
 from game_screens.startscreen import StartScreen
 from game_screens.gameover import GameOverScreen
-from Keybinds import KeybindManager   # ← 1️⃣ ADD IMPORT
-
+from Keybinds import KeybindManager
+from game_screens.pause_overlay import PauseOverlay
 
 async def main():
     pygame.init()
@@ -30,19 +30,24 @@ async def main():
 
     # Your game loop here
     clock = pygame.time.Clock()
-    keybinds = KeybindManager()   # ← 2️⃣ CREATE INSTANCE HERE
+    keybinds = KeybindManager()
     running = True
+    paused = False
+    pause_overlay = PauseOverlay(screen)
 
     while running:
         for event in pygame.event.get():
 
-            keybinds.process_event(event)   # ← 3️⃣ FORWARD EVENTS HERE
+            keybinds.process_event(event)
 
             if event.type == pygame.QUIT:
                 running = False
-
-            # Ctrl + E to jump to game over screen (testing shortcut)
             if event.type == pygame.KEYDOWN:
+                # Toggle pause with P key
+                if event.key == pygame.K_p:
+                    paused = not paused
+                
+                # Ctrl + E to jump to game over screen (testing shortcut)
                 if event.key == pygame.K_e and pygame.key.get_mods() & pygame.KMOD_CTRL:
                     game_over = GameOverScreen(
                         screen,
@@ -54,7 +59,19 @@ async def main():
                         running = False
                     # If result == "retry", continue the game loop
 
+        # Only update game logic if not paused
+        if not paused:
+            # game logic should go here (when implemented)
+            pass
+
+        # Draw the game (always draw, even when paused)
         screen.fill((0, 0, 0))
+        
+        
+        # Draw pause overlay on top if paused
+        if paused:
+            pause_overlay.draw_pause_start()
+        
         pygame.display.flip()
         clock.tick(60)
         await asyncio.sleep(0)
