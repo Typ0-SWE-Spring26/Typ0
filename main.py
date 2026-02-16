@@ -9,6 +9,7 @@ import asyncio
 import pygame
 from game_screens.startscreen import StartScreen
 from game_screens.gameover import GameOverScreen
+from Keybinds import KeybindManager
 from game_screens.pause_overlay import PauseOverlay
 
 async def main():
@@ -21,7 +22,6 @@ async def main():
     result = await start_screen.run()
 
     if result == "start":
-        # Transition to main game screen (not implemented here) - remove pass and add your game loop
         pass
 
     if result == "quit":
@@ -30,15 +30,18 @@ async def main():
 
     # Your game loop here
     clock = pygame.time.Clock()
+    keybinds = KeybindManager()
     running = True
     paused = False
     pause_overlay = PauseOverlay(screen)
 
     while running:
         for event in pygame.event.get():
+
+            keybinds.process_event(event)
+
             if event.type == pygame.QUIT:
                 running = False
-            
             if event.type == pygame.KEYDOWN:
                 # Toggle pause with P key
                 if event.key == pygame.K_p:
@@ -46,7 +49,11 @@ async def main():
                 
                 # Ctrl + E to jump to game over screen (testing shortcut)
                 if event.key == pygame.K_e and pygame.key.get_mods() & pygame.KMOD_CTRL:
-                    game_over = GameOverScreen(screen, score=0, reason="Testing - Ctrl+E shortcut")
+                    game_over = GameOverScreen(
+                        screen,
+                        score=0,
+                        reason="Testing - Ctrl+E shortcut"
+                    )
                     result = await game_over.run()
                     if result == "quit":
                         running = False
@@ -67,8 +74,9 @@ async def main():
         
         pygame.display.flip()
         clock.tick(60)
-        await asyncio.sleep(0)  # Required for pygbag
+        await asyncio.sleep(0)
 
     pygame.quit()
+
 
 asyncio.run(main())
