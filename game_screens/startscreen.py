@@ -9,7 +9,7 @@ class StartScreen:
         self.gradient_bottom = (48, 25, 52)  # Dark purple
         self.running = True
         self.start_time = pygame.time.get_ticks()
-        animation_utils.play_music("assets/startscreen.mp3") # Play music when start screen is initialized
+        animation_utils.play_music("assets/startscreen.ogg") # Play music when start screen is initialized
 
 
     async def run(self):
