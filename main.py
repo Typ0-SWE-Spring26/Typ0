@@ -38,14 +38,15 @@ async def main():
     while running:
         for event in pygame.event.get():
 
-            keybinds.process_event(event)
-
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.KEYDOWN:
                 # Toggle pause with P key
                 if event.key == pygame.K_p:
-                    paused = not paused
+                    paused = not paused # always will work
+                elif not paused:
+                    keybinds.process_event(event) #blocked while paused
+                    #... other game inputs
                 
                 # Ctrl + E to jump to game over screen (testing shortcut)
                 if event.key == pygame.K_e and pygame.key.get_mods() & pygame.KMOD_CTRL:
