@@ -45,3 +45,8 @@ pygbag .
 ```powershell
 deactivate
 ```
+
+
+### Github Pages
+This repo is connected to github pages
+all pushes to main will cause update to the page workflow
