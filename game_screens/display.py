@@ -23,8 +23,10 @@ class GameScreen:
         'space': ('space.png', 'button-indicated/spaceIndicate.png', 'button-pressed/spacePress.png'),
     }
 
-    def __init__(self, screen):
+    def __init__(self, screen, pause_overlay=None, score=0):
         self.screen = screen
+        self.pause_overlay = pause_overlay
+        self.paused = False
         W, H = screen.get_width(), screen.get_height()
 
         asset_dir = os.path.join(os.path.dirname(__file__), '..', 'assets', 'Typo-buttons')
@@ -38,10 +40,10 @@ class GameScreen:
                 'pressed':   pygame.image.load(os.path.join(asset_dir, pressed_f)).convert_alpha(),
             }
 
-        # Button layout — d-pad cross centered slightly above mid, space below
+        # Button layout — tight d-pad cross centered slightly above mid, space below
         cx, cy = W // 2, H // 2 - 40
         s = 90    # arrow button size
-        gap = 120  # center-to-center distance
+        gap = 100  # center-to-center distance (10px between buttons)
 
         self.button_rects = {
             'up':    pygame.Rect(cx - s // 2,       cy - gap - s // 2, s, s),
@@ -60,8 +62,16 @@ class GameScreen:
                 for state, surf in self.sprites[name].items()
             }
 
+        # Derive key labels from BUTTON_KEYS so they stay in sync if keys change
+        self.key_labels = {
+            name: pygame.key.name(key).upper()
+            for name, key in self.BUTTON_KEYS.items()
+        }
+
         self.font_small = pygame.font.SysFont(None, 32)
+        self.font_label = pygame.font.SysFont(None, 26)
         self._reset()
+        self.score = score  # carry over score from previous round if retrying
 
     # ------------------------------------------------------------------
     # Public async entry point
@@ -80,13 +90,25 @@ class GameScreen:
                 if event.type == pygame.QUIT:
                     return "quit"
 
-                if self.state == 'input':
-                    if event.type == pygame.KEYDOWN:
+                if event.type == pygame.KEYDOWN:
+                    # P always toggles pause regardless of game state
+                    if event.key == pygame.K_p:
+                        self.paused = not self.paused
+                        continue
+
+                    # Ctrl+E jumps to game over (debug shortcut)
+                    if event.key == pygame.K_e and pygame.key.get_mods() & pygame.KMOD_CTRL:
+                        return ("gameover", 0, "Testing - Ctrl+E shortcut")
+
+                    # Game inputs are blocked while paused
+                    if not self.paused and self.state == 'input':
                         for name, key in self.BUTTON_KEYS.items():
                             if event.key == key:
                                 self._handle_input(name, now)
                                 break
-                    elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+
+                elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    if not self.paused and self.state == 'input':
                         for name, rect in self.button_rects.items():
                             if rect.collidepoint(event.pos):
                                 self._handle_input(name, now)
@@ -94,10 +116,15 @@ class GameScreen:
 
             # After the wrong-input press-flash expires, hand off to game over
             if self.state == 'gameover' and now >= self.flash_end:
-                return ("gameover", self.score)
+                return ("gameover", self.score, "Wrong input!")
 
-            self._update(now)
+            if not self.paused:
+                self._update(now)
             self._draw()
+
+            # Draw pause overlay on top if paused
+            if self.paused and self.pause_overlay:
+                self.pause_overlay.draw_pause_start()
 
             pygame.display.flip()
             clock.tick(60)
@@ -222,3 +249,10 @@ class GameScreen:
             else:
                 # Input state: all buttons fully visible at normal state
                 self.screen.blit(self.scaled[name]['normal'], rect)
+
+            # Key label centered on button — shadow then white text
+            label = self.key_labels[name]
+            shadow = self.font_label.render(label, True, (0, 0, 0))
+            self.screen.blit(shadow, shadow.get_rect(center=(rect.centerx + 1, rect.centery + 1)))
+            text = self.font_label.render(label, True, (255, 255, 255))
+            self.screen.blit(text, text.get_rect(center=rect.center))
