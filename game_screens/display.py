@@ -5,39 +5,42 @@ import os
 
 
 class GameScreen:
-    # Maps button name -> keyboard key constant
     BUTTON_KEYS = {
-        'left':  pygame.K_LEFT,
-        'right': pygame.K_RIGHT,
-        'up':    pygame.K_UP,
-        'down':  pygame.K_DOWN,
+        # WASD keys for keyboard input
+        'left':  pygame.K_a,
+        'right': pygame.K_d,
+        'up':    pygame.K_w,
+        'down':  pygame.K_s,
         'space': pygame.K_SPACE,
     }
 
-    # Maps button name -> sprite filename
+    # (normal, indicated, pressed) paths relative to assets/Typo-buttons/
     BUTTON_FILES = {
-        'left':  'left.png',
-        'right': 'right.png',
-        'up':    'up.png',
-        'down':  'down.png',
-        'space': 'space.png',
+        'left':  ('left.png',  'button-indicated/leftIndicate.png',  'button-pressed/leftPress.png'),
+        'right': ('right.png', 'button-indicated/rightIndicate.png', 'button-pressed/rightPress.png'),
+        'up':    ('up.png',    'button-indicated/upIndicate.png',    'button-pressed/upPress.png'),
+        'down':  ('down.png',  'button-indicated/downIndicate.png',  'button-pressed/downPress.png'),
+        'space': ('space.png', 'button-indicated/spaceIndicate.png', 'button-pressed/spacePress.png'),
     }
 
     def __init__(self, screen):
         self.screen = screen
         W, H = screen.get_width(), screen.get_height()
 
-        # Load sprites from assets/Typo-buttons/
         asset_dir = os.path.join(os.path.dirname(__file__), '..', 'assets', 'Typo-buttons')
-        self.sprites = {}
-        for name, filename in self.BUTTON_FILES.items():
-            self.sprites[name] = pygame.image.load(
-                os.path.join(asset_dir, filename)
-            ).convert_alpha()
 
-        # Button layout — arrow cross centered at (W//2, H//2 - 40), space below
+        # Load all 3 sprite states per button
+        self.sprites = {}
+        for name, (normal_f, indicated_f, pressed_f) in self.BUTTON_FILES.items():
+            self.sprites[name] = {
+                'normal':    pygame.image.load(os.path.join(asset_dir, normal_f)).convert_alpha(),
+                'indicated': pygame.image.load(os.path.join(asset_dir, indicated_f)).convert_alpha(),
+                'pressed':   pygame.image.load(os.path.join(asset_dir, pressed_f)).convert_alpha(),
+            }
+
+        # Button layout — d-pad cross centered slightly above mid, space below
         cx, cy = W // 2, H // 2 - 40
-        s = 90   # arrow button size (square)
+        s = 90    # arrow button size
         gap = 120  # center-to-center distance
 
         self.button_rects = {
@@ -48,20 +51,23 @@ class GameScreen:
             'space': pygame.Rect(cx - 110,          cy + gap + 60,     220, 55),
         }
 
-        # Pre-scale each sprite to its rect size once (avoids per-frame scaling)
-        self.scaled_sprites = {
-            name: pygame.transform.smoothscale(self.sprites[name], (rect.width, rect.height))
-            for name, rect in self.button_rects.items()
-        }
+        # Pre-scale every state to its rect size once
+        self.scaled = {}
+        for name, rect in self.button_rects.items():
+            size = (rect.width, rect.height)
+            self.scaled[name] = {
+                state: pygame.transform.smoothscale(surf, size)
+                for state, surf in self.sprites[name].items()
+            }
 
-        # Fonts
-        self.font_large = pygame.font.SysFont(None, 72)
         self.font_small = pygame.font.SysFont(None, 32)
-
         self._reset()
 
     # ------------------------------------------------------------------
     # Public async entry point
+    # Returns:
+    #   ("gameover", score)  — player got a wrong input
+    #   "quit"               — window was closed
     # ------------------------------------------------------------------
 
     async def run(self):
@@ -86,11 +92,9 @@ class GameScreen:
                                 self._handle_input(name, now)
                                 break
 
-                elif self.state == 'gameover':
-                    if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                        self._reset()
-                    elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                        self._reset()
+            # After the wrong-input press-flash expires, hand off to game over
+            if self.state == 'gameover' and now >= self.flash_end:
+                return ("gameover", self.score)
 
             self._update(now)
             self._draw()
@@ -104,23 +108,25 @@ class GameScreen:
     # ------------------------------------------------------------------
 
     def _reset(self):
-        self.sequence      = []
-        self.player_index  = 0
-        self.score         = 0
-        self.flash_button  = None
-        self.flash_end     = 0
-        self._show_index   = 0
-        self._next_time    = 0
-        self._showing_lit  = False
-        self.state         = 'adding'
+        self.sequence     = []
+        self.player_index = 0
+        self.score        = 0
+        self.flash_button = None
+        self.flash_state  = 'normal'
+        self.flash_end    = 0
+        self._show_index  = 0
+        self._next_time   = 0
+        self._showing_lit = False
+        self.state        = 'adding'
 
     def _handle_input(self, name, now):
-        """Called when the player presses a key or clicks a button during input state."""
+        """Player pressed a key or clicked a button."""
         expected = self.sequence[self.player_index]
 
-        # Always flash the button the player chose
+        # Show pressed sprite for this button
         self.flash_button = name
-        self.flash_end    = now + 300
+        self.flash_state  = 'pressed'
+        self.flash_end    = now + 400
 
         if name != expected:
             self.state = 'gameover'
@@ -128,53 +134,59 @@ class GameScreen:
 
         self.player_index += 1
         if self.player_index >= len(self.sequence):
-            # Completed the full sequence — add a new item next round
-            self.score += 1
+            # Whole sequence matched — advance to next round
+            self.score     += 1
             self.state      = 'adding'
-            self._next_time = now + 1000  # brief pause before next round
+            self._next_time = now + 1000  # pause before next round begins
 
     def _update(self, now):
         if self.state == 'adding':
             if now >= self._next_time:
                 self.sequence.append(random.choice(list(self.BUTTON_KEYS.keys())))
-                self.player_index  = 0
-                self._show_index   = 0
-                self._showing_lit  = False
-                self.flash_button  = None
-                self._next_time    = now + 800  # pause before playback starts
-                self.state         = 'showing'
+                self.player_index = 0
+                self._show_index  = 0
+                self._showing_lit = False
+                self.flash_button = None
+                self.flash_state  = 'normal'
+                self._next_time   = now + 800  # brief pause before playback
+                self.state        = 'showing'
 
         elif self.state == 'showing':
             if self._show_index >= len(self.sequence):
-                # All buttons shown — player's turn
+                # Finished showing — player's turn
                 self.state        = 'input'
                 self.flash_button = None
+                self.flash_state  = 'normal'
                 return
 
             if not self._showing_lit:
-                # Waiting in the gap before lighting next button
+                # Gap phase — waiting to light up the next button
                 if now >= self._next_time:
-                    self.flash_button  = self.sequence[self._show_index]
-                    self.flash_end     = now + 600
-                    self._showing_lit  = True
+                    self.flash_button = self.sequence[self._show_index]
+                    self.flash_state  = 'indicated'
+                    self.flash_end    = now + 600
+                    self._showing_lit = True
             else:
-                # Button is currently lit — wait for lit period to end
+                # Lit phase — waiting for the lit period to end
                 if now >= self.flash_end:
-                    self.flash_button  = None
-                    self._showing_lit  = False
-                    self._show_index  += 1
-                    self._next_time    = now + 300  # gap between flashes
+                    self.flash_button = None
+                    self.flash_state  = 'normal'
+                    self._showing_lit = False
+                    self._show_index += 1
+                    self._next_time   = now + 300  # gap between flashes
 
-        # Expire player-input flash
-        if self.state == 'input' and self.flash_button and now >= self.flash_end:
-            self.flash_button = None
+        elif self.state == 'input':
+            # Expire the press flash after it times out
+            if self.flash_button and now >= self.flash_end:
+                self.flash_button = None
+                self.flash_state  = 'normal'
 
     def _draw(self):
         self.screen.fill((15, 15, 25))
 
-        W, H = self.screen.get_width(), self.screen.get_height()
+        W = self.screen.get_width()
 
-        # HUD — score (top-left) and round (top-right)
+        # HUD
         score_surf = self.font_small.render(f"Score: {self.score}", True, (200, 200, 200))
         self.screen.blit(score_surf, (20, 20))
 
@@ -189,9 +201,6 @@ class GameScreen:
             remaining    = len(self.sequence) - self.player_index
             status_text  = f"Your turn!  ({remaining} left)"
             status_color = (160, 255, 160)
-        elif self.state == 'gameover':
-            status_text  = "Space or click to retry"
-            status_color = (255, 100, 100)
         else:
             status_text  = ""
             status_color = (200, 200, 200)
@@ -202,23 +211,14 @@ class GameScreen:
 
         # Draw buttons
         for name, rect in self.button_rects.items():
-            img = self.scaled_sprites[name]
-
             if name == self.flash_button:
-                # Brighten the lit button
-                surf = img.copy()
-                surf.fill((90, 90, 90), special_flags=pygame.BLEND_RGB_ADD)
-                self.screen.blit(surf, rect)
-            elif self.state in ('showing', 'gameover', 'adding'):
-                # Dim unlit buttons while sequence plays or on game-over
-                surf = img.copy()
+                # Active button: use whichever state is set (indicated or pressed)
+                self.screen.blit(self.scaled[name][self.flash_state], rect)
+            elif self.state in ('showing', 'adding', 'gameover'):
+                # Dim non-active buttons during Simon playback / transition / wrong flash
+                surf = self.scaled[name]['normal'].copy()
                 surf.set_alpha(80)
                 self.screen.blit(surf, rect)
             else:
-                # Input state — all buttons at full brightness
-                self.screen.blit(img, rect)
-
-        # Game-over title
-        if self.state == 'gameover':
-            go_surf = self.font_large.render("GAME OVER", True, (255, 80, 80))
-            self.screen.blit(go_surf, go_surf.get_rect(center=(W // 2, H // 2 - 130)))
+                # Input state: all buttons fully visible at normal state
+                self.screen.blit(self.scaled[name]['normal'], rect)

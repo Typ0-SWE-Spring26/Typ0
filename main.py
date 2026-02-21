@@ -8,6 +8,7 @@
 import asyncio
 import pygame
 from game_screens.startscreen import StartScreen
+from game_screens.display import GameScreen
 from game_screens.gameover import GameOverScreen
 from Keybinds import KeybindManager
 from game_screens.pause_overlay import PauseOverlay
@@ -21,61 +22,23 @@ async def main():
     start_screen = StartScreen(screen)
     result = await start_screen.run()
 
-    if result == "start":
-        pass
-
     if result == "quit":
         pygame.quit()
         return
 
-    # Your game loop here
-    clock = pygame.time.Clock()
-    keybinds = KeybindManager()
-    running = True
-    paused = False
-    pause_overlay = PauseOverlay(screen)
+    # Game → Game Over → Retry loop
+    while result != "quit":
+        game_screen = GameScreen(screen)
+        result = await game_screen.run()
 
-    while running:
-        for event in pygame.event.get():
+        if result == "quit":
+            break
 
-            if event.type == pygame.QUIT:
-                running = False
-            if event.type == pygame.KEYDOWN:
-                # Toggle pause with P key
-                if event.key == pygame.K_p:
-                    paused = not paused # always will work
-                elif not paused:
-                    keybinds.process_event(event) #blocked while paused
-                    #... other game inputs
-                
-                # Ctrl + E to jump to game over screen (testing shortcut)
-                if event.key == pygame.K_e and pygame.key.get_mods() & pygame.KMOD_CTRL:
-                    game_over = GameOverScreen(
-                        screen,
-                        score=0,
-                        reason="Testing - Ctrl+E shortcut"
-                    )
-                    result = await game_over.run()
-                    if result == "quit":
-                        running = False
-                    # If result == "retry", continue the game loop
-
-        # Only update game logic if not paused
-        if not paused:
-            # game logic should go here (when implemented)
-            pass
-
-        # Draw the game (always draw, even when paused)
-        screen.fill((0, 0, 0))
-        
-        
-        # Draw pause overlay on top if paused
-        if paused:
-            pause_overlay.draw_pause_start()
-        
-        pygame.display.flip()
-        clock.tick(60)
-        await asyncio.sleep(0)
+        # result is ("gameover", score) — show game over screen
+        _, score = result
+        game_over = GameOverScreen(screen, score=score, reason="Wrong input!")
+        result = await game_over.run()
+        # "retry" loops back to a new GameScreen; "quit" exits
 
     pygame.quit()
 
