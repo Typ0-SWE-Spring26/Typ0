@@ -163,6 +163,7 @@ class GameScreen:
         self.player_index += 1
         if self.player_index >= len(self.sequence):
             # Whole sequence matched — advance to next round
+            animation_utils.play_sound("assets/correct.ogg")
             self.score     += 1
             self.state      = 'adding'
             self._next_time = now + 1000  # pause before next round begins

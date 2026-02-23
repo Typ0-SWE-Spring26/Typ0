@@ -120,6 +120,14 @@ def stop_music():
     """Stop background music"""
     pygame.mixer.music.stop()
 
+def play_sound(file):
+    """Play a one-shot sound effect"""
+    try:
+        sound = pygame.mixer.Sound(file)
+        sound.play()
+    except pygame.error as exc:
+        print(f"Warning: failed to play sound {file}: {exc}")
+
 
 def draw_shadowed_text(screen, font, text, center, color=(255, 255, 255), shadow_color=(0, 0, 0), shadow_offset=1):
     """Draw text centered at a position with a drop shadow."""
