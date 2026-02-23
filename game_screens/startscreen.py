@@ -30,7 +30,7 @@ class StartScreen:
             loading_complete = animation_utils.loading_bar(
                 self.screen,
                 self.start_time,
-                load_time=6000,
+                load_time=4000,
             )
             # Draw flashing text
             if not loading_complete:
