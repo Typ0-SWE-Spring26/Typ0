@@ -221,13 +221,6 @@ class GameScreen:
         round_surf = self.font_small.render(f"Round {len(self.sequence)}", True, (150, 150, 150))
         self.screen.blit(round_surf, round_surf.get_rect(topright=(W - 20, 20)))
 
-        # timer bar (only shows during player's turn)
-        if self.state == 'input':
-            time_limit = 5000  # ms to complete the sequence
-            elapsed = pygame.time.get_ticks() - (self.flash_end - 400)  # when player's first input window opened
-            remaining = max(time_limit - elapsed, 0)
-            bar_width = int((remaining / time_limit) * (W - 40))
-            pygame.draw.rect(self.screen, (255, 100, 100), (20, 60, bar_width, 10))
 
         # Status message
         if self.state == 'showing':
@@ -263,3 +256,12 @@ class GameScreen:
             animation_utils.draw_shadowed_text(
                 self.screen, self.font_label, self.key_labels[name], rect.center
             )
+
+        # timer bar (only shows during player's turn)
+        if self.state == 'input':
+            time_limit = 5000  # ms to complete the sequence
+            elapsed = pygame.time.get_ticks() - (self.flash_end - 400)  # when player's first input window opened
+            remaining = max(time_limit - elapsed, 0)
+            H = self.screen.get_height()
+            bar_width = int((remaining / time_limit) * (W - 40))
+            pygame.draw.rect(self.screen, (255, 100, 100), (20, H - 20, bar_width, 10))
