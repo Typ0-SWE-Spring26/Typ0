@@ -73,8 +73,9 @@ class GameScreen:
 
         self.font_small = pygame.font.SysFont(None, 32)
         self.font_label = pygame.font.SysFont(None, 26)
+
         self._reset()
-        self.score = score  # carry over score from previous round if retrying
+        self.score = score 
 
         self._bus = EventBus()
         self.game_timer = GameTimer(self._bus)
@@ -179,7 +180,6 @@ class GameScreen:
         if self.player_index >= len(self.sequence):
             # Whole sequence matched — advance to next round
             self.game_timer.stop()
-            animation_utils.play_sound("assets/correct.ogg")
             self.score     += 1
             self.state      = 'adding'
             self._next_time = now + 1000  # pause before next round begins
