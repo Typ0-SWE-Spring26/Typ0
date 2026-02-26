@@ -3,6 +3,8 @@ import asyncio
 import random
 import os
 from . import animation_utils
+from .event_bus import EventBus
+from .game_timer import GameTimer
 
 
 class GameScreen:
@@ -71,8 +73,15 @@ class GameScreen:
 
         self.font_small = pygame.font.SysFont(None, 32)
         self.font_label = pygame.font.SysFont(None, 26)
+
         self._reset()
-        self.score = score  # carry over score from previous round if retrying
+        self.score = score 
+
+        self._bus = EventBus()
+        self.game_timer = GameTimer(self._bus)
+        self._bus.subscribe('timer_expired', self._on_timer_expired)
+        if pause_overlay is not None:
+            pause_overlay.subscribe(self._bus)
 
     # ------------------------------------------------------------------
     # Public async entry point
@@ -95,6 +104,11 @@ class GameScreen:
                     # P always toggles pause regardless of game state
                     if event.key == pygame.K_p:
                         self.paused = not self.paused
+                        now_tick = pygame.time.get_ticks()
+                        if self.paused:
+                            self._bus.emit('game_paused',  {'now': now_tick})
+                        else:
+                            self._bus.emit('game_resumed', {'now': now_tick})
                         continue
 
                     # Ctrl+E jumps to game over (debug shortcut)
@@ -117,15 +131,15 @@ class GameScreen:
 
             # After the wrong-input press-flash expires, hand off to game over
             if self.state == 'gameover' and now >= self.flash_end:
-                return ("gameover", self.score, "Wrong input!")
+                return ("gameover", self.score, self._gameover_reason)
 
             if not self.paused:
                 self._update(now)
             self._draw()
 
-            # Draw pause overlay on top if paused
-            if self.paused and self.pause_overlay:
-                self.pause_overlay.draw_pause_start()
+            # Pause overlay draws itself only when visible (driven by event bus)
+            if self.pause_overlay:
+                self.pause_overlay.draw()
 
             pygame.display.flip()
             clock.tick(60)
@@ -139,13 +153,14 @@ class GameScreen:
         self.sequence     = []
         self.player_index = 0
         self.score        = 0
-        self.flash_button = None
-        self.flash_state  = 'normal'
-        self.flash_end    = 0
-        self._show_index  = 0
-        self._next_time   = 0
-        self._showing_lit = False
-        self.state        = 'adding'
+        self.flash_button     = None
+        self.flash_state      = 'normal'
+        self.flash_end        = 0
+        self._show_index      = 0
+        self._next_time       = 0
+        self._showing_lit     = False
+        self.state            = 'adding'
+        self._gameover_reason = "Wrong input!"
 
     def _handle_input(self, name, now):
         """Player pressed a key or clicked a button."""
@@ -157,13 +172,14 @@ class GameScreen:
         self.flash_end    = now + 400
 
         if name != expected:
+            self.game_timer.stop()
             self.state = 'gameover'
             return
 
         self.player_index += 1
         if self.player_index >= len(self.sequence):
             # Whole sequence matched — advance to next round
-            animation_utils.play_sound("assets/correct.ogg")
+            self.game_timer.stop()
             self.score     += 1
             self.state      = 'adding'
             self._next_time = now + 1000  # pause before next round begins
@@ -186,6 +202,7 @@ class GameScreen:
                 self.state        = 'input'
                 self.flash_button = None
                 self.flash_state  = 'normal'
+                self.game_timer.start(now)
                 return
 
             if not self._showing_lit:
@@ -209,6 +226,13 @@ class GameScreen:
             if self.flash_button and now >= self.flash_end:
                 self.flash_button = None
                 self.flash_state  = 'normal'
+            self.game_timer.update(now)
+
+    def _on_timer_expired(self, data) -> None:
+        if self.state == 'input':
+            self.state            = 'gameover'
+            self._gameover_reason = "Time's up!"
+            self.flash_end        = data['now']
 
     def _draw(self):
         self.screen.fill((15, 15, 25))
@@ -260,9 +284,6 @@ class GameScreen:
 
         # timer bar (only shows during player's turn)
         if self.state == 'input':
-            time_limit = 5000  # ms to complete the sequence
-            elapsed = pygame.time.get_ticks() - (self.flash_end - 400)  # when player's first input window opened
-            remaining = max(time_limit - elapsed, 0)
             H = self.screen.get_height()
-            bar_width = int((remaining / time_limit) * (W - 40))
+            bar_width = int(self.game_timer.fraction * (W - 40))
             pygame.draw.rect(self.screen, (255, 100, 100), (20, H - 20, bar_width, 10))
