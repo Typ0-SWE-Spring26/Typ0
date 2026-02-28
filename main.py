@@ -12,6 +12,7 @@ from game_screens.display import GameScreen
 from game_screens.gameover import GameOverScreen
 from Keybinds import KeybindManager
 from game_screens.pause_overlay import PauseOverlay
+from game_screens.menu import MenuOverlay
 
 async def main():
     pygame.init()

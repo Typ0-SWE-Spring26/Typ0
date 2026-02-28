@@ -3,6 +3,7 @@ import asyncio
 import random
 import os
 
+from game_screens.menu import MenuOverlay
 
 class GameScreen:
     BUTTON_KEYS = {
@@ -25,6 +26,7 @@ class GameScreen:
 
     def __init__(self, screen):
         self.screen = screen
+        self.menu = MenuOverlay(screen) # menu
         W, H = screen.get_width(), screen.get_height()
 
         asset_dir = os.path.join(os.path.dirname(__file__), '..', 'assets', 'Typo-buttons')
@@ -79,6 +81,18 @@ class GameScreen:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     return "quit"
+
+             # ADD THIS BLOCK RIGHT HERE
+                menu_action = self.menu.handle_event(event)
+
+                if menu_action == "Volume":
+                    print("Volume clicked")
+                
+                if menu_action == "Music":
+                    print("change music clicked")
+
+                if menu_action == "About":
+                    print("change music clicked")
 
                 if self.state == 'input':
                     if event.type == pygame.KEYDOWN:
@@ -184,6 +198,8 @@ class GameScreen:
     def _draw(self):
         self.screen.fill((15, 15, 25))
 
+        self.menu.draw() # menu
+
         W = self.screen.get_width()
 
         # HUD
@@ -222,3 +238,4 @@ class GameScreen:
             else:
                 # Input state: all buttons fully visible at normal state
                 self.screen.blit(self.scaled[name]['normal'], rect)
+
