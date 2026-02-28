@@ -1,5 +1,6 @@
 import pygame
 import os 
+from game_screens.menu_volume import VolumeMenu
 
 class MenuOverlay:
     
@@ -22,6 +23,7 @@ class MenuOverlay:
         # Center it
         self.bg_rect = self.bg_image.get_rect(center=(W // 2, H // 2))
         # CENTERED MENU OPTIONS
+        
         button_width = 250
         button_height = 50
         spacing = 70
@@ -49,11 +51,17 @@ class MenuOverlay:
             button_width,
             button_height
         )
-   
+        # volume subscreen
+        self.volume_menu = VolumeMenu(screen)
+        self.active_submenu = None  # None or "volume"
  
 
     def draw(self):
 
+        if self.active_submenu == "volume":
+            self.volume_menu.draw()
+            return
+        
         # Always draw MENU button
         pygame.draw.rect(self.screen, (60, 60, 90), self.button_rect, border_radius=8)
         text = self.font.render("MENU", True, (255, 255, 255))
@@ -84,6 +92,15 @@ class MenuOverlay:
     
     def handle_event(self, event):
 
+        # If volume screen active, forward events to it
+        if self.active_submenu == "volume":
+            result = self.volume_menu.handle_event(event)
+
+            if result == "Back":
+                self.active_submenu = None
+
+            return None
+
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
 
             # Click MENU button
@@ -93,8 +110,9 @@ class MenuOverlay:
 
             # Click Volume (for now does nothing)
             if self.open and self.volume_rect.collidepoint(event.pos):
-                print("Volume clicked")  # just to test
-                return "Volume"
+                self.active_submenu = "volume"
+                self.open= False
+                return None
             
             if self.open and self.music_rect.collidepoint(event.pos): #music
                 print("Music clicked")
