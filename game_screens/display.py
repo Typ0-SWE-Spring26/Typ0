@@ -226,16 +226,17 @@ class GameScreen:
             self.screen.blit(s, s.get_rect(center=(W // 2, 55)))
 
         # Draw buttons
-        for name, rect in self.button_rects.items():
-            if name == self.flash_button:
-                # Active button: use whichever state is set (indicated or pressed)
-                self.screen.blit(self.scaled[name][self.flash_state], rect)
-            elif self.state in ('showing', 'adding', 'gameover'):
-                # Dim non-active buttons during Simon playback / transition / wrong flash
-                surf = self.scaled[name]['normal'].copy()
-                surf.set_alpha(80)
-                self.screen.blit(surf, rect)
-            else:
-                # Input state: all buttons fully visible at normal state
-                self.screen.blit(self.scaled[name]['normal'], rect)
+        if not self.menu.open:
+            for name, rect in self.button_rects.items():
+                if name == self.flash_button:
+                    # Active button: use whichever state is set (indicated or pressed)
+                    self.screen.blit(self.scaled[name][self.flash_state], rect)
+                elif self.state in ('showing', 'adding', 'gameover'):
+                    # Dim non-active buttons during Simon playback / transition / wrong flash
+                    surf = self.scaled[name]['normal'].copy()
+                    surf.set_alpha(80)
+                    self.screen.blit(surf, rect)
+                else:
+                    # Input state: all buttons fully visible at normal state
+                    self.screen.blit(self.scaled[name]['normal'], rect)
 
