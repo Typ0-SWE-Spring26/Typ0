@@ -8,6 +8,7 @@
 import asyncio
 import pygame
 from game_screens.startscreen import StartScreen
+from game_screens.startmenu import StartMenu
 from game_screens.display import GameScreen
 from game_screens.gameover import GameOverScreen
 from Keybinds import KeybindManager
@@ -25,7 +26,9 @@ async def main():
     if result == "quit":
         pygame.quit()
         return
-
+    if result == "menu":
+        menu_screen = StartMenu(screen)
+        result = await menu_screen.run()
     if result == "start":
         pause_overlay = PauseOverlay(screen)
 
