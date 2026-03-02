@@ -40,7 +40,7 @@ class StartScreen:
                 keys = pygame.key.get_pressed()
                 if keys[pygame.K_SPACE]:
                     animation_utils.stop_music()  # Stop music when starting the game
-                    return "start"
+                    return "menu"
                 
 
             pygame.display.flip()
