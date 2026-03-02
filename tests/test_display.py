@@ -44,12 +44,12 @@ def mock_pygame():
         }.get(k, 'unknown')
 
         # Mock transform
-        mock_view_pg.transform.smoothscale.side_effect = lambda surf, size: surf
+        mock_view_pg.transform.smoothscale.side_effect = lambda _surf, _size: _surf
 
         # Mock Rect
-        mock_view_pg.Rect = Mock(side_effect=lambda *args: Mock(
-            width=args[2] if len(args) > 2 else 0,
-            height=args[3] if len(args) > 3 else 0,
+        mock_view_pg.Rect = Mock(side_effect=lambda *_args: Mock(
+            width=_args[2] if len(_args) > 2 else 0,
+            height=_args[3] if len(_args) > 3 else 0,
             center=Mock()))
 
         # Mock time

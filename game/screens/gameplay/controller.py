@@ -22,6 +22,20 @@ class GameController:
             pause_overlay.subscribe(self._bus)
 
     # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def _process_input_result(self, name: str, now: int) -> bool:
+        """Call model.handle_input, stop the timer on terminal results.
+
+        Returns True so callers can ``break`` after a matched input.
+        """
+        result = self.model.handle_input(name, now)
+        if result in ('wrong', 'round_complete'):
+            self.game_timer.stop()
+        return True
+
+    # ------------------------------------------------------------------
     # Public async entry point
     # Returns:
     #   ("gameover", score, reason)  — player lost
@@ -58,18 +72,14 @@ class GameController:
                     if not self.paused and self.model.state == 'input':
                         for name, key in self.keybinds.button_keys.items():
                             if event.key == key:
-                                result = self.model.handle_input(name, now)
-                                if result in ('wrong', 'round_complete'):
-                                    self.game_timer.stop()
+                                self._process_input_result(name, now)
                                 break
 
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     if not self.paused and self.model.state == 'input':
                         for name, rect in self.view.button_rects.items():
                             if rect.collidepoint(event.pos):
-                                result = self.model.handle_input(name, now)
-                                if result in ('wrong', 'round_complete'):
-                                    self.game_timer.stop()
+                                self._process_input_result(name, now)
                                 break
 
             # After the wrong-input press-flash expires, hand off to game over

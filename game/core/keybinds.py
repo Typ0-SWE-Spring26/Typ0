@@ -1,4 +1,5 @@
 import pygame
+from typing import ClassVar, Dict
 
 
 class KeybindManager:
@@ -8,7 +9,7 @@ class KeybindManager:
     """
 
     # button name → pygame key
-    DEFAULT_MAP = {
+    DEFAULT_MAP: ClassVar[Dict[str, int]] = {
         'left':  pygame.K_a,
         'right': pygame.K_d,
         'up':    pygame.K_w,
@@ -16,7 +17,7 @@ class KeybindManager:
         'space': pygame.K_SPACE,
     }
 
-    INVERTED_MAP = {
+    INVERTED_MAP: ClassVar[Dict[str, int]] = {
         'left':  pygame.K_d,
         'right': pygame.K_a,
         'up':    pygame.K_s,

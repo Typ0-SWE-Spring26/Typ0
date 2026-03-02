@@ -7,7 +7,10 @@ from .controller import GameController
 class GameScreen:
     """Thin MVC facade — wires up Model, View, and Controller.
 
-    Preserves the same public API so main.py doesn't need to change.
+    Constructor: GameScreen(screen, keybinds, pause_overlay=None)
+      keybinds — a KeybindManager (or compatible object) supplying button_keys
+                 and key_labels; main.py must pass this argument.
+      pause_overlay — optional overlay object; subscribe() is called on it if provided.
     """
 
     def __init__(self, screen, keybinds, pause_overlay=None):

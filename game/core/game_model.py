@@ -47,6 +47,9 @@ class GameModel:
 
         Returns 'correct', 'round_complete', or 'wrong'.
         """
+        if not self.sequence or not (0 <= self.player_index < len(self.sequence)):
+            return 'wrong'
+
         expected = self.sequence[self.player_index]
 
         # Show pressed sprite for this button

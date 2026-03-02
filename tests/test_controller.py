@@ -99,18 +99,21 @@ def ctrl(pg, model, view, bus, keybinds):
     return GameController(Mock(), model, view, bus, keybinds)
 
 
-def run_one_frame(ctrl, pg, events=None):
-    """Run the controller for exactly one iteration then force gameover to exit."""
+async def run_one_frame(ctrl, pg, events=None):
+    """Run the controller for exactly one iteration then force quit to exit.
+
+    Sets pg.event.get to return *events* on the first call and a QUIT event on
+    the second, so ctrl.run() processes one frame then exits cleanly.
+    Returns the value produced by ctrl.run() (e.g. "quit").
+    """
+    quit_ev = Mock()
+    quit_ev.type = pg.QUIT
+
     pg.event.get.return_value = events or []
+    frames = [events or [], [quit_ev]]
+    pg.event.get.side_effect = lambda: frames.pop(0) if frames else [quit_ev]
 
-    # After processing events once, make the next call return QUIT so the loop ends.
-    original_side_effect_done = False
-
-    async def _run():
-        return await ctrl.run()
-
-    # We'll break out by manipulating model state directly.
-    return events  # helper just sets up events; callers assert state after
+    return await ctrl.run()
 
 
 # ======================================================================

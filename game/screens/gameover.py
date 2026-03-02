@@ -16,7 +16,7 @@ class GameOverScreen:
         self.running = True
         try:
             pygame.mixer.music.load("assets/gameover.ogg")
-            pygame.mixer.music.play(0)  # 2Play once, no loop
+            pygame.mixer.music.play(0)  # Play once, no loop
         except pygame.error as exc:
             print(f"Warning: failed to load music assets/gameover.ogg: {exc}")
 
