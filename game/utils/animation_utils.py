@@ -29,6 +29,7 @@ def draw_gradient(screen, gradient_top=(25, 25, 112), gradient_bottom=(0, 0, 0))
         _gradient_cache[cache_key] = gradient_surface
 
     screen.blit(gradient_surface, (0, 0))
+
 def wave_text(screen, text, position=None, font_size=72, color=(255, 255, 255), bounce_height=15, wave_speed=0.3, font=None, font_name=None):
     """Draw text with each letter bouncing in a wave pattern"""
     if font is None:
@@ -115,7 +116,7 @@ def play_music(file):
     except pygame.error as exc:
         print(f"Warning: failed to load music {file}: {exc}")
         return False
-    
+
 def stop_music():
     """Stop background music"""
     pygame.mixer.music.stop()

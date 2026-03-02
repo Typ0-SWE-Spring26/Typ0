@@ -1,8 +1,8 @@
 """Comprehensive tests for GameTimer."""
 import pytest
 from unittest.mock import Mock
-from game_screens.event_bus import EventBus
-from game_screens.game_timer import GameTimer
+from game.core.event_bus import EventBus
+from game.core.game_timer import GameTimer
 
 
 class TestGameTimer:

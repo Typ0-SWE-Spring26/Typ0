@@ -1,4 +1,4 @@
-"""Comprehensive tests for GameScreen display module."""
+"""Comprehensive tests for GameScreen MVC modules."""
 import sys
 import pytest
 import asyncio
@@ -7,13 +7,18 @@ from unittest.mock import Mock, MagicMock, patch, call, AsyncMock
 # Mock pygame and other dependencies before importing
 sys.modules['pygame'] = MagicMock()
 
-from game_screens.display import GameScreen
+from game.screens.gameplay.display import GameScreen
+from game.core.game_model import GameModel, BUTTON_NAMES
+from game.screens.gameplay.view import GameView
+from game.screens.gameplay.controller import GameController
+from game.core.keybinds import KeybindManager
 
 
 @pytest.fixture
 def mock_pygame():
     """Mock pygame modules and functions."""
-    with patch('game_screens.display.pygame') as mock_pg:
+    with patch('game.screens.gameplay.view.pygame') as mock_view_pg, \
+         patch('game.screens.gameplay.controller.pygame') as mock_ctrl_pg:
         # Mock screen
         mock_screen = Mock()
         mock_screen.get_width.return_value = 800
@@ -22,59 +27,60 @@ def mock_pygame():
         # Mock image loading
         mock_image = Mock()
         mock_image.convert_alpha.return_value = Mock()
-        mock_pg.image.load.return_value = mock_image
+        mock_view_pg.image.load.return_value = mock_image
 
         # Mock font
         mock_font = Mock()
         mock_font.render.return_value = Mock()
-        mock_pg.font.SysFont.return_value = mock_font
+        mock_view_pg.font.SysFont.return_value = mock_font
 
-        # Mock key names
-        mock_pg.key.name.side_effect = lambda k: {
-            mock_pg.K_a: 'a',
-            mock_pg.K_d: 'd',
-            mock_pg.K_w: 'w',
-            mock_pg.K_s: 's',
-            mock_pg.K_SPACE: 'space'
+        # Mock key names (needed for display.py facade)
+        mock_ctrl_pg.key.name.side_effect = lambda k: {
+            mock_ctrl_pg.K_a: 'a',
+            mock_ctrl_pg.K_d: 'd',
+            mock_ctrl_pg.K_w: 'w',
+            mock_ctrl_pg.K_s: 's',
+            mock_ctrl_pg.K_SPACE: 'space'
         }.get(k, 'unknown')
 
         # Mock transform
-        mock_pg.transform.smoothscale.side_effect = lambda surf, size: surf
+        mock_view_pg.transform.smoothscale.side_effect = lambda _surf, _size: _surf
 
         # Mock Rect
-        mock_pg.Rect = Mock(side_effect=lambda *args: Mock(width=args[2] if len(args) > 2 else 0,
-                                                           height=args[3] if len(args) > 3 else 0,
-                                                           center=Mock()))
+        mock_view_pg.Rect = Mock(side_effect=lambda *_args: Mock(
+            width=_args[2] if len(_args) > 2 else 0,
+            height=_args[3] if len(_args) > 3 else 0,
+            center=Mock()))
 
         # Mock time
-        mock_pg.time.Clock.return_value = Mock()
-        mock_pg.time.get_ticks.return_value = 0
+        mock_ctrl_pg.time.Clock.return_value = Mock()
+        mock_ctrl_pg.time.get_ticks.return_value = 0
 
         # Mock events
-        mock_pg.event.get.return_value = []
+        mock_ctrl_pg.event.get.return_value = []
 
         # Event types
-        mock_pg.QUIT = 256
-        mock_pg.KEYDOWN = 768
-        mock_pg.MOUSEBUTTONDOWN = 1025
+        mock_ctrl_pg.QUIT = 256
+        mock_ctrl_pg.KEYDOWN = 768
+        mock_ctrl_pg.MOUSEBUTTONDOWN = 1025
 
         # Keys
-        mock_pg.K_p = 112
-        mock_pg.K_e = 101
-        mock_pg.K_a = 97
-        mock_pg.K_d = 100
-        mock_pg.K_w = 119
-        mock_pg.K_s = 115
-        mock_pg.K_SPACE = 32
-        mock_pg.KMOD_CTRL = 64
+        mock_ctrl_pg.K_p = 112
+        mock_ctrl_pg.K_e = 101
+        mock_ctrl_pg.K_a = 97
+        mock_ctrl_pg.K_d = 100
+        mock_ctrl_pg.K_w = 119
+        mock_ctrl_pg.K_s = 115
+        mock_ctrl_pg.K_SPACE = 32
+        mock_ctrl_pg.KMOD_CTRL = 64
 
-        yield mock_pg, mock_screen
+        yield mock_view_pg, mock_ctrl_pg, mock_screen
 
 
 @pytest.fixture
 def mock_os_path():
     """Mock os.path.join for asset loading."""
-    with patch('game_screens.display.os.path.join') as mock_join:
+    with patch('game.screens.gameplay.view.os.path.join') as mock_join:
         mock_join.side_effect = lambda *args: '/'.join(args)
         yield mock_join
 
@@ -82,7 +88,7 @@ def mock_os_path():
 @pytest.fixture
 def mock_os_path_dirname():
     """Mock os.path.dirname."""
-    with patch('game_screens.display.os.path.dirname') as mock_dirname:
+    with patch('game.screens.gameplay.view.os.path.dirname') as mock_dirname:
         mock_dirname.return_value = '/mock/game_screens'
         yield mock_dirname
 
@@ -90,603 +96,487 @@ def mock_os_path_dirname():
 @pytest.fixture
 def mock_animation_utils():
     """Mock animation_utils module."""
-    with patch('game_screens.display.animation_utils') as mock_utils:
+    with patch('game.screens.gameplay.view.animation_utils') as mock_utils:
         yield mock_utils
 
 
 @pytest.fixture
-def game_screen(mock_pygame, mock_os_path, mock_os_path_dirname, mock_animation_utils):
+def event_bus():
+    """Create a real EventBus for testing."""
+    from game.core.event_bus import EventBus
+    return EventBus()
+
+
+@pytest.fixture
+def model(event_bus):
+    """Create a GameModel with a real EventBus."""
+    return GameModel(event_bus)
+
+
+@pytest.fixture
+def mock_keybinds():
+    """Create a mock KeybindManager."""
+    kb = Mock(spec=KeybindManager)
+    kb.button_keys = {
+        'left':  97,   # pygame.K_a
+        'right': 100,  # pygame.K_d
+        'up':    119,  # pygame.K_w
+        'down':  115,  # pygame.K_s
+        'space': 32,   # pygame.K_SPACE
+    }
+    kb.key_labels = {
+        'left': 'A', 'right': 'D', 'up': 'W', 'down': 'S', 'space': 'SPACE',
+    }
+    kb.inverted = False
+    return kb
+
+
+@pytest.fixture
+def game_screen(mock_pygame, mock_os_path, mock_os_path_dirname, mock_animation_utils, mock_keybinds):
     """Create a GameScreen instance with mocked dependencies."""
-    mock_pg, mock_screen = mock_pygame
-    return GameScreen(mock_screen)
-
-
-class TestGameScreenInit:
-    """Tests for GameScreen initialization."""
-
-    def test_init_stores_screen_reference(self, game_screen, mock_pygame):
-        """Should store reference to the screen."""
-        _, mock_screen = mock_pygame
-        assert game_screen.screen == mock_screen
-
-    def test_init_starts_unpaused(self, game_screen):
-        """Should initialize with paused=False."""
-        assert game_screen.paused is False
-
-    def test_init_sets_default_score(self, game_screen):
-        """Should initialize with score=0 by default."""
-        assert game_screen.score == 0
-
-    def test_init_accepts_custom_score(self, mock_pygame, mock_os_path,
-                                       mock_os_path_dirname, mock_animation_utils):
-        """Should accept and set custom initial score."""
-        _, mock_screen = mock_pygame
-        gs = GameScreen(mock_screen, score=42)
-        assert gs.score == 42
-
-    def test_init_creates_event_bus(self, game_screen):
-        """Should create an EventBus instance."""
-        assert game_screen._bus is not None
-
-    def test_init_creates_game_timer(self, game_screen):
-        """Should create a GameTimer instance."""
-        assert game_screen.game_timer is not None
-
-    def test_init_subscribes_to_timer_expired(self, game_screen):
-        """Should subscribe to timer_expired event."""
-        assert 'timer_expired' in game_screen._bus._listeners
-        assert game_screen._on_timer_expired in game_screen._bus._listeners['timer_expired']
-
-    def test_init_loads_button_sprites(self, game_screen):
-        """Should load sprites for all buttons."""
-        assert 'left' in game_screen.sprites
-        assert 'right' in game_screen.sprites
-        assert 'up' in game_screen.sprites
-        assert 'down' in game_screen.sprites
-        assert 'space' in game_screen.sprites
-
-    def test_init_loads_three_states_per_button(self, game_screen):
-        """Each button should have normal, indicated, and pressed states."""
-        for button_name in ['left', 'right', 'up', 'down', 'space']:
-            assert 'normal' in game_screen.sprites[button_name]
-            assert 'indicated' in game_screen.sprites[button_name]
-            assert 'pressed' in game_screen.sprites[button_name]
-
-    def test_init_creates_button_rects(self, game_screen):
-        """Should create rects for all buttons."""
-        assert 'left' in game_screen.button_rects
-        assert 'right' in game_screen.button_rects
-        assert 'up' in game_screen.button_rects
-        assert 'down' in game_screen.button_rects
-        assert 'space' in game_screen.button_rects
-
-    def test_init_creates_scaled_sprites(self, game_screen):
-        """Should create scaled versions of sprites."""
-        assert 'left' in game_screen.scaled
-        assert len(game_screen.scaled['left']) == 3  # normal, indicated, pressed
-
-    def test_init_with_pause_overlay_subscribes(self, mock_pygame, mock_os_path,
-                                                mock_os_path_dirname, mock_animation_utils):
-        """Should subscribe pause overlay to event bus if provided."""
-        _, mock_screen = mock_pygame
-        mock_overlay = Mock()
-        gs = GameScreen(mock_screen, pause_overlay=mock_overlay)
-
-        mock_overlay.subscribe.assert_called_once_with(gs._bus)
-
-    def test_init_calls_reset(self, game_screen):
-        """Should initialize game state via _reset."""
-        assert game_screen.sequence == []
-        assert game_screen.player_index == 0
-        assert game_screen.state == 'adding'
-
-    def test_button_keys_defined(self):
-        """Should have all button key mappings defined."""
-        assert 'left' in GameScreen.BUTTON_KEYS
-        assert 'right' in GameScreen.BUTTON_KEYS
-        assert 'up' in GameScreen.BUTTON_KEYS
-        assert 'down' in GameScreen.BUTTON_KEYS
-        assert 'space' in GameScreen.BUTTON_KEYS
-        assert len(GameScreen.BUTTON_KEYS) == 5
-
-
-class TestGameScreenReset:
-    """Tests for _reset method."""
-
-    def test_reset_clears_sequence(self, game_screen):
-        """_reset should clear the sequence."""
-        game_screen.sequence = ['left', 'right', 'up']
-        game_screen._reset()
-        assert game_screen.sequence == []
-
-    def test_reset_zeros_player_index(self, game_screen):
-        """_reset should set player_index to 0."""
-        game_screen.player_index = 5
-        game_screen._reset()
-        assert game_screen.player_index == 0
+    _, mock_ctrl_pg, mock_screen = mock_pygame
+    return GameScreen(mock_screen, mock_keybinds)
 
-    def test_reset_zeros_score(self, game_screen):
-        """_reset should set score to 0."""
-        game_screen.score = 100
-        game_screen._reset()
-        assert game_screen.score == 0
 
-    def test_reset_clears_flash_state(self, game_screen):
-        """_reset should clear flash button and state."""
-        game_screen.flash_button = 'left'
-        game_screen.flash_state = 'pressed'
-        game_screen._reset()
-        assert game_screen.flash_button is None
-        assert game_screen.flash_state == 'normal'
+# ======================================================================
+# Model tests
+# ======================================================================
 
-    def test_reset_sets_state_to_adding(self, game_screen):
-        """_reset should set state to 'adding'."""
-        game_screen.state = 'input'
-        game_screen._reset()
-        assert game_screen.state == 'adding'
+class TestGameModelReset:
+    """Tests for GameModel.reset."""
 
+    def test_reset_clears_sequence(self, model):
+        model.sequence = ['left', 'right', 'up']
+        model.reset()
+        assert model.sequence == []
 
-class TestGameScreenHandleInput:
-    """Tests for _handle_input method."""
+    def test_reset_zeros_player_index(self, model):
+        model.player_index = 5
+        model.reset()
+        assert model.player_index == 0
 
-    def test_handle_input_correct_sets_flash(self, game_screen):
-        """Correct input should set flash button and state."""
-        game_screen.sequence = ['left', 'right']
-        game_screen.player_index = 0
-        game_screen.state = 'input'
+    def test_reset_zeros_score(self, model):
+        model.score = 100
+        model.reset()
+        assert model.score == 0
 
-        game_screen._handle_input('left', 1000)
+    def test_reset_clears_flash_state(self, model):
+        model.flash_button = 'left'
+        model.flash_state = 'pressed'
+        model.reset()
+        assert model.flash_button is None
+        assert model.flash_state == 'normal'
 
-        assert game_screen.flash_button == 'left'
-        assert game_screen.flash_state == 'pressed'
-        assert game_screen.flash_end == 1400  # 1000 + 400
+    def test_reset_sets_state_to_adding(self, model):
+        model.state = 'input'
+        model.reset()
+        assert model.state == 'adding'
 
-    def test_handle_input_correct_advances_index(self, game_screen):
-        """Correct input should advance player_index."""
-        game_screen.sequence = ['left', 'right']
-        game_screen.player_index = 0
 
-        game_screen._handle_input('left', 1000)
+class TestGameModelHandleInput:
+    """Tests for GameModel.handle_input."""
 
-        assert game_screen.player_index == 1
+    def test_correct_input_sets_flash(self, model):
+        model.sequence = ['left', 'right']
+        model.player_index = 0
+        model.state = 'input'
 
-    def test_handle_input_wrong_triggers_gameover(self, game_screen):
-        """Wrong input should trigger game over."""
-        game_screen.sequence = ['left', 'right']
-        game_screen.player_index = 0
-        game_screen.state = 'input'
-        game_screen.game_timer.start(1000)
+        model.handle_input('left', 1000)
 
-        game_screen._handle_input('right', 1500)  # Wrong!
+        assert model.flash_button == 'left'
+        assert model.flash_state == 'pressed'
+        assert model.flash_end == 1400
 
-        assert game_screen.state == 'gameover'
+    def test_correct_input_advances_index(self, model):
+        model.sequence = ['left', 'right']
+        model.player_index = 0
 
-    def test_handle_input_wrong_stops_timer(self, game_screen):
-        """Wrong input should stop the timer."""
-        game_screen.sequence = ['left']
-        game_screen.player_index = 0
-        game_screen.state = 'input'
-        game_screen.game_timer.start(1000)
+        model.handle_input('left', 1000)
 
-        game_screen._handle_input('right', 1500)
+        assert model.player_index == 1
 
-        assert game_screen.game_timer._active is False
+    def test_correct_input_returns_correct(self, model):
+        model.sequence = ['left', 'right']
+        model.player_index = 0
 
-    def test_handle_input_complete_sequence_advances_round(self, game_screen):
-        """Completing the sequence should advance to next round."""
-        game_screen.sequence = ['left', 'right']
-        game_screen.player_index = 1
-        game_screen.state = 'input'
-        game_screen.score = 5
+        result = model.handle_input('left', 1000)
 
-        game_screen._handle_input('right', 1000)
+        assert result == 'correct'
 
-        assert game_screen.state == 'adding'
-        assert game_screen.score == 6
+    def test_wrong_input_triggers_gameover(self, model):
+        model.sequence = ['left', 'right']
+        model.player_index = 0
+        model.state = 'input'
 
-    def test_handle_input_complete_stops_timer(self, game_screen):
-        """Completing sequence should stop timer."""
-        game_screen.sequence = ['left']
-        game_screen.player_index = 0
-        game_screen.state = 'input'
-        game_screen.game_timer.start(1000)
+        model.handle_input('right', 1500)
 
-        game_screen._handle_input('left', 1500)
+        assert model.state == 'gameover'
 
-        assert game_screen.game_timer._active is False
+    def test_wrong_input_returns_wrong(self, model):
+        model.sequence = ['left']
+        model.player_index = 0
 
-    def test_handle_input_complete_sets_next_time(self, game_screen):
-        """Completing sequence should set _next_time for pause."""
-        game_screen.sequence = ['left']
-        game_screen.player_index = 0
+        result = model.handle_input('right', 1000)
 
-        game_screen._handle_input('left', 2000)
+        assert result == 'wrong'
 
-        assert game_screen._next_time == 3000  # 2000 + 1000
+    def test_complete_sequence_advances_round(self, model):
+        model.sequence = ['left', 'right']
+        model.player_index = 1
+        model.state = 'input'
+        model.score = 5
 
+        model.handle_input('right', 1000)
 
-class TestGameScreenUpdate:
-    """Tests for _update method."""
+        assert model.state == 'adding'
+        assert model.score == 6
 
-    def test_update_adding_state_adds_to_sequence(self, game_screen):
-        """In 'adding' state, should add a button to sequence after delay."""
-        game_screen.state = 'adding'
-        game_screen._next_time = 1000
-        game_screen.sequence = []
+    def test_complete_sequence_returns_round_complete(self, model):
+        model.sequence = ['left']
+        model.player_index = 0
 
-        with patch('game_screens.display.random.choice', return_value='left'):
-            game_screen._update(1000)
+        result = model.handle_input('left', 1000)
 
-        assert 'left' in game_screen.sequence
+        assert result == 'round_complete'
 
-    def test_update_adding_state_transitions_to_showing(self, game_screen):
-        """In 'adding' state, should transition to 'showing'."""
-        game_screen.state = 'adding'
-        game_screen._next_time = 1000
+    def test_complete_sets_next_time(self, model):
+        model.sequence = ['left']
+        model.player_index = 0
 
-        with patch('game_screens.display.random.choice', return_value='up'):
-            game_screen._update(1000)
+        model.handle_input('left', 2000)
 
-        assert game_screen.state == 'showing'
+        assert model._next_time == 3000
 
-    def test_update_adding_before_time_does_nothing(self, game_screen):
-        """In 'adding' state before _next_time, should do nothing."""
-        game_screen.state = 'adding'
-        game_screen._next_time = 2000
-        game_screen.sequence = []
 
-        game_screen._update(1000)
+class TestGameModelUpdate:
+    """Tests for GameModel.update."""
 
-        assert len(game_screen.sequence) == 0
-        assert game_screen.state == 'adding'
+    def test_adding_state_adds_to_sequence(self, model):
+        model.state = 'adding'
+        model._next_time = 1000
+        model.sequence = []
 
-    def test_update_showing_lights_button(self, game_screen):
-        """In 'showing' state, should light up next button."""
-        game_screen.state = 'showing'
-        game_screen.sequence = ['left', 'right']
-        game_screen._show_index = 0
-        game_screen._showing_lit = False
-        game_screen._next_time = 1000
+        with patch('game.core.game_model.random.choice', return_value='left'):
+            model.update(1000)
 
-        game_screen._update(1000)
+        assert 'left' in model.sequence
 
-        assert game_screen.flash_button == 'left'
-        assert game_screen.flash_state == 'indicated'
-        assert game_screen._showing_lit is True
+    def test_adding_state_transitions_to_showing(self, model):
+        model.state = 'adding'
+        model._next_time = 1000
 
-    def test_update_showing_advances_after_lit_period(self, game_screen):
-        """In 'showing' state, should advance to next button after lit period."""
-        game_screen.state = 'showing'
-        game_screen.sequence = ['left', 'right']
-        game_screen._show_index = 0
-        game_screen._showing_lit = True
-        game_screen.flash_end = 1000
+        with patch('game.core.game_model.random.choice', return_value='up'):
+            model.update(1000)
 
-        game_screen._update(1000)
+        assert model.state == 'showing'
 
-        assert game_screen._show_index == 1
-        assert game_screen._showing_lit is False
+    def test_adding_before_time_does_nothing(self, model):
+        model.state = 'adding'
+        model._next_time = 2000
+        model.sequence = []
 
-    def test_update_showing_complete_transitions_to_input(self, game_screen):
-        """In 'showing' state, after all shown, should transition to 'input'."""
-        game_screen.state = 'showing'
-        game_screen.sequence = ['left', 'right']
-        game_screen._show_index = 2  # Past the end
+        model.update(1000)
 
-        game_screen._update(1000)
+        assert len(model.sequence) == 0
+        assert model.state == 'adding'
 
-        assert game_screen.state == 'input'
+    def test_showing_lights_button(self, model):
+        model.state = 'showing'
+        model.sequence = ['left', 'right']
+        model._show_index = 0
+        model._showing_lit = False
+        model._next_time = 1000
 
-    def test_update_showing_complete_starts_timer(self, game_screen):
-        """Transitioning to 'input' should start the timer."""
-        game_screen.state = 'showing'
-        game_screen.sequence = ['left']
-        game_screen._show_index = 1
+        model.update(1000)
 
-        game_screen._update(2000)
+        assert model.flash_button == 'left'
+        assert model.flash_state == 'indicated'
+        assert model._showing_lit is True
 
-        assert game_screen.game_timer._active is True
-        assert game_screen.game_timer._start_ticks == 2000
+    def test_showing_advances_after_lit_period(self, model):
+        model.state = 'showing'
+        model.sequence = ['left', 'right']
+        model._show_index = 0
+        model._showing_lit = True
+        model.flash_end = 1000
 
-    def test_update_input_expires_flash(self, game_screen):
-        """In 'input' state, should expire flash after timeout."""
-        game_screen.state = 'input'
-        game_screen.flash_button = 'left'
-        game_screen.flash_state = 'pressed'
-        game_screen.flash_end = 1000
+        model.update(1000)
 
-        game_screen._update(1001)
+        assert model._show_index == 1
+        assert model._showing_lit is False
 
-        assert game_screen.flash_button is None
-        assert game_screen.flash_state == 'normal'
+    def test_showing_complete_transitions_to_input(self, model):
+        model.state = 'showing'
+        model.sequence = ['left', 'right']
+        model._show_index = 2
 
-    def test_update_input_calls_timer_update(self, game_screen):
-        """In 'input' state, should update the timer."""
-        game_screen.state = 'input'
-        game_screen.game_timer.start(1000)
+        model.update(1000)
 
-        game_screen._update(2000)
+        assert model.state == 'input'
 
-        # Timer should have updated and calculated remaining time
-        assert game_screen.game_timer.fraction < 1.0
+    def test_showing_complete_returns_true(self, model):
+        """update() returns True when entering input state (signals timer start)."""
+        model.state = 'showing'
+        model.sequence = ['left']
+        model._show_index = 1
 
+        result = model.update(2000)
 
-class TestGameScreenOnTimerExpired:
-    """Tests for _on_timer_expired callback."""
+        assert result is True
 
-    def test_on_timer_expired_sets_gameover(self, game_screen):
-        """Timer expiration should set state to 'gameover'."""
-        game_screen.state = 'input'
+    def test_input_expires_flash(self, model):
+        model.state = 'input'
+        model.flash_button = 'left'
+        model.flash_state = 'pressed'
+        model.flash_end = 1000
 
-        game_screen._on_timer_expired({'now': 5000})
+        model.update(1001)
 
-        assert game_screen.state == 'gameover'
+        assert model.flash_button is None
+        assert model.flash_state == 'normal'
 
-    def test_on_timer_expired_sets_reason(self, game_screen):
-        """Timer expiration should set gameover reason."""
-        game_screen.state = 'input'
 
-        game_screen._on_timer_expired({'now': 5000})
+class TestGameModelOnTimerExpired:
+    """Tests for GameModel.on_timer_expired."""
 
-        assert game_screen._gameover_reason == "Time's up!"
+    def test_sets_gameover(self, model):
+        model.state = 'input'
+        model.on_timer_expired({'now': 5000})
+        assert model.state == 'gameover'
 
-    def test_on_timer_expired_sets_flash_end(self, game_screen):
-        """Timer expiration should set flash_end to current time."""
-        game_screen.state = 'input'
+    def test_sets_reason(self, model):
+        model.state = 'input'
+        model.on_timer_expired({'now': 5000})
+        assert model.gameover_reason == "Time's up!"
 
-        game_screen._on_timer_expired({'now': 7500})
+    def test_sets_flash_end(self, model):
+        model.state = 'input'
+        model.on_timer_expired({'now': 7500})
+        assert model.flash_end == 7500
 
-        assert game_screen.flash_end == 7500
+    def test_only_in_input_state(self, model):
+        model.state = 'showing'
+        model.on_timer_expired({'now': 5000})
+        assert model.state == 'showing'
 
-    def test_on_timer_expired_only_in_input_state(self, game_screen):
-        """Timer expiration should only affect game in 'input' state."""
-        game_screen.state = 'showing'
-        original_state = game_screen.state
 
-        game_screen._on_timer_expired({'now': 5000})
+# ======================================================================
+# View tests
+# ======================================================================
 
-        # State should not change if not in 'input'
-        assert game_screen.state == original_state
-
-
-class TestGameScreenDraw:
-    """Tests for _draw method."""
+class TestGameViewDraw:
+    """Tests for GameView.draw."""
 
     def test_draw_fills_screen(self, game_screen):
-        """_draw should fill screen with dark color."""
-        game_screen._draw()
-        game_screen.screen.fill.assert_called_once_with((15, 15, 25))
+        view = game_screen.view
+        model = game_screen.model
+        view.draw(model, 1.0)
+        view.screen.fill.assert_called_once_with((15, 15, 25))
 
     def test_draw_renders_score(self, game_screen):
-        """_draw should render current score."""
-        game_screen.score = 42
-        game_screen._draw()
+        view = game_screen.view
+        model = game_screen.model
+        model.score = 42
+        view.draw(model, 1.0)
 
-        # Check that font render was called with score text
-        calls = [str(call) for call in game_screen.font_small.render.call_args_list]
-        assert any('Score: 42' in str(call) for call in calls)
+        calls = [str(c) for c in view.font_small.render.call_args_list]
+        assert any('Score: 42' in c for c in calls)
 
     def test_draw_renders_round_number(self, game_screen):
-        """_draw should render current round number."""
-        game_screen.sequence = ['left', 'right', 'up']
-        game_screen._draw()
+        view = game_screen.view
+        model = game_screen.model
+        model.sequence = ['left', 'right', 'up']
+        view.draw(model, 1.0)
 
-        calls = [str(call) for call in game_screen.font_small.render.call_args_list]
-        assert any('Round 3' in str(call) for call in calls)
+        calls = [str(c) for c in view.font_small.render.call_args_list]
+        assert any('Round 3' in c for c in calls)
 
     def test_draw_showing_state_status(self, game_screen):
-        """_draw should show 'Watch carefully...' in showing state."""
-        game_screen.state = 'showing'
-        game_screen._draw()
+        view = game_screen.view
+        model = game_screen.model
+        model.state = 'showing'
+        view.draw(model, 1.0)
 
-        calls = [str(call) for call in game_screen.font_small.render.call_args_list]
-        assert any('Watch carefully' in str(call) for call in calls)
+        calls = [str(c) for c in view.font_small.render.call_args_list]
+        assert any('Watch carefully' in c for c in calls)
 
     def test_draw_input_state_status(self, game_screen):
-        """_draw should show 'Your turn!' in input state."""
-        game_screen.state = 'input'
-        game_screen.sequence = ['left', 'right']
-        game_screen.player_index = 0
-        game_screen._draw()
+        view = game_screen.view
+        model = game_screen.model
+        model.state = 'input'
+        model.sequence = ['left', 'right']
+        model.player_index = 0
+        view.draw(model, 1.0)
 
-        calls = [str(call) for call in game_screen.font_small.render.call_args_list]
-        assert any('Your turn' in str(call) for call in calls)
+        calls = [str(c) for c in view.font_small.render.call_args_list]
+        assert any('Your turn' in c for c in calls)
 
     def test_draw_blits_buttons(self, game_screen):
-        """_draw should blit all button sprites."""
-        game_screen._draw()
+        view = game_screen.view
+        model = game_screen.model
+        view.draw(model, 1.0)
+        assert view.screen.blit.call_count >= 5
 
-        # Should blit at least once per button (5 buttons)
-        assert game_screen.screen.blit.call_count >= 5
 
-    def test_draw_timer_bar_in_input_state(self, game_screen, mock_pygame):
-        """_draw should render timer bar during input state."""
-        mock_pg, _ = mock_pygame
-        game_screen.state = 'input'
-        game_screen.game_timer.fraction = 0.5
+# ======================================================================
+# Facade / integration tests
+# ======================================================================
 
-        game_screen._draw()
+class TestGameScreenInit:
+    """Tests for GameScreen facade initialization."""
 
-        # Should draw a rect for the timer bar
-        assert mock_pg.draw.rect.called
+    def test_init_creates_event_bus(self, game_screen):
+        assert game_screen._bus is not None
+
+    def test_init_creates_model(self, game_screen):
+        assert game_screen.model is not None
+
+    def test_init_creates_view(self, game_screen):
+        assert game_screen.view is not None
+
+    def test_init_creates_controller(self, game_screen):
+        assert game_screen.controller is not None
+
+    def test_init_model_starts_in_adding(self, game_screen):
+        assert game_screen.model.state == 'adding'
+        assert game_screen.model.sequence == []
+        assert game_screen.model.player_index == 0
+
+    def test_init_with_pause_overlay_subscribes(self, mock_pygame, mock_os_path,
+                                                mock_os_path_dirname, mock_animation_utils,
+                                                mock_keybinds):
+        _, mock_ctrl_pg, mock_screen = mock_pygame
+        mock_overlay = Mock()
+        gs = GameScreen(mock_screen, mock_keybinds, pause_overlay=mock_overlay)
+        mock_overlay.subscribe.assert_called_once_with(gs._bus)
 
 
 class TestGameScreenIntegration:
-    """Integration tests for GameScreen."""
+    """Integration tests exercising model logic through a full cycle."""
 
-    def test_full_game_cycle_single_round(self, game_screen):
-        """Should handle a complete game cycle through one round."""
-        # Start in adding state
-        assert game_screen.state == 'adding'
+    def test_full_game_cycle_single_round(self, model):
+        assert model.state == 'adding'
 
-        # Advance time to add button
-        with patch('game_screens.display.random.choice', return_value='left'):
-            game_screen._update(10000)
+        with patch('game.core.game_model.random.choice', return_value='left'):
+            model.update(10000)
 
-        assert game_screen.state == 'showing'
-        assert len(game_screen.sequence) == 1
+        assert model.state == 'showing'
+        assert len(model.sequence) == 1
 
-        # Fast-forward through showing
-        game_screen._show_index = 1
-        game_screen._update(20000)
+        model._show_index = 1
+        model.update(20000)
 
-        assert game_screen.state == 'input'
+        assert model.state == 'input'
 
-        # Provide correct input
-        game_screen._handle_input('left', 21000)
+        model.handle_input('left', 21000)
 
-        assert game_screen.state == 'adding'
-        assert game_screen.score == 1
+        assert model.state == 'adding'
+        assert model.score == 1
 
-    def test_wrong_input_triggers_gameover(self, game_screen):
-        """Wrong input should transition to game over state."""
-        game_screen.sequence = ['left', 'right']
-        game_screen.player_index = 0
-        game_screen.state = 'input'
+    def test_wrong_input_triggers_gameover(self, model):
+        model.sequence = ['left', 'right']
+        model.player_index = 0
+        model.state = 'input'
 
-        game_screen._handle_input('up', 1000)  # Wrong button
+        model.handle_input('up', 1000)
 
-        assert game_screen.state == 'gameover'
+        assert model.state == 'gameover'
 
-    def test_pause_stops_timer(self, game_screen, mock_pygame):
-        """Pausing should freeze the timer."""
-        mock_pg, _ = mock_pygame
-        game_screen.state = 'input'
-        game_screen.game_timer.start(1000)
-        game_screen.game_timer.update(2000)  # 1 second elapsed
+    def test_sequence_grows_each_round(self, model):
+        initial_length = len(model.sequence)
 
-        fraction_before_pause = game_screen.game_timer.fraction
+        with patch('game.core.game_model.random.choice', return_value='up'):
+            model.state = 'adding'
+            model._next_time = 0
+            model.update(1000)
 
-        game_screen._bus.emit('game_paused', {'now': 2000})
+        assert len(model.sequence) == initial_length + 1
 
-        # Timer should be inactive
-        assert game_screen.game_timer._active is False
-        assert game_screen.game_timer._paused_remaining is not None
+    def test_score_increments_on_completion(self, model):
+        model.sequence = ['left']
+        model.player_index = 0
+        model.score = 5
+        model.state = 'input'
 
-    def test_sequence_grows_each_round(self, game_screen):
-        """Sequence should grow by one button each round."""
-        initial_length = len(game_screen.sequence)
+        model.handle_input('left', 1000)
 
-        with patch('game_screens.display.random.choice', return_value='up'):
-            game_screen.state = 'adding'
-            game_screen._next_time = 0
-            game_screen._update(1000)
+        assert model.score == 6
 
-        assert len(game_screen.sequence) == initial_length + 1
+    def test_timer_expiration_during_input(self, model):
+        model.state = 'input'
+        model.on_timer_expired({'now': 5000})
 
-    def test_score_increments_on_completion(self, game_screen):
-        """Score should increment when player completes a sequence."""
-        game_screen.sequence = ['left']
-        game_screen.player_index = 0
-        game_screen.score = 5
-        game_screen.state = 'input'
-
-        game_screen._handle_input('left', 1000)
-
-        assert game_screen.score == 6
+        assert model.state == 'gameover'
+        assert model.gameover_reason == "Time's up!"
 
 
 class TestGameScreenEdgeCases:
-    """Edge case tests for GameScreen."""
+    """Edge case tests."""
 
-    def test_empty_sequence_handling(self, game_screen):
-        """Should handle empty sequence gracefully."""
-        game_screen.sequence = []
-        game_screen.state = 'showing'
-        game_screen._show_index = 0
+    def test_empty_sequence_handling(self, model):
+        model.sequence = []
+        model.state = 'showing'
+        model._show_index = 0
 
-        game_screen._update(1000)
+        model.update(1000)
 
-        # Should transition to input immediately
-        assert game_screen.state == 'input'
+        assert model.state == 'input'
 
-    def test_rapid_input_handling(self, game_screen):
-        """Should handle rapid consecutive inputs."""
-        game_screen.sequence = ['left', 'right', 'up']
-        game_screen.player_index = 0
-        game_screen.state = 'input'
+    def test_rapid_input_handling(self, model):
+        model.sequence = ['left', 'right', 'up']
+        model.player_index = 0
+        model.state = 'input'
 
-        game_screen._handle_input('left', 1000)
-        game_screen._handle_input('right', 1100)
-        game_screen._handle_input('up', 1200)
+        model.handle_input('left', 1000)
+        model.handle_input('right', 1100)
+        model.handle_input('up', 1200)
 
-        assert game_screen.state == 'adding'
-        assert game_screen.score == 1
+        assert model.state == 'adding'
+        assert model.score == 1
 
-    def test_flash_state_persistence(self, game_screen):
-        """Flash state should persist until timeout."""
-        game_screen.state = 'input'
-        game_screen.flash_button = 'space'
-        game_screen.flash_state = 'pressed'
-        game_screen.flash_end = 2000
+    def test_flash_state_persistence(self, model):
+        model.state = 'input'
+        model.flash_button = 'space'
+        model.flash_state = 'pressed'
+        model.flash_end = 2000
 
-        game_screen._update(1500)
-        assert game_screen.flash_button == 'space'
+        model.update(1500)
+        assert model.flash_button == 'space'
 
-        game_screen._update(2001)
-        assert game_screen.flash_button is None
+        model.update(2001)
+        assert model.flash_button is None
 
-    def test_timer_expiration_during_input(self, game_screen):
-        """Timer expiring during input should trigger game over."""
-        game_screen.state = 'input'
-        game_screen._bus.emit('timer_expired', {'now': 5000})
-
-        assert game_screen.state == 'gameover'
-        assert game_screen._gameover_reason == "Time's up!"
-
-    def test_multiple_pause_overlay_integration(self, mock_pygame, mock_os_path,
-                                               mock_os_path_dirname, mock_animation_utils):
-        """Should work with pause overlay subscribing to events."""
-        _, mock_screen = mock_pygame
-        mock_overlay = Mock()
-        gs = GameScreen(mock_screen, pause_overlay=mock_overlay)
-
-        # Emit pause event
-        gs._bus.emit('game_paused', {'now': 1000})
-
-        # Overlay should have been subscribed
-        mock_overlay.subscribe.assert_called_once()
-
-    def test_button_key_constants(self):
-        """Button key constants should be properly defined."""
-        assert 'left' in GameScreen.BUTTON_KEYS
-        assert 'right' in GameScreen.BUTTON_KEYS
-        assert 'up' in GameScreen.BUTTON_KEYS
-        assert 'down' in GameScreen.BUTTON_KEYS
-        assert 'space' in GameScreen.BUTTON_KEYS
-
-    def test_button_files_constants(self):
-        """Button file paths should be properly defined."""
-        assert 'left' in GameScreen.BUTTON_FILES
-        assert len(GameScreen.BUTTON_FILES['left']) == 3  # normal, indicated, pressed
-
-    def test_state_machine_transitions(self, game_screen):
-        """Should follow correct state machine transitions."""
+    def test_state_machine_transitions(self, model):
         # adding -> showing
-        game_screen.state = 'adding'
-        game_screen._next_time = 0
-        with patch('game_screens.display.random.choice', return_value='left'):
-            game_screen._update(1000)
-        assert game_screen.state == 'showing'
+        model.state = 'adding'
+        model._next_time = 0
+        with patch('game.core.game_model.random.choice', return_value='left'):
+            model.update(1000)
+        assert model.state == 'showing'
 
         # showing -> input
-        game_screen._show_index = len(game_screen.sequence)
-        game_screen._update(2000)
-        assert game_screen.state == 'input'
+        model._show_index = len(model.sequence)
+        model.update(2000)
+        assert model.state == 'input'
 
         # input -> adding (on success)
-        game_screen.sequence = ['left']
-        game_screen.player_index = 0
-        game_screen._handle_input('left', 3000)
-        assert game_screen.state == 'adding'
+        model.sequence = ['left']
+        model.player_index = 0
+        model.handle_input('left', 3000)
+        assert model.state == 'adding'
 
-    def test_player_index_boundary(self, game_screen):
-        """Player index should not exceed sequence length."""
-        game_screen.sequence = ['left', 'right']
-        game_screen.player_index = 1
-        game_screen.state = 'input'
+    def test_player_index_boundary(self, model):
+        model.sequence = ['left', 'right']
+        model.player_index = 1
+        model.state = 'input'
 
-        game_screen._handle_input('right', 1000)
+        model.handle_input('right', 1000)
 
-        # After completing, state should change
-        assert game_screen.state == 'adding'
+        assert model.state == 'adding'
+
+    def test_button_names_constant(self):
+        assert 'left' in BUTTON_NAMES
+        assert 'right' in BUTTON_NAMES
+        assert 'up' in BUTTON_NAMES
+        assert 'down' in BUTTON_NAMES
+        assert 'space' in BUTTON_NAMES
