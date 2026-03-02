@@ -1,6 +1,6 @@
 import pygame
 import asyncio
-from . import animation_utils
+from game.utils import animation_utils
 
 class StartMenu:
     def __init__(self, screen):
@@ -11,7 +11,7 @@ class StartMenu:
         self.font_large = pygame.font.Font(None, 96)
         self.font_small = pygame.font.Font(None, 36)
         self.start_time = pygame.time.get_ticks()
-        
+
 
     async def run(self):
         clock = pygame.time.Clock()
@@ -45,7 +45,7 @@ class StartMenu:
             keys = pygame.key.get_pressed()
             if keys[pygame.K_w]:
                     return "start"
-                
+
 
             pygame.display.flip()
             clock.tick(60)

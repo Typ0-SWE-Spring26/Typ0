@@ -4,7 +4,7 @@
 
 import pygame
 import asyncio
-from . import animation_utils
+from game.utils import animation_utils
 
 class GameOverScreen:
     def __init__(self, screen, score, reason):

@@ -7,18 +7,18 @@ from unittest.mock import Mock, MagicMock, patch, call, AsyncMock
 # Mock pygame and other dependencies before importing
 sys.modules['pygame'] = MagicMock()
 
-from game_screens.display import GameScreen
-from game_screens.game_model import GameModel, BUTTON_NAMES
-from game_screens.game_view import GameView
-from game_screens.game_controller import GameController
-from game_screens.keybinds import KeybindManager
+from game.screens.gameplay.display import GameScreen
+from game.core.game_model import GameModel, BUTTON_NAMES
+from game.screens.gameplay.view import GameView
+from game.screens.gameplay.controller import GameController
+from game.core.keybinds import KeybindManager
 
 
 @pytest.fixture
 def mock_pygame():
     """Mock pygame modules and functions."""
-    with patch('game_screens.game_view.pygame') as mock_view_pg, \
-         patch('game_screens.game_controller.pygame') as mock_ctrl_pg:
+    with patch('game.screens.gameplay.view.pygame') as mock_view_pg, \
+         patch('game.screens.gameplay.controller.pygame') as mock_ctrl_pg:
         # Mock screen
         mock_screen = Mock()
         mock_screen.get_width.return_value = 800
@@ -80,7 +80,7 @@ def mock_pygame():
 @pytest.fixture
 def mock_os_path():
     """Mock os.path.join for asset loading."""
-    with patch('game_screens.game_view.os.path.join') as mock_join:
+    with patch('game.screens.gameplay.view.os.path.join') as mock_join:
         mock_join.side_effect = lambda *args: '/'.join(args)
         yield mock_join
 
@@ -88,7 +88,7 @@ def mock_os_path():
 @pytest.fixture
 def mock_os_path_dirname():
     """Mock os.path.dirname."""
-    with patch('game_screens.game_view.os.path.dirname') as mock_dirname:
+    with patch('game.screens.gameplay.view.os.path.dirname') as mock_dirname:
         mock_dirname.return_value = '/mock/game_screens'
         yield mock_dirname
 
@@ -96,14 +96,14 @@ def mock_os_path_dirname():
 @pytest.fixture
 def mock_animation_utils():
     """Mock animation_utils module."""
-    with patch('game_screens.game_view.animation_utils') as mock_utils:
+    with patch('game.screens.gameplay.view.animation_utils') as mock_utils:
         yield mock_utils
 
 
 @pytest.fixture
 def event_bus():
     """Create a real EventBus for testing."""
-    from game_screens.event_bus import EventBus
+    from game.core.event_bus import EventBus
     return EventBus()
 
 
@@ -256,7 +256,7 @@ class TestGameModelUpdate:
         model._next_time = 1000
         model.sequence = []
 
-        with patch('game_screens.game_model.random.choice', return_value='left'):
+        with patch('game.core.game_model.random.choice', return_value='left'):
             model.update(1000)
 
         assert 'left' in model.sequence
@@ -265,7 +265,7 @@ class TestGameModelUpdate:
         model.state = 'adding'
         model._next_time = 1000
 
-        with patch('game_screens.game_model.random.choice', return_value='up'):
+        with patch('game.core.game_model.random.choice', return_value='up'):
             model.update(1000)
 
         assert model.state == 'showing'
@@ -457,7 +457,7 @@ class TestGameScreenIntegration:
     def test_full_game_cycle_single_round(self, model):
         assert model.state == 'adding'
 
-        with patch('game_screens.game_model.random.choice', return_value='left'):
+        with patch('game.core.game_model.random.choice', return_value='left'):
             model.update(10000)
 
         assert model.state == 'showing'
@@ -485,7 +485,7 @@ class TestGameScreenIntegration:
     def test_sequence_grows_each_round(self, model):
         initial_length = len(model.sequence)
 
-        with patch('game_screens.game_model.random.choice', return_value='up'):
+        with patch('game.core.game_model.random.choice', return_value='up'):
             model.state = 'adding'
             model._next_time = 0
             model.update(1000)
@@ -550,7 +550,7 @@ class TestGameScreenEdgeCases:
         # adding -> showing
         model.state = 'adding'
         model._next_time = 0
-        with patch('game_screens.game_model.random.choice', return_value='left'):
+        with patch('game.core.game_model.random.choice', return_value='left'):
             model.update(1000)
         assert model.state == 'showing'
 

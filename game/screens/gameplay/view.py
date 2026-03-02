@@ -1,6 +1,6 @@
 import pygame
 import os
-from . import animation_utils
+from game.utils import animation_utils
 
 
 class GameView:
@@ -20,7 +20,7 @@ class GameView:
         self.key_labels = key_labels
         W, H = screen.get_width(), screen.get_height()
 
-        asset_dir = os.path.join(os.path.dirname(__file__), '..', 'assets', 'Typo-buttons')
+        asset_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'assets', 'Typo-buttons')
 
         # Load all 3 sprite states per button
         self.sprites = {}

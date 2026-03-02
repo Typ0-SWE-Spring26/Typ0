@@ -1,6 +1,6 @@
 import pygame
 import asyncio
-from .game_timer import GameTimer
+from game.core.game_timer import GameTimer
 
 
 class GameController:

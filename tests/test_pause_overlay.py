@@ -6,8 +6,8 @@ from unittest.mock import Mock, MagicMock, patch, call
 # Mock pygame before importing modules that depend on it
 sys.modules['pygame'] = MagicMock()
 
-from game_screens.pause_overlay import PauseOverlay
-from game_screens.event_bus import EventBus
+from game.screens.gameplay.pause_overlay import PauseOverlay
+from game.core.event_bus import EventBus
 
 
 @pytest.fixture
@@ -23,7 +23,7 @@ def mock_screen():
 @pytest.fixture
 def mock_pygame():
     """Mock pygame modules."""
-    with patch('game_screens.pause_overlay.pygame') as mock_pg:
+    with patch('game.screens.gameplay.pause_overlay.pygame') as mock_pg:
         # Mock Font
         mock_font_large = Mock()
         mock_font_small = Mock()

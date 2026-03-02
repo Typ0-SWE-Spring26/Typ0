@@ -1,7 +1,7 @@
-from .event_bus import EventBus
-from .game_model import GameModel
-from .game_view import GameView
-from .game_controller import GameController
+from game.core.event_bus import EventBus
+from game.core.game_model import GameModel
+from .view import GameView
+from .controller import GameController
 
 
 class GameScreen:

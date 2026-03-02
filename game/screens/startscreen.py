@@ -1,6 +1,6 @@
 import pygame
 import asyncio
-from . import animation_utils
+from game.utils import animation_utils
 
 class StartScreen:
     def __init__(self, screen):
@@ -41,7 +41,7 @@ class StartScreen:
                 if keys[pygame.K_SPACE]:
                     animation_utils.stop_music()  # Stop music when starting the game
                     return "menu"
-                
+
 
             pygame.display.flip()
             clock.tick(60)

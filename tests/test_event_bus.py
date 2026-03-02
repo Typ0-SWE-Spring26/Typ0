@@ -1,6 +1,6 @@
 """Comprehensive tests for EventBus."""
 import pytest
-from game_screens.event_bus import EventBus
+from game.core.event_bus import EventBus
 
 
 class TestEventBus:
