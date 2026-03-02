@@ -11,7 +11,7 @@ from game_screens.startscreen import StartScreen
 from game_screens.startmenu import StartMenu
 from game_screens.display import GameScreen
 from game_screens.gameover import GameOverScreen
-from Keybinds import KeybindManager
+from game_screens.keybinds import KeybindManager
 from game_screens.pause_overlay import PauseOverlay
 
 async def main():
@@ -31,9 +31,10 @@ async def main():
         result = await menu_screen.run()
     if result == "start":
         pause_overlay = PauseOverlay(screen)
+        keybinds = KeybindManager()
 
         while True:
-            game_screen = GameScreen(screen, pause_overlay=pause_overlay)
+            game_screen = GameScreen(screen, keybinds, pause_overlay=pause_overlay)
             result = await game_screen.run()
 
             if result == "quit":
