@@ -1,6 +1,6 @@
 import pygame
 import asyncio
-from . import animation_utils
+from game.utils import animation_utils
 
 class StartScreen:
     def __init__(self, screen):
@@ -30,7 +30,7 @@ class StartScreen:
             loading_complete = animation_utils.loading_bar(
                 self.screen,
                 self.start_time,
-                load_time=6000,
+                load_time=4000,
             )
             # Draw flashing text
             if not loading_complete:
@@ -40,8 +40,8 @@ class StartScreen:
                 keys = pygame.key.get_pressed()
                 if keys[pygame.K_SPACE]:
                     animation_utils.stop_music()  # Stop music when starting the game
-                    return "start"
-                
+                    return "menu"
+
 
             pygame.display.flip()
             clock.tick(60)

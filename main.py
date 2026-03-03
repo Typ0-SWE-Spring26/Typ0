@@ -26,20 +26,28 @@ async def main():
     if result == "quit":
         pygame.quit()
         return
+    if result == "menu":
+        menu_screen = StartMenu(screen)
+        result = await menu_screen.run()
+    if result == "start":
+        pause_overlay = PauseOverlay(screen)
+        keybinds = KeybindManager()
 
-    # Game → Game Over → Retry loop
-    while result != "quit":
-        game_screen = GameScreen(screen)
-        result = await game_screen.run()
+        while True:
+            game_screen = GameScreen(screen, keybinds, pause_overlay=pause_overlay)
+            result = await game_screen.run()
 
-        if result == "quit":
-            break
+            if result == "quit":
+                break
 
-        # result is ("gameover", score) — show game over screen
-        _, score = result
-        game_over = GameOverScreen(screen, score=score, reason="Wrong input!")
-        result = await game_over.run()
-        # "retry" loops back to a new GameScreen; "quit" exits
+            # result is ("gameover", score, reason)
+            _, score, reason = result
+            game_over = GameOverScreen(screen, score=score, reason=reason)
+            result = await game_over.run()
+
+            if result == "quit":
+                break
+            # "retry" loops back to a new GameScreen
 
     pygame.quit()
 
