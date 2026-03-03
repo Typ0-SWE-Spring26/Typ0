@@ -6,13 +6,14 @@ from game.core.game_timer import GameTimer
 class GameController:
     """Orchestrates input, model updates, and view rendering."""
 
-    def __init__(self, screen, model, view, event_bus, keybinds, pause_overlay=None):
+    def __init__(self, screen, model, view, event_bus, keybinds, pause_overlay=None, menu_overlay=None):
         self.screen = screen
         self.model = model
         self.view = view
         self._bus = event_bus
         self.keybinds = keybinds
         self.pause_overlay = pause_overlay
+        self.menu_overlay = menu_overlay
         self.paused = False
 
         self.game_timer = GameTimer(self._bus)
@@ -52,6 +53,16 @@ class GameController:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     return "quit"
+
+                # Handle menu events
+                if self.menu_overlay:
+                    menu_action = self.menu_overlay.handle_event(event)
+                    if menu_action == "Volume":
+                        print("Volume clicked")
+                    if menu_action == "Music":
+                        print("Music clicked")
+                    if menu_action == "About":
+                        print("About clicked")
 
                 if event.type == pygame.KEYDOWN:
                     # P always toggles pause regardless of game state
@@ -98,6 +109,9 @@ class GameController:
 
             if self.pause_overlay:
                 self.pause_overlay.draw()
+
+            if self.menu_overlay:
+                self.menu_overlay.draw()
 
             pygame.display.flip()
             clock.tick(60)
