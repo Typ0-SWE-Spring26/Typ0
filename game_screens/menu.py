@@ -57,20 +57,13 @@ class MenuOverlay:
  
 
     def draw(self):
-
-        if self.active_submenu == "volume":
-            self.volume_menu.draw()
-            return
-        
         # Always draw MENU button
         pygame.draw.rect(self.screen, (60, 60, 90), self.button_rect, border_radius=8)
         text = self.font.render("MENU", True, (255, 255, 255))
         self.screen.blit(text, text.get_rect(center=self.button_rect.center))
-
         
-        # IF MENU OPEN → draw popup
-        if self.open:
-
+        # Draw dark overlay and background if menu is open OR submenu is active
+        if self.open or self.active_submenu == "volume":
             # Dark transparent overlay behind popup
             overlay = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 150))
@@ -78,8 +71,15 @@ class MenuOverlay:
 
             # Draw brick background centered
             self.screen.blit(self.bg_image, self.bg_rect)
-
-            # Draw buttons on top
+        
+        # Draw volume submenu if active (inside the brick background)
+        if self.active_submenu == "volume":
+            # We need to pass the bg_rect to VolumeMenu so it can position elements inside it
+            self.volume_menu.draw(self.bg_rect)
+        
+        # Draw menu options if menu is open (and no submenu is active)
+        elif self.open:
+            # Draw buttons on top of brick background
             for rect, label in [
                 (self.volume_rect, "Volume"),
                 (self.music_rect, "Music"),
@@ -98,6 +98,7 @@ class MenuOverlay:
 
             if result == "Back":
                 self.active_submenu = None
+                self.open = True  # Re-open the main menu when going back
 
             return None
 
