@@ -1,5 +1,5 @@
 Feature: Gameplay state machine
-  The game cycles through four states: adding → showing → input → adding.
+  The game cycles through four states: adding -> showing -> input -> adding.
   A wrong input at any point sends the game to gameover.
 
   Background:

@@ -37,6 +37,8 @@ jobs:
 
       - name: Run BDD tests
         run: python -m behave
+        env:
+          PYTHONIOENCODING: utf-8
 
   browser-tests:
     runs-on: ubuntu-latest

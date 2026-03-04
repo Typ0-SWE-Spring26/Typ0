@@ -67,6 +67,7 @@ def test_game_bundle_loads(page):
     (browser cache hit).  Timeout is 30s because the WASM runtime downloads
     first and the APK is only requested once Python starts running.
     """
+    page.goto("about:blank")  # clear memory cache so the APK is re-fetched
     with page.expect_response(
         lambda r: "typ0.apk" in r.url, timeout=30_000
     ) as response_info:
