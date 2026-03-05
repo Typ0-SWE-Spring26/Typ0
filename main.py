@@ -70,15 +70,9 @@ async def main():
             # lobby_result == ("game_start", role, opp_settings_flags)
             _, role, opp_settings_flags = lobby_result
 
-            # Apply opponent's settings to our keybind mirror for display
-            keybinds = KeybindManager()
-            from_flags(opp_settings_flags, keybinds)
-
-            # Configure game model for the player's role
+            # Configure game screen — mp_role ensures guest_mode is set after reset()
             game_screen = GameScreen(screen, KeybindManager(), pause_overlay=pause_overlay,
-                                     mp_client=mp_client)
-            if role == "guest":
-                game_screen.model.guest_mode = True
+                                     mp_client=mp_client, mp_role=role)
 
             result = await game_screen.run()
 

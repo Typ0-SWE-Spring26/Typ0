@@ -7,7 +7,7 @@ class GameController:
     """Orchestrates input, model updates, and view rendering."""
 
     def __init__(self, screen, model, view, event_bus, keybinds, pause_overlay=None,
-                 mp_client=None):
+                 mp_client=None, mp_role=None):
         self.screen = screen
         self.model = model
         self.view = view
@@ -17,7 +17,9 @@ class GameController:
         self.paused = False
 
         # Multiplayer client (None in single-player mode)
-        self._mp = mp_client
+        self._mp      = mp_client
+        self._mp_role = mp_role   # 'host' | 'guest' | None
+
         # Opponent score / state for HUD display
         self._opp_score: int | None = None
         self._opp_status: str = ""          # "correct" | "wrong" | "gameover" | "disconnected" | ""
@@ -26,9 +28,8 @@ class GameController:
         self.game_timer = GameTimer(self._bus)
         self._bus.subscribe('timer_expired', self.model.on_timer_expired)
 
-        # When we're the host, relay each new sequence button to the server
-        if self._mp and self.model.guest_mode is False:
-            self._bus.subscribe('sequence_updated', self._on_sequence_updated)
+        # NOTE: sequence_updated subscription for the host is added in run(),
+        # AFTER model.reset(), so guest_mode is set correctly before subscribing.
 
         if pause_overlay is not None:
             pause_overlay.subscribe(self._bus)
@@ -98,6 +99,14 @@ class GameController:
 
     async def run(self):
         self.model.reset()
+
+        # Apply multiplayer role AFTER reset (reset() clears guest_mode)
+        if self._mp_role == 'guest':
+            self.model.guest_mode = True
+        elif self._mp_role == 'host':
+            # Only the host relays new sequence buttons to the server
+            self._bus.subscribe('sequence_updated', self._on_sequence_updated)
+
         clock = pygame.time.Clock()
 
         while True:

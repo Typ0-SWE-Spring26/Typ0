@@ -13,7 +13,7 @@ class GameScreen:
       mp_client   — optional MultiplayerClient; enables multiplayer mode.
     """
 
-    def __init__(self, screen, keybinds, pause_overlay=None, mp_client=None):
+    def __init__(self, screen, keybinds, pause_overlay=None, mp_client=None, mp_role=None):
         self._bus = EventBus()
         self.model = GameModel(self._bus)
         self.keybinds = keybinds
@@ -21,7 +21,7 @@ class GameScreen:
         self.view = GameView(screen, keybinds.key_labels)
         self.controller = GameController(
             screen, self.model, self.view, self._bus, keybinds, pause_overlay,
-            mp_client=mp_client,
+            mp_client=mp_client, mp_role=mp_role,
         )
 
     async def run(self):
