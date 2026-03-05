@@ -114,8 +114,9 @@ class MultiplayerLobby:
         self._status_msg = "Connecting..."
         try:
             await self.client.connect(username, flags)
-            self._state = "lobby"
-            self._status_msg = "Connected! Click a player to challenge them."
+            # Stay in "connecting" — let _poll_messages() decide the next state
+            # based on whether the server sends player_list (ok) or error (taken).
+            self._state = "connecting"
         except Exception as exc:
             self._status_msg = f"Connection failed: {exc}"
 
@@ -150,6 +151,9 @@ class MultiplayerLobby:
                 p for p in msg.get("players", [])
                 if p.get("username") != self.client.username
             ]
+            if self._state == "connecting":
+                self._state      = "lobby"
+                self._status_msg = "Connected! Click a player to challenge them."
 
         elif msg_type == "challenged":
             self._challenger          = msg["from"]
@@ -169,7 +173,12 @@ class MultiplayerLobby:
 
         elif msg_type == "error":
             self._status_msg = msg.get("message", "Server error.")
-            if self._state == "waiting":
+            if self._state == "connecting":
+                # Username rejected (e.g. already taken) — reset to entry screen
+                self._username_buf = ""
+                self._state        = "username"
+                await self.client.disconnect()
+            elif self._state == "waiting":
                 self._state = "lobby"
 
         elif msg_type == "opponent_disconnected":
@@ -196,7 +205,7 @@ class MultiplayerLobby:
         title = self.font_lg.render("Multiplayer", True, (255, 255, 255))
         self.screen.blit(title, title.get_rect(center=(cx, 80)))
 
-        if self._state == "username":
+        if self._state in ("username", "connecting"):
             self._draw_username_entry(cx)
         elif self._state in ("lobby", "waiting"):
             self._draw_lobby(cx)
