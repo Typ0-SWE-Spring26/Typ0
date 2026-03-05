@@ -132,10 +132,23 @@ async def _handle_challenge_decline(sender: str, data: dict) -> None:
         await _send(_connected[host], {"type": "challenge_declined", "from": sender})
 
 
+_RELAY_RENAME = {
+    "game_over":    "opponent_game_over",
+    "input_result": "opponent_progress",
+}
+
+
 async def _relay_to_opponent(sender: str, msg: dict) -> None:
-    """Forward *msg* to the sender's current opponent unchanged."""
+    """Forward *msg* to the sender's current opponent.
+
+    Renames certain message types so the recipient can distinguish
+    their own outgoing messages from incoming opponent messages.
+    """
     opponent = _opponents.get(sender)
     if opponent and opponent in _connected:
+        relay_type = _RELAY_RENAME.get(msg.get("type", ""))
+        if relay_type:
+            msg = {**msg, "type": relay_type}
         await _send(_connected[opponent], msg)
 
 

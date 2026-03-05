@@ -23,6 +23,7 @@ class GameController:
         # Opponent score / state for HUD display
         self._opp_score: int | None = None
         self._opp_status: str = ""          # "correct" | "wrong" | "gameover" | "disconnected" | ""
+        self._opp_reason: str = ""          # reason string from opponent's game_over
         self._opp_gameover_time: int | None = None   # ticks when opponent lost
 
         self.game_timer = GameTimer(self._bus)
@@ -82,12 +83,14 @@ class GameController:
                 self._opp_status = msg.get("result", "")
 
             elif msg_type == "opponent_game_over":
-                self._opp_score        = int(msg.get("score", 0))
-                self._opp_status       = "gameover"
+                self._opp_score         = int(msg.get("score", 0))
+                self._opp_reason        = str(msg.get("reason", ""))
+                self._opp_status        = "gameover"
                 self._opp_gameover_time = pygame.time.get_ticks()
 
             elif msg_type == "opponent_disconnected":
                 self._opp_status        = "disconnected"
+                self._opp_reason        = "Opponent disconnected."
                 self._opp_gameover_time = pygame.time.get_ticks()
 
     # ------------------------------------------------------------------
@@ -149,11 +152,9 @@ class GameController:
             if self._mp and self._mp.connected:
                 await self._handle_mp_messages()
 
-            # Opponent lost: show banner for 2 s then declare winner
+            # Opponent lost: show banner for 2 s then go to win screen
             if self._opp_gameover_time is not None and now - self._opp_gameover_time >= 2000:
-                reason = ("You Win!" if self._opp_status == "gameover"
-                          else "Opponent disconnected!")
-                return ("gameover", self.model.score, reason)
+                return ("youwin", self.model.score, self._opp_reason)
 
             # After the wrong-input press-flash expires, hand off to game over
             if self.model.state == 'gameover' and now >= self.model.flash_end:

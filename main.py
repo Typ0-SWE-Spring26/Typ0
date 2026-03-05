@@ -11,6 +11,7 @@ from game.screens.startscreen import StartScreen
 from game.screens.startmenu import StartMenu
 from game.screens.gameplay.display import GameScreen
 from game.screens.gameover import GameOverScreen
+from game.screens.youwin import YouWinScreen
 from game.core.keybinds import KeybindManager, from_flags
 from game.screens.gameplay.pause_overlay import PauseOverlay
 from game.screens.menu import MenuOverlay
@@ -82,9 +83,12 @@ async def main():
             if result == "quit":
                 break
 
-            _, score, reason = result
-            game_over = GameOverScreen(screen, score=score, reason=reason)
-            go_result = await game_over.run()
+            outcome, score, reason = result
+            if outcome == "youwin":
+                end_screen = YouWinScreen(screen, score=score, reason=reason)
+            else:
+                end_screen = GameOverScreen(screen, score=score, reason=reason)
+            go_result = await end_screen.run()
 
             if go_result == "quit":
                 break
