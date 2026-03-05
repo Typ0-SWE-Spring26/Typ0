@@ -11,9 +11,11 @@ from game.screens.startscreen import StartScreen
 from game.screens.startmenu import StartMenu
 from game.screens.gameplay.display import GameScreen
 from game.screens.gameover import GameOverScreen
-from game.core.keybinds import KeybindManager
+from game.core.keybinds import KeybindManager, from_flags
 from game.screens.gameplay.pause_overlay import PauseOverlay
 from game.screens.menu import MenuOverlay
+from game.screens.multiplayer_lobby import MultiplayerLobby
+from game.core.websocket import MultiplayerClient
 
 async def main():
     pygame.init()
@@ -30,6 +32,7 @@ async def main():
     if result == "menu":
         menu_screen = StartMenu(screen)
         result = await menu_screen.run()
+
     if result == "start":
         pause_overlay = PauseOverlay(screen)
         keybinds = KeybindManager()
@@ -49,6 +52,49 @@ async def main():
             if result == "quit":
                 break
             # "retry" loops back to a new GameScreen
+
+    elif result == "multiplayer":
+        pause_overlay = PauseOverlay(screen)
+
+        while True:
+            # --- Lobby ---
+            mp_client = MultiplayerClient()
+            lobby = MultiplayerLobby(screen, mp_client)
+            lobby_result = await lobby.run()
+
+            if lobby_result == "quit":
+                break
+            if lobby_result == "menu":
+                break
+
+            # lobby_result == ("game_start", role, opp_settings_flags)
+            _, role, opp_settings_flags = lobby_result
+
+            # Apply opponent's settings to our keybind mirror for display
+            keybinds = KeybindManager()
+            from_flags(opp_settings_flags, keybinds)
+
+            # Configure game model for the player's role
+            game_screen = GameScreen(screen, KeybindManager(), pause_overlay=pause_overlay,
+                                     mp_client=mp_client)
+            if role == "guest":
+                game_screen.model.guest_mode = True
+
+            result = await game_screen.run()
+
+            if mp_client.connected:
+                await mp_client.disconnect()
+
+            if result == "quit":
+                break
+
+            _, score, reason = result
+            game_over = GameOverScreen(screen, score=score, reason=reason)
+            go_result = await game_over.run()
+
+            if go_result == "quit":
+                break
+            # "retry" → loops back to lobby for a rematch
 
     pygame.quit()
 

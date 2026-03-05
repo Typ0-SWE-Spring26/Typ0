@@ -38,6 +38,18 @@ class GameModel:
 
         self.gameover_reason = "Wrong input!"
 
+        # Multiplayer: guest waits for the host's button instead of generating locally
+        self.guest_mode      = False
+        self._pending_button: str | None = None
+
+    # ------------------------------------------------------------------
+    # Multiplayer helpers
+    # ------------------------------------------------------------------
+
+    def set_next_button(self, button: str) -> None:
+        """Called by the multiplayer client when the host sends the next button."""
+        self._pending_button = button
+
     # ------------------------------------------------------------------
     # Game logic
     # ------------------------------------------------------------------
@@ -78,7 +90,14 @@ class GameModel:
         """Advance the state machine. Returns True when entering 'input' state."""
         if self.state == 'adding':
             if now >= self._next_time:
-                self.sequence.append(random.choice(list(BUTTON_NAMES)))
+                if self.guest_mode:
+                    if self._pending_button is None:
+                        return False  # wait for host to send the next button
+                    button = self._pending_button
+                    self._pending_button = None
+                else:
+                    button = random.choice(list(BUTTON_NAMES))
+                self.sequence.append(button)
                 self.player_index = 0
                 self._show_index  = 0
                 self._showing_lit = False

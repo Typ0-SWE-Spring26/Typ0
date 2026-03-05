@@ -43,3 +43,23 @@ class KeybindManager:
 
     def toggle_invert(self):
         self.inverted = not self.inverted
+
+
+# ---------------------------------------------------------------------------
+# Settings bit flags — compact representation for network transmission
+# ---------------------------------------------------------------------------
+
+SETTINGS_INVERTED = 0x01  # bit 0: inverted controls
+
+
+def to_flags(keybinds: 'KeybindManager') -> int:
+    """Encode keybind settings as a compact integer bit field."""
+    flags = 0
+    if keybinds.inverted:
+        flags |= SETTINGS_INVERTED
+    return flags
+
+
+def from_flags(flags: int, keybinds: 'KeybindManager') -> None:
+    """Apply a bit-flag integer to a KeybindManager instance."""
+    keybinds.inverted = bool(flags & SETTINGS_INVERTED)
