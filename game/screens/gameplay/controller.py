@@ -71,10 +71,15 @@ class GameController:
 
                     # Game inputs are blocked while paused
                     if not self.paused and self.model.state == 'input':
+                        matched = False
                         for name, key in self.keybinds.button_keys.items():
                             if event.key == key:
                                 self._process_input_result(name, now)
+                                matched = True
                                 break
+                        if not matched:
+                            # Any unbound key counts as a wrong guess
+                            self._process_input_result('_invalid', now)
 
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     if not self.paused and self.model.state == 'input':

@@ -205,7 +205,8 @@ class TestKeyboardInput:
 
         assert model.player_index == 0
 
-    def test_unbound_key_ignored(self, ctrl, pg, model):
+    def test_unbound_key_triggers_gameover(self, ctrl, pg, model):
+        """Any unbound key during input state counts as a wrong guess."""
         model.state = 'input'
         model.sequence = ['left']
         model.player_index = 0
@@ -217,12 +218,16 @@ class TestKeyboardInput:
         for event in pg.event.get():
             if event.type == pg.KEYDOWN:
                 if not ctrl.paused and model.state == 'input':
+                    matched = False
                     for name, key in ctrl.keybinds.button_keys.items():
                         if event.key == key:
                             model.handle_input(name, now)
+                            matched = True
                             break
+                    if not matched:
+                        model.handle_input('_invalid', now)
 
-        assert model.player_index == 0
+        assert model.state == 'gameover'
 
     def test_timer_stops_on_wrong_input(self, ctrl, pg, model):
         model.state = 'input'
