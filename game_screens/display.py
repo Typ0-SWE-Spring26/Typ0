@@ -3,7 +3,8 @@ import asyncio
 import random
 import os
 
-from game_screens.menu import MenuOverlay
+from game.screens.menu import MenuOverlay
+
 
 class GameScreen:
     BUTTON_KEYS = {
