@@ -49,7 +49,8 @@ class GameController:
         while True:
             now = pygame.time.get_ticks()
 
-            for event in pygame.event.get():
+            for raw_event in pygame.event.get():
+                event = self.screen.remap_event(raw_event) if hasattr(self.screen, 'remap_event') else raw_event
                 if event.type == pygame.QUIT:
                     return "quit"
 
@@ -99,6 +100,6 @@ class GameController:
             if self.pause_overlay:
                 self.pause_overlay.draw()
 
-            pygame.display.flip()
+            self.screen.present()
             clock.tick(60)
             await asyncio.sleep(0)  # Required for pygbag

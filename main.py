@@ -7,6 +7,7 @@
 
 import asyncio
 import pygame
+from game.utils.scaled_screen import ScaledScreen
 from game.screens.startscreen import StartScreen
 from game.screens.startmenu import StartMenu
 from game.screens.gameplay.display import GameScreen
@@ -21,8 +22,9 @@ from game.screens.menu import MenuOverlay
 
 async def main():
     pygame.init()
-    screen = pygame.display.set_mode((800, 600))
+    window = pygame.display.set_mode((800, 600), pygame.RESIZABLE)
     pygame.display.set_caption("TYP0")
+    screen = ScaledScreen(window)
 
     # Show start screen
     start_screen = StartScreen(screen)

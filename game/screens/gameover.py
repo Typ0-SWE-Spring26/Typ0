@@ -88,7 +88,7 @@ class GameOverScreen:
                 (self.screen.get_width() // 2, self.screen.get_height() - 80),
             )
 
-            pygame.display.flip()
+            self.screen.present()
             clock.tick(60)
             await asyncio.sleep(0)  # Required for pygbag
 

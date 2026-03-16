@@ -130,7 +130,7 @@ class NameEntryScreen:
                 (cx, self.screen.get_height() - 60),
             )
 
-            pygame.display.flip()
+            self.screen.present()
             clock.tick(60)
             await asyncio.sleep(0)
 
