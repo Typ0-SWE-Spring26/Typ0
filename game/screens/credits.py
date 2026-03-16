@@ -3,9 +3,11 @@ import asyncio
 from game.utils import animation_utils
 
 
+# Each entry: ("Role Title", ["Name1", "Name2", ...])
 CREDITS = [
-    ("Austin", "Developer"),
-    ("Ben", "Developer & Music Composer"),
+    ("Developed by", ["Austin", "Ben", "Charlie", "Dipen", "Gabi", "Jude", "Joel", "Kregg", "Oriye"]),
+    ("Music Composed by", ["Ben"]),
+    ("Art by", ["Charlie"]),
 ]
 
 
@@ -15,8 +17,8 @@ class CreditsScreen:
         self.gradient_top = (15, 15, 60)
         self.gradient_bottom = (5, 5, 20)
         self.running = True
-        self.font_name = pygame.font.Font(None, 44)
-        self.font_role = pygame.font.Font(None, 32)
+        self.font_role = pygame.font.Font(None, 36)
+        self.font_name = pygame.font.Font(None, 28)
 
     async def run(self):
         clock = pygame.time.Clock()
@@ -44,24 +46,21 @@ class CreditsScreen:
                 wave_speed=0.3,
             )
 
-            # Draw each credit entry
-            start_y = 200
-            spacing = 80
+            # Draw credits grouped by role
+            cx = self.screen.get_width() // 2
+            y = 160
 
-            for i, (name, role) in enumerate(CREDITS):
-                y = start_y + i * spacing
+            for role, names in CREDITS:
+                # Role heading
+                role_surface = self.font_role.render(role, True, (255, 215, 0))
+                self.screen.blit(role_surface, role_surface.get_rect(center=(cx, y)))
+                y += 30
 
-                name_surface = self.font_name.render(name, True, (255, 255, 255))
-                name_rect = name_surface.get_rect(
-                    center=(self.screen.get_width() // 2, y)
-                )
-                self.screen.blit(name_surface, name_rect)
-
-                role_surface = self.font_role.render(role, True, (180, 180, 220))
-                role_rect = role_surface.get_rect(
-                    center=(self.screen.get_width() // 2, y + 30)
-                )
-                self.screen.blit(role_surface, role_rect)
+                # Names as comma-separated line
+                names_str = ", ".join(names)
+                name_surface = self.font_name.render(names_str, True, (220, 220, 240))
+                self.screen.blit(name_surface, name_surface.get_rect(center=(cx, y)))
+                y += 50
 
             # Back prompt
             animation_utils.flashing_text(
