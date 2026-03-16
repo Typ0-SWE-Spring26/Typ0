@@ -72,15 +72,6 @@ class GameOverScreen:
             reason_rect = reason_surface.get_rect(center=(self.screen.get_width() // 2, 350))
             self.screen.blit(reason_surface, reason_rect)
 
-            # Countdown to high scores
-            secs_left = max(0, (AUTO_SWITCH_MS - elapsed) // 1000 + 1)
-            timer_surface = self.font_timer.render(
-                f"High Scores in {secs_left}s...", True, (150, 150, 150)
-            )
-            self.screen.blit(timer_surface, timer_surface.get_rect(
-                center=(self.screen.get_width() // 2, self.screen.get_height() - 120)
-            ))
-
             # Flashing prompt text
             animation_utils.flashing_text(
                 self.screen,
