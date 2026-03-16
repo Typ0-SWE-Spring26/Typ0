@@ -6,6 +6,8 @@
 # ///
 
 import asyncio
+import random
+import time
 import pygame
 from game.utils.scaled_screen import ScaledScreen
 from game.screens.startscreen import StartScreen
@@ -20,8 +22,21 @@ from game.core.high_scores import is_high_score, add_score
 from game.screens.gameplay.pause_overlay import PauseOverlay
 from game.screens.menu import MenuOverlay
 
+
+def _seed_session_randomness():
+    """Seed RNG once per app launch so browser reloads get a fresh sequence."""
+    seed = None
+    try:
+        import os
+        seed = int.from_bytes(os.urandom(16), "big")
+    except Exception:
+        # Fallback for environments without os.urandom support.
+        seed = time.time_ns() ^ time.perf_counter_ns()
+    random.seed(seed)
+
 async def main():
     pygame.init()
+    _seed_session_randomness()
     window = pygame.display.set_mode((800, 600), pygame.RESIZABLE)
     pygame.display.set_caption("TYP0")
     screen = ScaledScreen(window)
