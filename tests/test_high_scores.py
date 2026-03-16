@@ -1,8 +1,7 @@
 """Unit tests for high scores system — load, save, ranking."""
 import json
-import os
 import pytest
-from unittest.mock import patch, mock_open
+from unittest.mock import patch
 from game.core.high_scores import load_scores, save_scores, is_high_score, add_score, MAX_SCORES
 
 
@@ -42,6 +41,32 @@ class TestLoadScores:
         with patch('game.core.high_scores.SCORES_FILE', str(f)):
             scores = load_scores()
             assert len(scores) == MAX_SCORES
+
+    def test_load_skips_invalid_entries(self, tmp_path):
+        f = tmp_path / "scores.json"
+        data = [
+            {"name": "GOOD", "score": 10},
+            {"name": "BAD_NO_SCORE"},
+            {"score": 50},
+            "not-a-dict",
+            {"name": 123, "score": 40},
+        ]
+        f.write_text(json.dumps(data))
+        with patch('game.core.high_scores.SCORES_FILE', str(f)):
+            scores = load_scores()
+        assert scores == [{"name": "GOOD", "score": 10}]
+
+    def test_load_coerces_numeric_like_scores(self, tmp_path):
+        f = tmp_path / "scores.json"
+        data = [
+            {"name": "A", "score": "42"},
+            {"name": "B", "score": "9.9"},
+            {"name": "C", "score": 10.7},
+        ]
+        f.write_text(json.dumps(data))
+        with patch('game.core.high_scores.SCORES_FILE', str(f)):
+            scores = load_scores()
+        assert scores[0] == {"name": "A", "score": 42}
 
 
 class TestSaveScores:

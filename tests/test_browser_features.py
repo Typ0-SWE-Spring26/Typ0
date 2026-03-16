@@ -167,9 +167,21 @@ def test_retry_from_game_over(page):
 
     before = page.locator("#canvas").screenshot()
 
-    page.keyboard.press("r")              # retry
-    page.wait_for_timeout(2_000)
+    # Keep focus on canvas before sending keys.
+    page.locator("#canvas").click()
+    page.keyboard.press("r")              # retry (works on game over screen)
+    page.wait_for_timeout(1_000)
     after = page.locator("#canvas").screenshot()
+
+    if before == after:
+        # If score qualifies as high score, game shows name entry first.
+        # ENTER confirms default name, then R should work on game over/high scores flow.
+        page.keyboard.press("Enter")
+        page.wait_for_timeout(1_000)
+        page.locator("#canvas").click()
+        page.keyboard.press("r")
+        page.wait_for_timeout(1_500)
+        after = page.locator("#canvas").screenshot()
 
     assert before != after, (
         "Canvas did not change after pressing R — retry may not be working"

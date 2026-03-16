@@ -8,12 +8,19 @@ from unittest.mock import patch
 # Imports deferred to step functions — pygame must be mocked first by environment.py
 
 
+def _track_temp_file(ctx, path):
+    if not hasattr(ctx, '_temp_files'):
+        ctx._temp_files = []
+    ctx._temp_files.append(path)
+
+
 @given('an empty scores file')
 def step_empty_scores(ctx):
     ctx.tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
     ctx.tmp.write('[]')
     ctx.tmp.close()
     ctx.scores_file = ctx.tmp.name
+    _track_temp_file(ctx, ctx.scores_file)
 
 
 @given('a scores file with {n:d} entries')
@@ -23,6 +30,7 @@ def step_scores_with_n(ctx, n):
     ctx.tmp.write(json.dumps(data))
     ctx.tmp.close()
     ctx.scores_file = ctx.tmp.name
+    _track_temp_file(ctx, ctx.scores_file)
 
 
 @given('a full scores file with lowest score {low:d}')
@@ -33,6 +41,7 @@ def step_full_scores(ctx, low):
     ctx.tmp.write(json.dumps(data))
     ctx.tmp.close()
     ctx.scores_file = ctx.tmp.name
+    _track_temp_file(ctx, ctx.scores_file)
 
 
 @given('a scores file with entries {scores}')
@@ -43,6 +52,7 @@ def step_scores_with_values(ctx, scores):
     ctx.tmp.write(json.dumps(data))
     ctx.tmp.close()
     ctx.scores_file = ctx.tmp.name
+    _track_temp_file(ctx, ctx.scores_file)
 
 
 @given('a corrupt scores file')
@@ -51,11 +61,14 @@ def step_corrupt_scores(ctx):
     ctx.tmp.write('not valid json!!!')
     ctx.tmp.close()
     ctx.scores_file = ctx.tmp.name
+    _track_temp_file(ctx, ctx.scores_file)
 
 
 @given('a missing scores file')
 def step_missing_scores(ctx):
     ctx.scores_file = os.path.join(tempfile.gettempdir(), 'nonexistent_scores.json')
+    if os.path.exists(ctx.scores_file):
+        os.remove(ctx.scores_file)
 
 
 @then('a score of {n:d} should qualify as a high score')

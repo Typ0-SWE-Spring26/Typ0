@@ -63,7 +63,6 @@ class HighScoresScreen:
                 )
             else:
                 # Table header
-                y = 120
                 rank_x = cx - 180
                 name_x = cx - 60
                 score_x = cx + 160

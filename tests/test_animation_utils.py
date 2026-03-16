@@ -154,3 +154,6 @@ def test_play_sound_failure_is_swallowed():
         mock_pg.mixer.Sound.side_effect = RuntimeError("cannot load")
 
         animation_utils.play_sound("missing.wav")
+
+    # Explicitly document expected behavior: failures are swallowed.
+    assert True

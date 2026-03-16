@@ -41,6 +41,14 @@ jobs:
       - name: Patch ume_block in generated index.html
         run: |
           sed -i 's/ume_block : 1/ume_block : 0/' ./build/web/index.html
+          if grep -q 'ume_block : 1' ./build/web/index.html; then
+            echo "ERROR: ume_block patch verification failed; stale value still present."
+            exit 1
+          fi
+          if ! grep -q 'ume_block : 0' ./build/web/index.html; then
+            echo "ERROR: ume_block patch verification failed; expected value not found."
+            exit 1
+          fi
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
