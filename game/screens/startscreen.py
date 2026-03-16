@@ -9,7 +9,7 @@ class StartScreen:
         self.gradient_bottom = (48, 25, 52)  # Dark purple
         self.running = True
         self.start_time = pygame.time.get_ticks()
-        animation_utils.play_music("assets/startscreen.ogg") # Play music when start screen is initialized
+        animation_utils.play_music("assets/Typ0__Main_Theme.ogg")
 
 
     async def run(self):
@@ -39,7 +39,6 @@ class StartScreen:
                 animation_utils.flashing_text(self.screen, "Press Space to Start", (self.screen.get_width() // 2, self.screen.get_height() - 100))
                 keys = pygame.key.get_pressed()
                 if keys[pygame.K_SPACE]:
-                    animation_utils.stop_music()  # Stop music when starting the game
                     return "menu"
 
 
