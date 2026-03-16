@@ -69,4 +69,4 @@ jobs:
           done
 
       - name: Run browser tests
-        run: python -m pytest tests/test_browser.py -v -m browser
+        run: python -m pytest tests/test_browser.py tests/test_browser_features.py -v -m browser
