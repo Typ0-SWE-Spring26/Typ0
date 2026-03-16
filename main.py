@@ -11,6 +11,7 @@ from game.screens.startscreen import StartScreen
 from game.screens.startmenu import StartMenu
 from game.screens.gameplay.display import GameScreen
 from game.screens.gameover import GameOverScreen
+from game.screens.credits import CreditsScreen
 from game.core.keybinds import KeybindManager
 from game.screens.gameplay.pause_overlay import PauseOverlay
 from game.screens.menu import MenuOverlay
@@ -28,8 +29,17 @@ async def main():
         pygame.quit()
         return
     if result == "menu":
-        menu_screen = StartMenu(screen)
-        result = await menu_screen.run()
+        while True:
+            menu_screen = StartMenu(screen)
+            result = await menu_screen.run()
+            if result == "credits":
+                credits = CreditsScreen(screen)
+                cr = await credits.run()
+                if cr == "quit":
+                    result = "quit"
+                    break
+                continue  # back to menu
+            break  # "start" or "quit"
     if result == "start":
         pause_overlay = PauseOverlay(screen)
         keybinds = KeybindManager()
@@ -43,8 +53,19 @@ async def main():
 
             # result is ("gameover", score, reason)
             _, score, reason = result
-            game_over = GameOverScreen(screen, score=score, reason=reason)
-            result = await game_over.run()
+
+            while True:
+                game_over = GameOverScreen(screen, score=score, reason=reason)
+                result = await game_over.run()
+
+                if result == "credits":
+                    credits = CreditsScreen(screen)
+                    cr = await credits.run()
+                    if cr == "quit":
+                        result = "quit"
+                        break
+                    continue  # back to game over screen
+                break  # "retry" or "quit"
 
             if result == "quit":
                 break

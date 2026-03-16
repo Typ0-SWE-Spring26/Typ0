@@ -30,6 +30,8 @@ class GameOverScreen:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_r:
                         return "retry"
+                    if event.key == pygame.K_c:
+                        return "credits"
                     if event.key == pygame.K_q or event.key == pygame.K_ESCAPE:
                         return "quit"
 
@@ -62,7 +64,7 @@ class GameOverScreen:
             # Flashing prompt text
             animation_utils.flashing_text(
                 self.screen,
-                "Press R to Retry  |  Q to Quit",
+                "Press R to Retry  |  C for Credits  |  Q to Quit",
                 (self.screen.get_width() // 2, self.screen.get_height() - 80),
             )
 
