@@ -96,7 +96,10 @@ def view():
 
 @pytest.fixture
 def ctrl(pg, model, view, bus, keybinds):
-    return GameController(Mock(), model, view, bus, keybinds)
+    screen = Mock()
+    # Preserve real event semantics in controller tests that call ctrl.run().
+    screen.remap_event.side_effect = lambda event: event
+    return GameController(screen, model, view, bus, keybinds)
 
 
 async def run_one_frame(ctrl, pg, events=None):
@@ -212,20 +215,10 @@ class TestKeyboardInput:
         model.player_index = 0
 
         ev = make_key_event(pg, 999)  # not a game key
-        pg.event.get.return_value = [ev]
+        pg.time.get_ticks.return_value = 12345
 
-        now = pg.time.get_ticks.return_value
-        for event in pg.event.get():
-            if event.type == pg.KEYDOWN:
-                if not ctrl.paused and model.state == 'input':
-                    matched = False
-                    for name, key in ctrl.keybinds.button_keys.items():
-                        if event.key == key:
-                            model.handle_input(name, now)
-                            matched = True
-                            break
-                    if not matched:
-                        model.handle_input('_invalid', now)
+        with patch.object(model, 'reset', return_value=None):
+            asyncio.run(run_one_frame(ctrl, pg, events=[ev]))
 
         assert model.state == 'gameover'
 

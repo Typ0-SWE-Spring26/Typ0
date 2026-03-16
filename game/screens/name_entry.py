@@ -126,7 +126,7 @@ class NameEntryScreen:
             # Controls hint
             animation_utils.flashing_text(
                 self.screen,
-                "W/S to change  |  A/D to move  |  ENTER to confirm",
+                "W/S or Up/Down to change  |  A/D or Left/Right to move  |  ENTER to confirm",
                 (cx, self.screen.get_height() - 60),
             )
 

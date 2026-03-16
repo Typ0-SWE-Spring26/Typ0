@@ -34,6 +34,19 @@ def _make_key(pg, key):
     return ev
 
 
+def _safe_stop(ctx, attr):
+    patcher = getattr(ctx, attr, None)
+    if patcher is None:
+        return
+    stop = getattr(patcher, "stop", None)
+    if not callable(stop):
+        return
+    try:
+        stop()
+    except Exception:
+        pass
+
+
 @given('a name entry screen with score {score:d}')
 def step_name_entry_screen(ctx, score):
     ctx._ne_pg_patch = patch('game.screens.name_entry.pygame')
@@ -95,9 +108,11 @@ def _run_pending(ctx):
         return [_make_key(ctx.mock_pg, ctx.mock_pg.K_RETURN)]
 
     ctx.mock_pg.event.get.side_effect = get_events
-    ctx.screen_result = asyncio.run(ctx.screen_obj.run())
-    ctx._ne_pg_patch.stop()
-    ctx._ne_anim_patch.stop()
+    try:
+        ctx.screen_result = asyncio.run(ctx.screen_obj.run())
+    finally:
+        _safe_stop(ctx, '_ne_pg_patch')
+        _safe_stop(ctx, '_ne_anim_patch')
 
 
 @then('the returned name should be "{name}"')
@@ -138,7 +153,9 @@ def step_name_entry_returns(ctx, value):
     ev = Mock()
     ev.type = ctx.mock_pg.QUIT
     ctx.mock_pg.event.get.return_value = [ev]
-    ctx.screen_result = asyncio.run(ctx.screen_obj.run())
-    assert ctx.screen_result == value
-    ctx._ne_pg_patch.stop()
-    ctx._ne_anim_patch.stop()
+    try:
+        ctx.screen_result = asyncio.run(ctx.screen_obj.run())
+        assert ctx.screen_result == value
+    finally:
+        _safe_stop(ctx, '_ne_pg_patch')
+        _safe_stop(ctx, '_ne_anim_patch')

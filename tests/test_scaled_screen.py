@@ -66,6 +66,17 @@ def test_map_mouse_accounts_for_offset_and_scale(scaled_module):
     assert mapped == (200, 300)
 
 
+def test_map_mouse_clamps_when_point_is_in_letterbox(scaled_module):
+    module, _ = scaled_module
+    window = Mock()
+    window.get_size.return_value = (1600, 900)
+
+    screen = module.ScaledScreen(window)
+
+    assert screen.map_mouse((0, 0)) == (0, 0)
+    assert screen.map_mouse((5000, 5000)) == (module.VIRTUAL_WIDTH - 1, module.VIRTUAL_HEIGHT - 1)
+
+
 def test_remap_event_converts_mouse_pos(scaled_module):
     module, _ = scaled_module
     window = Mock()

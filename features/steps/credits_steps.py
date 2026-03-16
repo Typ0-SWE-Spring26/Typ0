@@ -58,5 +58,3 @@ def step_credits_returns(ctx, value):
     assert ctx.screen_result == value, (
         f'Expected "{value}", got "{ctx.screen_result}"'
     )
-    ctx._credits_pg_patch.stop()
-    ctx._credits_anim_patch.stop()

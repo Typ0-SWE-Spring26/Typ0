@@ -85,8 +85,6 @@ def step_gameover_returns(ctx, value):
     assert ctx.screen_result == value, (
         f'Expected "{value}", got "{ctx.screen_result}"'
     )
-    ctx._go_pg_patch.stop()
-    ctx._go_anim_patch.stop()
 
 
 @then('the high scores screen should return "{value}"')
@@ -94,9 +92,6 @@ def step_hs_returns(ctx, value):
     assert ctx.screen_result == value, (
         f'Expected "{value}", got "{ctx.screen_result}"'
     )
-    ctx._hs_pg_patch.stop()
-    ctx._hs_anim_patch.stop()
-    ctx._hs_load_patch.stop()
 
 
 @then('the auto-switch constant should be {n:d} milliseconds')

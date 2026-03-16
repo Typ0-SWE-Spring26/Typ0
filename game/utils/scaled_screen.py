@@ -47,6 +47,8 @@ class ScaledScreen(pygame.Surface):
         mx, my = pos
         vx = (mx - self.offset_x) / self.scale
         vy = (my - self.offset_y) / self.scale
+        vx = max(0, min(vx, VIRTUAL_WIDTH - 1))
+        vy = max(0, min(vy, VIRTUAL_HEIGHT - 1))
         return (int(vx), int(vy))
 
     def remap_event(self, event):
