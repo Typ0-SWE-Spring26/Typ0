@@ -114,8 +114,6 @@ class MultiplayerLobby:
         self._status_msg = "Connecting..."
         try:
             await self.client.connect(username, flags)
-            # Stay in "connecting" — let _poll_messages() decide the next state
-            # based on whether the server sends player_list (ok) or error (taken).
             self._state = "connecting"
         except Exception as exc:
             self._status_msg = f"Connection failed: {exc}"

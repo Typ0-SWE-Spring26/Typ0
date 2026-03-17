@@ -11,12 +11,16 @@ import json
 # Environment detection
 # ---------------------------------------------------------------------------
 
-try:
-    import js as _js                    # noqa: F401  (browser-only)
-    import pyodide.ffi as _pyodide_ffi  # noqa: F401  (browser-only)
-    _IN_BROWSER = True
-except ImportError:
-    _IN_BROWSER = False
+import sys
+
+_IN_BROWSER = sys.platform == "emscripten"
+
+if not _IN_BROWSER:
+    try:
+        import js as _js                    # noqa: F401  (browser-only)
+        _IN_BROWSER = True
+    except ImportError:
+        pass
 
 
 # ---------------------------------------------------------------------------
@@ -34,7 +38,7 @@ class MultiplayerClient:
         await client.disconnect()
     """
 
-    SERVER_URL = "ws://localhost:8765"
+    SERVER_URL = "ws://10.22.16.243:8765"
 
     def __init__(self):
         self._ws = None           # native websockets connection or JS WebSocket
@@ -51,12 +55,15 @@ class MultiplayerClient:
 
     async def connect(self, username: str, settings_flags: int = 0) -> None:
         """Open WebSocket and announce presence to the server."""
+        print(f"[WS] connect() called, _IN_BROWSER={_IN_BROWSER}")
         self.username = username
         self._open_event.clear()
 
         if _IN_BROWSER:
+            print("[WS] Taking browser path")
             await self._connect_browser()
         else:
+            print("[WS] Taking native path")
             await self._connect_native()
 
         # Send hello after connection is established
@@ -64,34 +71,30 @@ class MultiplayerClient:
         self.connected = True
 
     async def _connect_browser(self) -> None:
-        """Browser path: use pyodide js.WebSocket."""
-        from js import WebSocket as _JSWebSocket
-        from pyodide.ffi import create_proxy
+        """Browser path: create JS WebSocket and buffer messages in JS."""
+        import platform
+        self._window = platform.window
 
-        loop = asyncio.get_event_loop()
-
-        ws = _JSWebSocket.new(self.SERVER_URL)
-        self._ws = ws
-
-        def _on_open(e):
-            loop.call_soon_threadsafe(self._open_event.set)
-
-        def _on_message(e):
-            try:
-                data = json.loads(str(e.data))
-            except Exception:
-                return
-            loop.call_soon_threadsafe(self._queue.put_nowait, data)
-
-        def _on_close(e):
-            self.connected = False
-
-        ws.onopen    = create_proxy(_on_open)
-        ws.onmessage = create_proxy(_on_message)
-        ws.onclose   = create_proxy(_on_close)
+        # Create WebSocket and message queue entirely in JavaScript
+        self._window.eval(f"""
+            window._ws = new WebSocket("{self.SERVER_URL}");
+            window._ws_open = false;
+            window._ws_closed = false;
+            window._ws_msgs = [];
+            window._ws.onopen = function() {{ window._ws_open = true; }};
+            window._ws.onmessage = function(e) {{ window._ws_msgs.push(e.data); }};
+            window._ws.onclose = function() {{ window._ws_closed = true; }};
+            window._ws.onerror = function() {{ window._ws_closed = true; }};
+        """)
 
         # Wait up to 10 s for the connection to open
-        await asyncio.wait_for(self._open_event.wait(), timeout=10)
+        for _ in range(100):
+            if self._window.eval("window._ws_open"):
+                return
+            if self._window.eval("window._ws_closed"):
+                raise RuntimeError("WebSocket connection closed")
+            await asyncio.sleep(0.1)
+        raise RuntimeError("WebSocket connection timed out")
 
     async def _connect_native(self) -> None:
         """Native Python path: use the `websockets` library."""
@@ -122,7 +125,9 @@ class MultiplayerClient:
         """Serialize *msg* as JSON and send it over the WebSocket."""
         raw = json.dumps(msg)
         if _IN_BROWSER:
-            self._ws.send(raw)
+            # Escape backslashes and quotes for JS string
+            js_safe = raw.replace("\\", "\\\\").replace("'", "\\'")
+            self._window.eval(f"window._ws.send('{js_safe}');")
         else:
             await self._ws.send(raw)
 
@@ -141,6 +146,19 @@ class MultiplayerClient:
 
     async def poll(self) -> dict | None:
         """Return the next queued message without blocking, or None."""
+        if _IN_BROWSER:
+            # Drain JS message buffer
+            count = int(self._window.eval("window._ws_msgs.length"))
+            if count > 0:
+                raw = str(self._window.eval("window._ws_msgs.shift()"))
+                try:
+                    return json.loads(raw)
+                except Exception:
+                    return None
+            # Check if connection was closed
+            if self._window.eval("window._ws_closed"):
+                self.connected = False
+            return None
         try:
             return self._queue.get_nowait()
         except asyncio.QueueEmpty:
@@ -159,6 +177,6 @@ class MultiplayerClient:
             pass
         self.connected = False
         if _IN_BROWSER:
-            self._ws.close()
+            self._window.eval("window._ws.close();")
         else:
             await self._ws.close()
