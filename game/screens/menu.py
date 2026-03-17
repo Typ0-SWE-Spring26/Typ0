@@ -1,6 +1,7 @@
 import pygame
 import os 
 from game_screens.menu_volume import VolumeMenu
+from game_screens.menu_music import MusicMenu
 
 class MenuOverlay:
     
@@ -54,6 +55,9 @@ class MenuOverlay:
         # volume subscreen
         self.volume_menu = VolumeMenu(screen)
         self.active_submenu = None  # None or "volume"
+
+        #menuu subscreen
+        self.music_menu = MusicMenu(screen)
  
 
     def draw(self):
@@ -63,7 +67,7 @@ class MenuOverlay:
         self.screen.blit(text, text.get_rect(center=self.button_rect.center))
         
         # Draw dark overlay and background if menu is open OR submenu is active
-        if self.open or self.active_submenu == "volume":
+        if self.open or self.active_submenu is not None:
             # Dark transparent overlay behind popup
             overlay = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 150))
@@ -76,6 +80,9 @@ class MenuOverlay:
         if self.active_submenu == "volume":
             # We need to pass the bg_rect to VolumeMenu so it can position elements inside it
             self.volume_menu.draw(self.bg_rect)
+        
+        elif self.active_submenu == "music":
+            self.music_menu.draw(self.bg_rect)
         
         # Draw menu options if menu is open (and no submenu is active)
         elif self.open:
@@ -92,36 +99,52 @@ class MenuOverlay:
     
     def handle_event(self, event):
 
-        # If volume screen active, forward events to it
+        # 1️⃣ If volume submenu is open
         if self.active_submenu == "volume":
             result = self.volume_menu.handle_event(event)
 
             if result == "Back":
                 self.active_submenu = None
-                self.open = True  # Re-open the main menu when going back
+                self.open = True
 
             return None
 
+
+        # 2️⃣ If music submenu is open
+        if self.active_submenu == "music":
+            result = self.music_menu.handle_event(event)
+
+            if result == "Back":
+                self.active_submenu = None
+                self.open = True
+
+            return None
+
+
+        # 3️⃣ Normal menu clicks
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
 
-            # Click MENU button
+            # MENU button
             if self.button_rect.collidepoint(event.pos):
                 self.open = not self.open
                 return None
 
-            # Click Volume (for now does nothing)
-            if self.open and self.volume_rect.collidepoint(event.pos):
-                self.active_submenu = "volume"
-                self.open= False
-                return None
-            
-            if self.open and self.music_rect.collidepoint(event.pos): #music
-                print("Music clicked")
-                return "Music"
-            
-            if self.open and self.about_rect.collidepoint(event.pos):  # about
-                print("About clicked")
-                return "About"
 
-        return None 
-    
+            # Only allow menu buttons if menu is open
+            if self.open:
+
+                if self.volume_rect.collidepoint(event.pos):
+                    self.active_submenu = "volume"
+                    self.open = False
+                    return None
+
+                if self.music_rect.collidepoint(event.pos):
+                    self.active_submenu = "music"
+                    self.open = False
+                    return None
+
+                if self.about_rect.collidepoint(event.pos):
+                    print("About clicked")
+                    return "About"
+
+        return None
