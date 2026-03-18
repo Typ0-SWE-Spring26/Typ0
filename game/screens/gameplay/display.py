@@ -1,5 +1,6 @@
 from game.core.event_bus import EventBus
 from game.core.game_model import GameModel
+from game.screens.menu import MenuOverlay
 from .view import GameView
 from .controller import GameController
 
@@ -17,10 +18,13 @@ class GameScreen:
         self._bus = EventBus()
         self.model = GameModel(self._bus)
         self.keybinds = keybinds
+        
+        # Create menu overlay
+        menu_overlay = MenuOverlay(screen)
 
         self.view = GameView(screen, keybinds.key_labels)
         self.controller = GameController(
-            screen, self.model, self.view, self._bus, keybinds, pause_overlay,
+            screen, self.model, self.view, self._bus, keybinds, pause_overlay, menu_overlay,
         )
 
     async def run(self):

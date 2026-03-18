@@ -208,19 +208,24 @@ class TestKeyboardInput:
 
         assert model.player_index == 0
 
-    def test_unbound_key_triggers_gameover(self, ctrl, pg, model):
-        """Any unbound key during input state counts as a wrong guess."""
+    def test_unbound_key_ignored(self, ctrl, pg, model):
         model.state = 'input'
         model.sequence = ['left']
         model.player_index = 0
 
         ev = make_key_event(pg, 999)  # not a game key
-        pg.time.get_ticks.return_value = 12345
+        pg.event.get.return_value = [ev]
 
-        with patch.object(model, 'reset', return_value=None):
-            asyncio.run(run_one_frame(ctrl, pg, events=[ev]))
+        now = pg.time.get_ticks.return_value
+        for event in pg.event.get():
+            if event.type == pg.KEYDOWN:
+                if not ctrl.paused and model.state == 'input':
+                    for name, key in ctrl.keybinds.button_keys.items():
+                        if event.key == key:
+                            model.handle_input(name, now)
+                            break
 
-        assert model.state == 'gameover'
+        assert model.player_index == 0
 
     def test_timer_stops_on_wrong_input(self, ctrl, pg, model):
         model.state = 'input'

@@ -6,13 +6,14 @@ from game.core.game_timer import GameTimer
 class GameController:
     """Orchestrates input, model updates, and view rendering."""
 
-    def __init__(self, screen, model, view, event_bus, keybinds, pause_overlay=None):
+    def __init__(self, screen, model, view, event_bus, keybinds, pause_overlay=None, menu_overlay=None):
         self.screen = screen
         self.model = model
         self.view = view
         self._bus = event_bus
         self.keybinds = keybinds
         self.pause_overlay = pause_overlay
+        self.menu_overlay = menu_overlay
         self.paused = False
 
         self.game_timer = GameTimer(self._bus)
@@ -49,10 +50,19 @@ class GameController:
         while True:
             now = pygame.time.get_ticks()
 
-            for raw_event in pygame.event.get():
-                event = self.screen.remap_event(raw_event) if hasattr(self.screen, 'remap_event') else raw_event
+            for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     return "quit"
+
+                # Handle menu events
+                if self.menu_overlay:
+                    menu_action = self.menu_overlay.handle_event(event)
+                    if menu_action == "Volume":
+                        print("Volume clicked")
+                    if menu_action == "Music":
+                        print("Music clicked")
+                    if menu_action == "About":
+                        print("About clicked")
 
                 if event.type == pygame.KEYDOWN:
                     # P always toggles pause regardless of game state
@@ -71,15 +81,10 @@ class GameController:
 
                     # Game inputs are blocked while paused
                     if not self.paused and self.model.state == 'input':
-                        matched = False
                         for name, key in self.keybinds.button_keys.items():
                             if event.key == key:
                                 self._process_input_result(name, now)
-                                matched = True
                                 break
-                        if not matched:
-                            # Any unbound key counts as a wrong guess
-                            self._process_input_result('_invalid', now)
 
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     if not self.paused and self.model.state == 'input':
@@ -105,6 +110,9 @@ class GameController:
             if self.pause_overlay:
                 self.pause_overlay.draw()
 
-            self.screen.present()
+            if self.menu_overlay:
+                self.menu_overlay.draw()
+
+            pygame.display.flip()
             clock.tick(60)
             await asyncio.sleep(0)  # Required for pygbag

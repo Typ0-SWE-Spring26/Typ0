@@ -3,7 +3,8 @@ import asyncio
 import random
 import os
 
-from game_screens.menu import MenuOverlay
+from game.screens.menu import MenuOverlay
+
 
 class GameScreen:
     BUTTON_KEYS = {
@@ -27,6 +28,10 @@ class GameScreen:
     def __init__(self, screen):
         self.screen = screen
         self.menu = MenuOverlay(screen) # menu
+        # Load brick background
+        bg_path = os.path.join("assets", "menu_bg.png")  # use your brick image
+        self.background = pygame.image.load(bg_path).convert()
+        self.background = pygame.transform.scale(self.background, screen.get_size())
         W, H = screen.get_width(), screen.get_height()
 
         asset_dir = os.path.join(os.path.dirname(__file__), '..', 'assets', 'Typo-buttons')
@@ -198,8 +203,6 @@ class GameScreen:
     def _draw(self):
         self.screen.fill((15, 15, 25))
 
-        self.menu.draw() # menu
-
         W = self.screen.get_width()
 
         # HUD
@@ -240,3 +243,4 @@ class GameScreen:
                     # Input state: all buttons fully visible at normal state
                     self.screen.blit(self.scaled[name]['normal'], rect)
 
+        self.menu.draw() # menu

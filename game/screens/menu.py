@@ -1,5 +1,7 @@
 import pygame
 import os 
+from game_screens.menu_volume import VolumeMenu
+from game_screens.menu_music import MusicMenu
 
 class MenuOverlay:
     
@@ -22,6 +24,7 @@ class MenuOverlay:
         # Center it
         self.bg_rect = self.bg_image.get_rect(center=(W // 2, H // 2))
         # CENTERED MENU OPTIONS
+        
         button_width = 250
         button_height = 50
         spacing = 70
@@ -49,20 +52,22 @@ class MenuOverlay:
             button_width,
             button_height
         )
-   
+        # volume subscreen
+        self.volume_menu = VolumeMenu(screen)
+        self.active_submenu = None  # None or "volume"
+
+        #menuu subscreen
+        self.music_menu = MusicMenu(screen)
  
 
     def draw(self):
-
         # Always draw MENU button
         pygame.draw.rect(self.screen, (60, 60, 90), self.button_rect, border_radius=8)
         text = self.font.render("MENU", True, (255, 255, 255))
         self.screen.blit(text, text.get_rect(center=self.button_rect.center))
-
         
-        # IF MENU OPEN → draw popup
-        if self.open:
-
+        # Draw dark overlay and background if menu is open OR submenu is active
+        if self.open or self.active_submenu is not None:
             # Dark transparent overlay behind popup
             overlay = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 150))
@@ -70,8 +75,18 @@ class MenuOverlay:
 
             # Draw brick background centered
             self.screen.blit(self.bg_image, self.bg_rect)
-
-            # Draw buttons on top
+        
+        # Draw volume submenu if active (inside the brick background)
+        if self.active_submenu == "volume":
+            # We need to pass the bg_rect to VolumeMenu so it can position elements inside it
+            self.volume_menu.draw(self.bg_rect)
+        
+        elif self.active_submenu == "music":
+            self.music_menu.draw(self.bg_rect)
+        
+        # Draw menu options if menu is open (and no submenu is active)
+        elif self.open:
+            # Draw buttons on top of brick background
             for rect, label in [
                 (self.volume_rect, "Volume"),
                 (self.music_rect, "Music"),
@@ -84,24 +99,52 @@ class MenuOverlay:
     
     def handle_event(self, event):
 
+        # 1️⃣ If volume submenu is open
+        if self.active_submenu == "volume":
+            result = self.volume_menu.handle_event(event)
+
+            if result == "Back":
+                self.active_submenu = None
+                self.open = True
+
+            return None
+
+
+        # 2️⃣ If music submenu is open
+        if self.active_submenu == "music":
+            result = self.music_menu.handle_event(event)
+
+            if result == "Back":
+                self.active_submenu = None
+                self.open = True
+
+            return None
+
+
+        # 3️⃣ Normal menu clicks
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
 
-            # Click MENU button
+            # MENU button
             if self.button_rect.collidepoint(event.pos):
                 self.open = not self.open
                 return None
 
-            # Click Volume (for now does nothing)
-            if self.open and self.volume_rect.collidepoint(event.pos):
-                print("Volume clicked")  # just to test
-                return "Volume"
-            
-            if self.open and self.music_rect.collidepoint(event.pos): #music
-                print("Music clicked")
-                return "Music"
-            
-            if self.open and self.about_rect.collidepoint(event.pos):  # about
-                print("About clicked")
-                return "About"
 
-        return None 
+            # Only allow menu buttons if menu is open
+            if self.open:
+
+                if self.volume_rect.collidepoint(event.pos):
+                    self.active_submenu = "volume"
+                    self.open = False
+                    return None
+
+                if self.music_rect.collidepoint(event.pos):
+                    self.active_submenu = "music"
+                    self.open = False
+                    return None
+
+                if self.about_rect.collidepoint(event.pos):
+                    print("About clicked")
+                    return "About"
+
+        return None

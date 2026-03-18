@@ -39,10 +39,11 @@ class StartScreen:
                 animation_utils.flashing_text(self.screen, "Press Space to Start", (self.screen.get_width() // 2, self.screen.get_height() - 100))
                 keys = pygame.key.get_pressed()
                 if keys[pygame.K_SPACE]:
+                    animation_utils.stop_music()  # Stop music when starting the game
                     return "menu"
 
 
-            self.screen.present()
+            pygame.display.flip()
             clock.tick(60)
             await asyncio.sleep(0)  # Required for pygbag
 
