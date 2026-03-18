@@ -32,13 +32,23 @@ jobs:
       - name: Install dependencies
         run: |
           pip install pygbag
-          pip install -r requirements.txt
+          grep -v pygame-ce requirements.txt | pip install -r /dev/stdin
 
       - name: Build with pygbag
         run: |
-          # Replace '.' with your game folder if your code is in a subdirectory
-          # e.g. 'python -m pygbag --build my_game_folder'
-          python -m pygbag --build .
+          python -m pygbag --build --ume_block 0 .
+
+      - name: Patch ume_block in generated index.html
+        run: |
+          sed -i 's/ume_block : 1/ume_block : 0/' ./build/web/index.html
+          if grep -q 'ume_block : 1' ./build/web/index.html; then
+            echo "ERROR: ume_block patch verification failed; stale value still present."
+            exit 1
+          fi
+          if ! grep -q 'ume_block : 0' ./build/web/index.html; then
+            echo "ERROR: ume_block patch verification failed; expected value not found."
+            exit 1
+          fi
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

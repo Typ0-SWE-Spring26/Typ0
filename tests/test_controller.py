@@ -96,7 +96,10 @@ def view():
 
 @pytest.fixture
 def ctrl(pg, model, view, bus, keybinds):
-    return GameController(Mock(), model, view, bus, keybinds)
+    screen = Mock()
+    # Preserve real event semantics in controller tests that call ctrl.run().
+    screen.remap_event.side_effect = lambda event: event
+    return GameController(screen, model, view, bus, keybinds)
 
 
 async def run_one_frame(ctrl, pg, events=None):

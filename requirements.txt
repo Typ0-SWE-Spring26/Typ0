@@ -1,3 +1,6 @@
 pygame-ce
 pygbag
 pytest
+behave
+playwright
+pytest-playwright

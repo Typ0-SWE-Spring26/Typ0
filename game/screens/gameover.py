@@ -6,6 +6,9 @@ import pygame
 import asyncio
 from game.utils import animation_utils
 
+AUTO_SWITCH_MS = 10000  # Auto-switch to high scores after 10 seconds
+
+
 class GameOverScreen:
     def __init__(self, screen, score, reason):
         self.screen = screen
@@ -14,6 +17,8 @@ class GameOverScreen:
         self.gradient_top = (80, 10, 10)     # Dark red
         self.gradient_bottom = (20, 0, 0)    # Near black
         self.running = True
+        self.start_time = None
+        self.font_timer = pygame.font.Font(None, 28)
         try:
             pygame.mixer.music.load("assets/gameover.ogg")
             pygame.mixer.music.play(0)  # Play once, no loop
@@ -62,11 +67,11 @@ class GameOverScreen:
             # Flashing prompt text
             animation_utils.flashing_text(
                 self.screen,
-                "Press R to Retry  |  Q to Quit",
+                "Press R to Retry  |  C for Credits  |  Q to Quit",
                 (self.screen.get_width() // 2, self.screen.get_height() - 80),
             )
 
-            pygame.display.flip()
+            self.screen.present()
             clock.tick(60)
             await asyncio.sleep(0)  # Required for pygbag
 
