@@ -73,8 +73,41 @@ async def main():
 
             # result is ("gameover", score, reason)
             _, score, reason = result
-            game_over = GameOverScreen(screen, score=score, reason=reason)
-            result = await game_over.run()
+
+            # Arcade-style: name entry if high score
+            hs_name = None
+            if is_high_score(score):
+                name_entry = NameEntryScreen(screen, score)
+                name_result = await name_entry.run()
+                if name_result == "quit":
+                    result = "quit"
+                    break
+                hs_name = name_result
+                add_score(hs_name, score)
+
+            # Game over screen (auto-switches to high scores after 10s)
+            result = "high_scores"  # enter loop
+            while result == "high_scores" or result == "credits":
+                if result == "high_scores":
+                    game_over = GameOverScreen(screen, score=score, reason=reason)
+                    result = await game_over.run()
+
+                    if result == "high_scores":
+                        hs_screen = HighScoresScreen(
+                            screen,
+                            highlight_name=hs_name,
+                            highlight_score=score if hs_name else None,
+                        )
+                        result = await hs_screen.run()
+
+                if result == "credits":
+                    credits = CreditsScreen(screen)
+                    cr = await credits.run()
+                    if cr == "quit":
+                        result = "quit"
+                        break
+                    result = "high_scores"
+                    continue
 
             if result == "quit":
                 break

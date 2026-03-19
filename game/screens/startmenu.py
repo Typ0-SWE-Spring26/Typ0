@@ -47,7 +47,7 @@ class StartMenu:
                     return "start"
 
 
-            pygame.display.flip()
+            self.screen.present()
             clock.tick(60)
             await asyncio.sleep(0)  # Required for pygbag
 
