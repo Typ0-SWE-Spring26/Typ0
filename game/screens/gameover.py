@@ -27,6 +27,7 @@ class GameOverScreen:
 
     async def run(self):
         clock = pygame.time.Clock()
+        self.start_time = pygame.time.get_ticks()
 
         while self.running:
             for event in pygame.event.get():
@@ -35,8 +36,15 @@ class GameOverScreen:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_r:
                         return "retry"
+                    if event.key == pygame.K_c:
+                        return "credits"
                     if event.key == pygame.K_q or event.key == pygame.K_ESCAPE:
                         return "quit"
+
+            # Auto-switch to high scores after timeout
+            elapsed = pygame.time.get_ticks() - self.start_time
+            if elapsed >= AUTO_SWITCH_MS:
+                return "high_scores"
 
             # Draw gradient background
             animation_utils.draw_gradient(self.screen, self.gradient_top, self.gradient_bottom)
@@ -63,6 +71,16 @@ class GameOverScreen:
             reason_surface = reason_font.render(self.reason, True, (200, 200, 200))
             reason_rect = reason_surface.get_rect(center=(self.screen.get_width() // 2, 350))
             self.screen.blit(reason_surface, reason_rect)
+
+            # Countdown to high scores
+            remaining = max(0, AUTO_SWITCH_MS - elapsed) // 1000
+            timer_surface = self.font_timer.render(
+                f"High scores in {remaining}s...", True, (150, 150, 150)
+            )
+            self.screen.blit(
+                timer_surface,
+                timer_surface.get_rect(center=(self.screen.get_width() // 2, self.screen.get_height() - 120)),
+            )
 
             # Flashing prompt text
             animation_utils.flashing_text(

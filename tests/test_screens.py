@@ -152,7 +152,7 @@ class TestStartScreen:
     def test_plays_music_on_init(self, pg_start):
         _, mock_screen, mock_anim = pg_start
         StartScreen(mock_screen)
-        mock_anim.play_music.assert_called_once_with("assets/startscreen.ogg")
+        mock_anim.play_music.assert_called_once_with("assets/Typ0__Main_Theme.ogg")
 
     def test_stops_music_before_transitioning(self, pg_start):
         mock_pg, mock_screen, mock_anim = pg_start

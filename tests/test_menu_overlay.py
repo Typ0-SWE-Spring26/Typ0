@@ -74,24 +74,28 @@ def test_click_menu_twice_toggles_closed(menu_overlay):
     assert overlay.open is False
 
 
-def test_click_volume_returns_label_when_open(menu_overlay):
+def test_click_volume_opens_submenu_when_open(menu_overlay):
     overlay, mock_pg, _ = menu_overlay
     overlay.open = True
     overlay.volume_rect.collidepoint.return_value = True
 
     result = overlay.handle_event(_mouse_event(mock_pg, overlay.volume_rect.center))
 
-    assert result == "Volume"
+    assert result is None
+    assert overlay.active_submenu == "volume"
+    assert overlay.open is False
 
 
-def test_click_music_returns_label_when_open(menu_overlay):
+def test_click_music_opens_submenu_when_open(menu_overlay):
     overlay, mock_pg, _ = menu_overlay
     overlay.open = True
     overlay.music_rect.collidepoint.return_value = True
 
     result = overlay.handle_event(_mouse_event(mock_pg, overlay.music_rect.center))
 
-    assert result == "Music"
+    assert result is None
+    assert overlay.active_submenu == "music"
+    assert overlay.open is False
 
 
 def test_click_about_returns_label_when_open(menu_overlay):
