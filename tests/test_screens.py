@@ -59,7 +59,8 @@ def pg_start():
 def pg_menu():
     """Patch pygame for StartMenu."""
     with patch('game.screens.startmenu.pygame') as mock_pg, \
-         patch('game.screens.startmenu.animation_utils') as mock_anim:
+         patch('game.screens.startmenu.animation_utils') as mock_anim, \
+         patch('game.screens.startmenu.MenuOverlay') as mock_overlay_cls:
         mock_screen = Mock()
         mock_screen.get_width.return_value = 800
         mock_screen.get_height.return_value = 600
@@ -67,7 +68,9 @@ def pg_menu():
         mock_pg.time.Clock.return_value = Mock()
         mock_pg.time.get_ticks.return_value = 0
         mock_pg.K_w = 119
+        mock_pg.K_e = 101
         mock_pg.QUIT = 256
+        mock_pg.KEYDOWN = 768
 
         mock_font = Mock()
         mock_font.render.return_value = Mock(get_rect=Mock(return_value=Mock()))
@@ -78,6 +81,11 @@ def pg_menu():
         mock_pg.Rect.return_value = mock_rect
         mock_pg.mouse.get_pos.return_value = (0, 0)
         mock_pg.MOUSEBUTTONDOWN = 1025
+
+        mock_overlay = Mock()
+        mock_overlay.open = False
+        mock_overlay.active_submenu = None
+        mock_overlay_cls.return_value = mock_overlay
 
         yield mock_pg, mock_screen, mock_anim
 
@@ -207,10 +215,10 @@ class TestStartMenu:
     def test_returns_start_when_w_pressed(self, pg_menu):
         mock_pg, mock_screen, _ = pg_menu
 
-        keys = MagicMock()
-        keys.__getitem__ = Mock(return_value=True)
-        mock_pg.key.get_pressed.return_value = keys
-        mock_pg.event.get.return_value = []
+        key_event = Mock()
+        key_event.type = mock_pg.KEYDOWN
+        key_event.key = mock_pg.K_w
+        mock_pg.event.get.return_value = [key_event]
 
         menu = StartMenu(mock_screen)
         result = run_async(menu.run())

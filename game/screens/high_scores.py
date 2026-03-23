@@ -100,13 +100,18 @@ class HighScoresScreen:
                     name_surface = self.font_name.render(name, True, color)
                     self.screen.blit(name_surface, name_surface.get_rect(midleft=(name_x, y)))
 
-                    # Dots between name and score
-                    dots = "." * 15
-                    dots_surface = self.font_rank.render(dots, True, (60, 60, 80))
-                    self.screen.blit(dots_surface, dots_surface.get_rect(midleft=(name_x + 60, y)))
-
                     score_surface = self.font_score.render(score, True, color)
-                    self.screen.blit(score_surface, score_surface.get_rect(midright=(score_x, y)))
+                    score_rect = score_surface.get_rect(midright=(score_x, y))
+                    self.screen.blit(score_surface, score_rect)
+
+                    # Dots between name and score — fill the gap dynamically
+                    dot_start = name_x + name_surface.get_width() + 8
+                    dot_end = score_rect.left - 8
+                    dot_char_w = self.font_rank.size(".")[0]
+                    if dot_end > dot_start and dot_char_w > 0:
+                        num_dots = max(0, (dot_end - dot_start) // dot_char_w)
+                        dots_surface = self.font_rank.render("." * num_dots, True, (60, 60, 80))
+                        self.screen.blit(dots_surface, dots_surface.get_rect(midleft=(dot_start, y)))
 
             # Prompt
             animation_utils.flashing_text(
