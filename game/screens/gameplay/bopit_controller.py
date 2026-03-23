@@ -1,6 +1,7 @@
 import pygame
 import asyncio
 from game.core.game_timer import GameTimer
+from game.utils import animation_utils
 
 
 class BopItController:
@@ -30,6 +31,7 @@ class BopItController:
 
     async def run(self):
         self.model.reset()
+        animation_utils.play_music("assets/Typ0__Main_Theme.ogg")
         clock = pygame.time.Clock()
 
         while True:
@@ -69,6 +71,7 @@ class BopItController:
                                 break
 
             if self.model.state == 'gameover' and now >= self.model.flash_end:
+                animation_utils.stop_music()
                 return ("gameover", self.model.score, self.model.gameover_reason)
 
             if not self.paused:
