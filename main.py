@@ -13,6 +13,7 @@ from game.utils.scaled_screen import ScaledScreen
 from game.screens.startscreen import StartScreen
 from game.screens.startmenu import StartMenu
 from game.screens.gameplay.display import GameScreen
+from game.screens.gameplay.bopit_display import BopItScreen
 from game.screens.gameover import GameOverScreen
 from game.screens.credits import CreditsScreen
 from game.screens.name_entry import NameEntryScreen
@@ -59,13 +60,26 @@ async def main():
                     result = "quit"
                     break
                 continue  # back to menu
-            break  # "start" or "quit"
-    if result == "start":
+            break  # "start_simon", "start_bopit", or "quit"
+
+    game_mode = None
+    if result == "start_simon":
+        game_mode = "simon"
+    elif result == "start_bopit":
+        game_mode = "bopit"
+    # Legacy: treat bare "start" as simon mode
+    elif result == "start":
+        game_mode = "simon"
+
+    if game_mode:
         pause_overlay = PauseOverlay(screen)
         keybinds = KeybindManager()
 
         while True:
-            game_screen = GameScreen(screen, keybinds, pause_overlay=pause_overlay)
+            if game_mode == "bopit":
+                game_screen = BopItScreen(screen, keybinds, pause_overlay=pause_overlay)
+            else:
+                game_screen = GameScreen(screen, keybinds, pause_overlay=pause_overlay)
             result = await game_screen.run()
 
             if result == "quit":

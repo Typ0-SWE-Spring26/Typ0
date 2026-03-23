@@ -25,27 +25,32 @@ class StartMenu:
             animation_utils.draw_gradient(self.screen, self.gradient_top, self.gradient_bottom)
             menu_text = self.font_large.render("Welcome to TYP0!", True, (255, 255, 255))
             self.screen.blit(menu_text, menu_text.get_rect(
-                center=(self.screen.get_width() // 2, self.screen.get_height() // 2 - 50)
+                center=(self.screen.get_width() // 2, self.screen.get_height() // 2 - 80)
             ))
 
-            self.button_rect = pygame.Rect(self.screen.get_width() // 4, self.screen.get_height() // 2 +10, 400, 75)
-            pygame.draw.rect(self.screen, (60, 60, 120), self.button_rect, border_radius=8)
-            instruction_text = self.font_small.render("Press W to start regular mode", True, (200, 200, 200))
-            self.screen.blit(instruction_text, instruction_text.get_rect(
-                center=(self.screen.get_width() // 2, self.screen.get_height() // 2 + 50)
-            ))
+            # Simon mode button
+            simon_rect = pygame.Rect(self.screen.get_width() // 4, self.screen.get_height() // 2 - 20, 400, 75)
+            pygame.draw.rect(self.screen, (60, 60, 120), simon_rect, border_radius=8)
+            simon_text = self.font_small.render("Press W - Simon Mode", True, (200, 200, 200))
+            self.screen.blit(simon_text, simon_text.get_rect(center=simon_rect.center))
 
-            self.button_rect = pygame.Rect(self.screen.get_width() // 4, self.screen.get_height() // 2+110, 400, 75)
-            pygame.draw.rect(self.screen, (60, 60, 120), self.button_rect, border_radius=8)
-            instruction_text = self.font_small.render("Settings", True, (200, 200, 200))
-            self.screen.blit(instruction_text, instruction_text.get_rect(
-                center=(self.screen.get_width() // 2, self.screen.get_height() // 2 + 150)
-            ))
+            # Bop It mode button
+            bopit_rect = pygame.Rect(self.screen.get_width() // 4, self.screen.get_height() // 2 + 80, 400, 75)
+            pygame.draw.rect(self.screen, (120, 60, 60), bopit_rect, border_radius=8)
+            bopit_text = self.font_small.render("Press E - Bop It Mode", True, (255, 200, 150))
+            self.screen.blit(bopit_text, bopit_text.get_rect(center=bopit_rect.center))
+
+            # Settings button
+            settings_rect = pygame.Rect(self.screen.get_width() // 4, self.screen.get_height() // 2 + 180, 400, 75)
+            pygame.draw.rect(self.screen, (60, 60, 120), settings_rect, border_radius=8)
+            settings_text = self.font_small.render("Settings", True, (200, 200, 200))
+            self.screen.blit(settings_text, settings_text.get_rect(center=settings_rect.center))
 
             keys = pygame.key.get_pressed()
             if keys[pygame.K_w]:
-                    return "start"
-
+                    return "start_simon"
+            if keys[pygame.K_e]:
+                    return "start_bopit"
 
             self.screen.present()
             clock.tick(60)
