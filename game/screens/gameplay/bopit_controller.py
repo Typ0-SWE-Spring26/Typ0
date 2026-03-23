@@ -5,8 +5,8 @@ from game.utils import animation_utils
 from game.screens.credits import CreditsScreen
 
 
-class GameController:
-    """Orchestrates input, model updates, and view rendering."""
+class BopItController:
+    """Controller for Bop-It mode — dynamic timer that speeds up each round."""
 
     def __init__(self, screen, model, view, event_bus, keybinds, pause_overlay=None, menu_overlay=None):
         self.screen = screen
@@ -24,12 +24,7 @@ class GameController:
         if pause_overlay is not None:
             pause_overlay.subscribe(self._bus)
 
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
-
     def _set_paused(self, paused: bool) -> None:
-        """Set pause state, emitting events and pausing/unpausing music."""
         if paused == self.paused:
             return
         self.paused = paused
@@ -48,21 +43,10 @@ class GameController:
         )
 
     def _process_input_result(self, name: str, now: int) -> bool:
-        """Call model.handle_input, stop the timer on terminal results.
-
-        Returns True so callers can ``break`` after a matched input.
-        """
         result = self.model.handle_input(name, now)
         if result in ('wrong', 'round_complete'):
             self.game_timer.stop()
         return True
-
-    # ------------------------------------------------------------------
-    # Public async entry point
-    # Returns:
-    #   ("gameover", score, reason)  — player lost
-    #   "quit"                       — window was closed
-    # ------------------------------------------------------------------
 
     async def run(self):
         self.model.reset()
@@ -76,31 +60,24 @@ class GameController:
                 if event.type == pygame.QUIT:
                     return "quit"
 
-                # Handle menu events
                 if self.menu_overlay:
-                    was_active = self.menu_overlay.open or self.menu_overlay.active_submenu is not None
-                    self.menu_overlay.handle_event(event)
-                    is_active = self.menu_overlay.open or self.menu_overlay.active_submenu is not None
-
-                    # Pause when menu opens, unpause when menu closes
-                    if is_active and not was_active:
-                        self.paused = True
-                        self._bus.emit('game_paused', {'now': pygame.time.get_ticks()})
-                    elif was_active and not is_active:
-                        self.paused = False
-                        self._bus.emit('game_resumed', {'now': pygame.time.get_ticks()})
+                    menu_action = self.menu_overlay.handle_event(event)
+                    if menu_action == "credits":
+                        self._set_paused(True)
+                        credits = CreditsScreen(self.screen)
+                        cr = await credits.run()
+                        if cr == "quit":
+                            return "quit"
+                        self._set_paused(False)
 
                 if event.type == pygame.KEYDOWN:
-                    # P always toggles pause regardless of game state
                     if event.key == pygame.K_p:
                         self._set_paused(not self.paused)
                         continue
 
-                    # Ctrl+E jumps to game over (debug shortcut)
                     if event.key == pygame.K_e and pygame.key.get_mods() & pygame.KMOD_CTRL:
                         return ("gameover", 0, "Testing - Ctrl+E shortcut")
 
-                    # Game inputs are blocked while paused
                     if not self.paused and self.model.state == 'input':
                         for name, key in self.keybinds.button_keys.items():
                             if event.key == key:
@@ -118,10 +95,8 @@ class GameController:
             if self._menu_is_open:
                 self._set_paused(True)
             elif self.paused and self.menu_overlay and not self.menu_overlay.open and self.menu_overlay.active_submenu is None:
-                # Menu just closed — unpause
                 self._set_paused(False)
 
-            # After the wrong-input press-flash expires, hand off to game over
             if self.model.state == 'gameover' and now >= self.model.flash_end:
                 animation_utils.stop_music()
                 return ("gameover", self.model.score, self.model.gameover_reason)
@@ -129,8 +104,9 @@ class GameController:
             if not self.paused:
                 entered_input = self.model.update(now)
                 if entered_input:
+                    # Set the timer's time limit based on current score
+                    self.game_timer.TIME_LIMIT = self.model.time_limit
                     self.game_timer.start(now)
-                # Let timer update during input phase
                 if self.model.state == 'input':
                     self.game_timer.update(now)
 
@@ -144,4 +120,4 @@ class GameController:
 
             self.screen.present()
             clock.tick(60)
-            await asyncio.sleep(0)  # Required for pygbag
+            await asyncio.sleep(0)

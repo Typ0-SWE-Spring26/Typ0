@@ -23,8 +23,17 @@ class MenuOverlay:
 
         # Center it
         self.bg_rect = self.bg_image.get_rect(center=(W // 2, H // 2))
+
+        # X close button (top-right of popup)
+        close_size = 36
+        self.close_rect = pygame.Rect(
+            self.bg_rect.right - close_size - 10,
+            self.bg_rect.top + 10,
+            close_size, close_size
+        )
+        self.close_font = pygame.font.SysFont(None, 32)
+
         # CENTERED MENU OPTIONS
-        
         button_width = 250
         button_height = 50
         spacing = 70
@@ -77,6 +86,11 @@ class MenuOverlay:
             # Draw brick background centered
             self.screen.blit(self.bg_image, self.bg_rect)
         
+            # Draw X close button
+            pygame.draw.rect(self.screen, (150, 50, 50), self.close_rect, border_radius=6)
+            x_text = self.close_font.render("X", True, (255, 255, 255))
+            self.screen.blit(x_text, x_text.get_rect(center=self.close_rect.center))
+
         # Draw volume submenu if active (inside the brick background)
         if self.active_submenu == "volume":
             # We need to pass the bg_rect to VolumeMenu so it can position elements inside it
@@ -87,6 +101,11 @@ class MenuOverlay:
         
         # Draw menu options if menu is open (and no submenu is active)
         elif self.open:
+            # Close (X) button
+            pygame.draw.rect(self.screen, (120, 40, 40), self.close_rect, border_radius=6)
+            x_txt = self.font.render("X", True, (255, 255, 255))
+            self.screen.blit(x_txt, x_txt.get_rect(center=self.close_rect.center))
+
             # Draw buttons on top of brick background
             for rect, label in [
                 (self.volume_rect, "Volume"),
@@ -100,7 +119,18 @@ class MenuOverlay:
                 self.screen.blit(txt, txt.get_rect(center=rect.center))
 
     
+    def _close(self):
+        """Close the menu and any active submenu."""
+        self.open = False
+        self.active_submenu = None
+
     def handle_event(self, event):
+
+        # ESC closes everything
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            if self.open or self.active_submenu is not None:
+                self._close()
+                return None
 
         # 1️⃣ If volume submenu is open
         if self.active_submenu == "volume":
@@ -127,6 +157,11 @@ class MenuOverlay:
         # 3️⃣ Normal menu clicks
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
 
+            # X close button
+            if (self.open or self.active_submenu is not None) and self.close_rect.collidepoint(event.pos):
+                self._close()
+                return None
+
             # MENU button
             if self.button_rect.collidepoint(event.pos):
                 self.open = not self.open
@@ -135,6 +170,10 @@ class MenuOverlay:
 
             # Only allow menu buttons if menu is open
             if self.open:
+
+                if self.close_rect.collidepoint(event.pos):
+                    self.open = False
+                    return None
 
                 if self.volume_rect.collidepoint(event.pos):
                     self.active_submenu = "volume"
@@ -147,7 +186,7 @@ class MenuOverlay:
                     return None
 
                 if self.about_rect.collidepoint(event.pos):
-                    print("About clicked")
-                    return "About"
+                    self.open = False
+                    return "credits"
 
         return None

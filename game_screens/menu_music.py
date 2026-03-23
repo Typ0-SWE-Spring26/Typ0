@@ -9,12 +9,15 @@ class MusicMenu:
 
         # Song list (consistent with actual asset names in repository)
         self.songs = [
-            ("Game Theme", "assets/Typ0__Main_Theme.ogg"),
-            ("SciFi Theme", "assets/SciFi.ogg"),
-            ("Techno Theme", "assets/Techno.ogg")
+            ("Intro Theme", "assets/Typ0__Intro_Theme.ogg"),
+            ("Main Theme", "assets/Typ0__Main_Theme.ogg"),
+            ("Ending Riff", "assets/Typ0__Ending_Riff.ogg")
         ]
 
         self.current_index = 0
+        self.left_rect = pygame.Rect(0, 0, 0, 0)
+        self.right_rect = pygame.Rect(0, 0, 0, 0)
+        self.back_rect = pygame.Rect(0, 0, 0, 0)
 
     def draw(self, bg_rect):
 

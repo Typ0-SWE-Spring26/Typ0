@@ -20,7 +20,7 @@ def menu_overlay():
         mock_pg.font.SysFont.return_value = mock_font
 
         bg_image = Mock()
-        bg_image.get_rect.return_value = Mock(centerx=400, centery=300)
+        bg_image.get_rect.return_value = Mock(centerx=400, centery=300, right=650, top=100)
         bg_image.convert_alpha.return_value = bg_image
 
         mock_pg.image.load.return_value = bg_image
@@ -34,6 +34,8 @@ def menu_overlay():
             collidepoint=Mock(return_value=False),
         )
         mock_pg.MOUSEBUTTONDOWN = 1
+        mock_pg.KEYDOWN = 768
+        mock_pg.K_ESCAPE = 27
         mock_pg.SRCALPHA = 1
         mock_pg.Surface.return_value = Mock()
 
@@ -74,24 +76,28 @@ def test_click_menu_twice_toggles_closed(menu_overlay):
     assert overlay.open is False
 
 
-def test_click_volume_returns_label_when_open(menu_overlay):
+def test_click_volume_opens_submenu_when_open(menu_overlay):
     overlay, mock_pg, _ = menu_overlay
     overlay.open = True
     overlay.volume_rect.collidepoint.return_value = True
 
     result = overlay.handle_event(_mouse_event(mock_pg, overlay.volume_rect.center))
 
-    assert result == "Volume"
+    assert result is None
+    assert overlay.active_submenu == "volume"
+    assert overlay.open is False
 
 
-def test_click_music_returns_label_when_open(menu_overlay):
+def test_click_music_opens_submenu_when_open(menu_overlay):
     overlay, mock_pg, _ = menu_overlay
     overlay.open = True
     overlay.music_rect.collidepoint.return_value = True
 
     result = overlay.handle_event(_mouse_event(mock_pg, overlay.music_rect.center))
 
-    assert result == "Music"
+    assert result is None
+    assert overlay.active_submenu == "music"
+    assert overlay.open is False
 
 
 def test_click_about_returns_label_when_open(menu_overlay):
@@ -101,7 +107,7 @@ def test_click_about_returns_label_when_open(menu_overlay):
 
     result = overlay.handle_event(_mouse_event(mock_pg, overlay.about_rect.center))
 
-    assert result == "About"
+    assert result == "credits"
 
 
 def test_click_option_when_closed_returns_none(menu_overlay):

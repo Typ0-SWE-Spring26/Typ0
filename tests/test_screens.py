@@ -13,6 +13,18 @@ from game.screens.gameover import GameOverScreen
 
 # ── Helpers ────────────────────────────────────────────────────────────
 
+def run_async(coro):
+    """Run a coroutine, handling the case where an event loop is already running."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+    if loop and loop.is_running():
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            return pool.submit(asyncio.run, coro).result()
+    return asyncio.run(coro)
+
 def make_key_event(pg, key):
     ev = Mock()
     ev.type = pg.KEYDOWN
@@ -47,7 +59,8 @@ def pg_start():
 def pg_menu():
     """Patch pygame for StartMenu."""
     with patch('game.screens.startmenu.pygame') as mock_pg, \
-         patch('game.screens.startmenu.animation_utils') as mock_anim:
+         patch('game.screens.startmenu.animation_utils') as mock_anim, \
+         patch('game.screens.startmenu.MenuOverlay') as mock_overlay_cls:
         mock_screen = Mock()
         mock_screen.get_width.return_value = 800
         mock_screen.get_height.return_value = 600
@@ -55,12 +68,24 @@ def pg_menu():
         mock_pg.time.Clock.return_value = Mock()
         mock_pg.time.get_ticks.return_value = 0
         mock_pg.K_w = 119
+        mock_pg.K_e = 101
         mock_pg.QUIT = 256
+        mock_pg.KEYDOWN = 768
 
         mock_font = Mock()
         mock_font.render.return_value = Mock(get_rect=Mock(return_value=Mock()))
         mock_pg.font.Font.return_value = mock_font
-        mock_pg.Rect.return_value = Mock()
+        mock_rect = Mock()
+        mock_rect.collidepoint.return_value = False
+        mock_rect.center = (400, 300)
+        mock_pg.Rect.return_value = mock_rect
+        mock_pg.mouse.get_pos.return_value = (0, 0)
+        mock_pg.MOUSEBUTTONDOWN = 1025
+
+        mock_overlay = Mock()
+        mock_overlay.open = False
+        mock_overlay.active_submenu = None
+        mock_overlay_cls.return_value = mock_overlay
 
         yield mock_pg, mock_screen, mock_anim
 
@@ -103,7 +128,7 @@ class TestStartScreen:
         mock_pg.event.get.return_value = [quit_ev]
 
         screen = StartScreen(mock_screen)
-        result = asyncio.run(screen.run())
+        result = run_async(screen.run())
 
         assert result == "quit"
 
@@ -121,7 +146,7 @@ class TestStartScreen:
         mock_pg.event.get.return_value = []
 
         screen = StartScreen(mock_screen)
-        result = asyncio.run(screen.run())
+        result = run_async(screen.run())
 
         assert result == "menu"
 
@@ -144,7 +169,7 @@ class TestStartScreen:
         mock_pg.event.get.return_value = []
 
         screen = StartScreen(mock_screen)
-        result = asyncio.run(screen.run())
+        result = run_async(screen.run())
 
         # Should eventually return "menu" once loading is done
         assert result == "menu"
@@ -152,7 +177,7 @@ class TestStartScreen:
     def test_plays_music_on_init(self, pg_start):
         _, mock_screen, mock_anim = pg_start
         StartScreen(mock_screen)
-        mock_anim.play_music.assert_called_once_with("assets/startscreen.ogg")
+        mock_anim.play_music.assert_called_once_with("assets/Typ0__Intro_Theme.ogg")
 
     def test_stops_music_before_transitioning(self, pg_start):
         mock_pg, mock_screen, mock_anim = pg_start
@@ -164,7 +189,7 @@ class TestStartScreen:
         mock_pg.event.get.return_value = []
 
         screen = StartScreen(mock_screen)
-        asyncio.run(screen.run())
+        run_async(screen.run())
 
         mock_anim.stop_music.assert_called_once()
 
@@ -183,22 +208,22 @@ class TestStartMenu:
         mock_pg.event.get.return_value = [quit_ev]
 
         menu = StartMenu(mock_screen)
-        result = asyncio.run(menu.run())
+        result = run_async(menu.run())
 
         assert result == "quit"
 
     def test_returns_start_when_w_pressed(self, pg_menu):
         mock_pg, mock_screen, _ = pg_menu
 
-        keys = MagicMock()
-        keys.__getitem__ = Mock(return_value=True)
-        mock_pg.key.get_pressed.return_value = keys
-        mock_pg.event.get.return_value = []
+        key_event = Mock()
+        key_event.type = mock_pg.KEYDOWN
+        key_event.key = mock_pg.K_w
+        mock_pg.event.get.return_value = [key_event]
 
         menu = StartMenu(mock_screen)
-        result = asyncio.run(menu.run())
+        result = run_async(menu.run())
 
-        assert result == "start"
+        assert result == "start_simon"
 
 
 # ======================================================================
@@ -215,7 +240,7 @@ class TestGameOverScreen:
         mock_pg.event.get.return_value = [quit_ev]
 
         screen = GameOverScreen(mock_screen, score=5, reason="Wrong input!")
-        result = asyncio.run(screen.run())
+        result = run_async(screen.run())
 
         assert result == "quit"
 
@@ -226,7 +251,7 @@ class TestGameOverScreen:
         mock_pg.event.get.return_value = [ev]
 
         screen = GameOverScreen(mock_screen, score=5, reason="Wrong input!")
-        result = asyncio.run(screen.run())
+        result = run_async(screen.run())
 
         assert result == "retry"
 
@@ -237,7 +262,7 @@ class TestGameOverScreen:
         mock_pg.event.get.return_value = [ev]
 
         screen = GameOverScreen(mock_screen, score=5, reason="Wrong input!")
-        result = asyncio.run(screen.run())
+        result = run_async(screen.run())
 
         assert result == "quit"
 
@@ -248,7 +273,7 @@ class TestGameOverScreen:
         mock_pg.event.get.return_value = [ev]
 
         screen = GameOverScreen(mock_screen, score=3, reason="Time's up!")
-        result = asyncio.run(screen.run())
+        result = run_async(screen.run())
 
         assert result == "quit"
 
@@ -277,7 +302,7 @@ class TestGameOverScreen:
         mock_pg.event.get.side_effect = event_side_effect
 
         screen = GameOverScreen(mock_screen, score=10, reason="Wrong input!")
-        asyncio.run(screen.run())
+        run_async(screen.run())
 
         # Verify gradient was drawn
         mock_anim.draw_gradient.assert_called()
