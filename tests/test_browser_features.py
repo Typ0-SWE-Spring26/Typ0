@@ -111,18 +111,33 @@ def _enter_gameplay_and_gameover(page):
 
 @pytest.mark.browser
 def test_credits_screen_accessible_from_menu(page):
-    """Pressing C on the start menu should change the canvas (credits screen)."""
+    """Clicking MENU then About on the start menu should show credits."""
     _boot_game(page)
     page.keyboard.press("Space")          # past start screen
-    page.wait_for_timeout(1_000)
+    page.wait_for_timeout(1_500)
 
     before = page.locator("#canvas").screenshot()
-    page.keyboard.press("c")              # open credits
+
+    # Click MENU button (virtual 80, 555)
+    pt = _virtual_to_canvas_point(page, 80, 555)
+    page.mouse.click(pt["x"], pt["y"])
     page.wait_for_timeout(1_000)
+
+    # Verify menu opened
+    menu_open = page.locator("#canvas").screenshot()
+    assert before != menu_open, (
+        "Canvas did not change after clicking MENU — overlay may not be opening"
+    )
+
+    # Click About button (virtual 400, 395)
+    pt = _virtual_to_canvas_point(page, 400, 395)
+    page.mouse.click(pt["x"], pt["y"])
+    page.wait_for_timeout(1_500)
+
     after = page.locator("#canvas").screenshot()
 
-    assert before != after, (
-        "Canvas did not change after pressing C — credits screen may not be working"
+    assert menu_open != after, (
+        "Canvas did not change after clicking About — credits screen may not be working"
     )
 
 
@@ -132,7 +147,15 @@ def test_credits_returns_to_menu(page):
     _boot_game(page)
     page.keyboard.press("Space")          # past start screen
     page.wait_for_timeout(500)
-    page.keyboard.press("c")              # open credits
+
+    # Click MENU button (virtual 80, 555)
+    pt = _virtual_to_canvas_point(page, 80, 555)
+    page.mouse.click(pt["x"], pt["y"])
+    page.wait_for_timeout(500)
+
+    # Click About button (virtual 400, 395)
+    pt = _virtual_to_canvas_point(page, 400, 395)
+    page.mouse.click(pt["x"], pt["y"])
     page.wait_for_timeout(1_000)
 
     before = page.locator("#canvas").screenshot()
@@ -246,10 +269,12 @@ def test_game_scales_on_resize(page):
 @pytest.mark.browser
 def test_start_screen_animation_changes_between_frames(page):
     """Start screen should animate (wave text/loading bar/flashing text)."""
-    _goto_canvas(page, wait_ms=800)
+    _goto_canvas(page, wait_ms=LOAD_WAIT_MS)
+    page.locator("#canvas").click()  # focus canvas
+    page.wait_for_timeout(1_000)
 
     frame_a = page.locator("#canvas").screenshot()
-    page.wait_for_timeout(700)
+    page.wait_for_timeout(1_000)
     frame_b = page.locator("#canvas").screenshot()
 
     assert frame_a != frame_b, "Start screen appears static; animation utilities may not be rendering"
@@ -351,7 +376,26 @@ def test_scaled_screen_mouse_remap_hits_virtual_button(page):
 # ---------------------------------------------------------------------------
 
 @pytest.mark.browser
-@pytest.mark.skip(reason="MenuOverlay exists but is not wired into the runtime loop yet")
-def test_menu_overlay_click_flow_pending_integration(page):
-    """Pending: browser test for MenuOverlay once it is integrated in main/gameplay."""
+def test_menu_overlay_click_flow(page):
+    """Clicking MENU should open the overlay, and X should close it."""
     _boot_game(page)
+    page.keyboard.press("Space")          # past start screen
+    page.wait_for_timeout(1_000)
+
+    before = page.locator("#canvas").screenshot()
+
+    # Click MENU button (virtual 80, 555)
+    pt = _virtual_to_canvas_point(page, 80, 555)
+    page.mouse.click(pt["x"], pt["y"])
+    page.wait_for_timeout(500)
+
+    opened = page.locator("#canvas").screenshot()
+    assert before != opened, "Canvas did not change after clicking MENU — overlay may not be opening"
+
+    # Click X close button (virtual 620, 130) — top-right of popup
+    pt = _virtual_to_canvas_point(page, 620, 130)
+    page.mouse.click(pt["x"], pt["y"])
+    page.wait_for_timeout(500)
+
+    closed = page.locator("#canvas").screenshot()
+    assert opened != closed, "Canvas did not change after clicking X — overlay may not be closing"
