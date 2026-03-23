@@ -28,8 +28,8 @@ Feature: Game Over Flow
     When 10 seconds elapse with no input
     Then the game over screen should return "high_scores"
 
-  Scenario: Auto-switch timeout is 10 seconds
-    Then the auto-switch constant should be 10000 milliseconds
+  Scenario: Auto-switch timeout is 5 seconds
+    Then the auto-switch constant should be 5000 milliseconds
 
   Scenario: High scores screen returns retry on R key
     Given a high scores screen

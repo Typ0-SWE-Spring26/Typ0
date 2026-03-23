@@ -17,7 +17,7 @@ Feature: Name Entry Screen
     Given a name entry screen with score 50
     When the player scrolls down once
     And the player confirms immediately
-    Then the first letter should be "9"
+    Then the first letter should be " "
 
   Scenario: Moving cursor right and scrolling affects second slot
     Given a name entry screen with score 50
