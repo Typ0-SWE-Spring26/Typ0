@@ -10,8 +10,11 @@ class MusicMenu:
         # Song list (consistent with actual asset names in repository)
         self.songs = [
             ("Intro Theme", "assets/Typ0__Intro_Theme.ogg"),
+            ("Techno Theme", "assets/Techno.ogg"),
+            ("SciFi Theme", "assets/SciFi.ogg"),
             ("Main Theme", "assets/Typ0__Main_Theme.ogg"),
-            ("Ending Riff", "assets/Typ0__Ending_Riff.ogg")
+            ("Ending Riff", "assets/Typ0__Ending_Riff.ogg"),
+# >>>>>>> origin/main
         ]
 
         self.current_index = 0
