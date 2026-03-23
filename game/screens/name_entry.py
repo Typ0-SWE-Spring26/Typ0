@@ -4,7 +4,7 @@ import pygame
 import asyncio
 from game.utils import animation_utils
 
-ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 "
 MAX_NAME_LEN = 5
 
 
@@ -126,7 +126,7 @@ class NameEntryScreen:
             # Controls hint
             animation_utils.flashing_text(
                 self.screen,
-                "W/S or Up/Down to change  |  A/D or Left/Right to move  |  ENTER to confirm",
+                "W/S: change | A/D: move | ENTER: confirm",
                 (cx, self.screen.get_height() - 60),
             )
 

@@ -6,7 +6,7 @@ import pygame
 import asyncio
 from game.utils import animation_utils
 
-AUTO_SWITCH_MS = 10000  # Auto-switch to high scores after 10 seconds
+AUTO_SWITCH_MS = 5000  # Auto-switch to high scores after 5 seconds
 
 
 class GameOverScreen:
@@ -71,16 +71,6 @@ class GameOverScreen:
             reason_surface = reason_font.render(self.reason, True, (200, 200, 200))
             reason_rect = reason_surface.get_rect(center=(self.screen.get_width() // 2, 350))
             self.screen.blit(reason_surface, reason_rect)
-
-            # Countdown to high scores
-            remaining = max(0, AUTO_SWITCH_MS - elapsed) // 1000
-            timer_surface = self.font_timer.render(
-                f"High scores in {remaining}s...", True, (150, 150, 150)
-            )
-            self.screen.blit(
-                timer_surface,
-                timer_surface.get_rect(center=(self.screen.get_width() // 2, self.screen.get_height() - 120)),
-            )
 
             # Flashing prompt text
             animation_utils.flashing_text(

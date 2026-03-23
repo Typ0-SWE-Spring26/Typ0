@@ -2,6 +2,7 @@ import pygame
 import asyncio
 from game.core.game_timer import GameTimer
 from game.utils import animation_utils
+from game.screens.credits import CreditsScreen
 
 
 class GameController:
@@ -26,6 +27,25 @@ class GameController:
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+
+    def _set_paused(self, paused: bool) -> None:
+        """Set pause state, emitting events and pausing/unpausing music."""
+        if paused == self.paused:
+            return
+        self.paused = paused
+        now_tick = pygame.time.get_ticks()
+        if self.paused:
+            self._bus.emit('game_paused', {'now': now_tick})
+            pygame.mixer.music.pause()
+        else:
+            self._bus.emit('game_resumed', {'now': now_tick})
+            pygame.mixer.music.unpause()
+
+    @property
+    def _menu_is_open(self) -> bool:
+        return self.menu_overlay and (
+            self.menu_overlay.open or self.menu_overlay.active_submenu is not None
+        )
 
     def _process_input_result(self, name: str, now: int) -> bool:
         """Call model.handle_input, stop the timer on terminal results.
@@ -59,22 +79,19 @@ class GameController:
                 # Handle menu events
                 if self.menu_overlay:
                     menu_action = self.menu_overlay.handle_event(event)
-                    if menu_action == "Volume":
-                        print("Volume clicked")
-                    if menu_action == "Music":
-                        print("Music clicked")
-                    if menu_action == "About":
-                        print("About clicked")
+                    if menu_action == "credits":
+                        self._set_paused(True)
+                        credits = CreditsScreen(self.screen)
+                        cr = await credits.run()
+                        if cr == "quit":
+                            return "quit"
+                        # Resume after credits
+                        self._set_paused(False)
 
                 if event.type == pygame.KEYDOWN:
                     # P always toggles pause regardless of game state
                     if event.key == pygame.K_p:
-                        self.paused = not self.paused
-                        now_tick = pygame.time.get_ticks()
-                        if self.paused:
-                            self._bus.emit('game_paused', {'now': now_tick})
-                        else:
-                            self._bus.emit('game_resumed', {'now': now_tick})
+                        self._set_paused(not self.paused)
                         continue
 
                     # Ctrl+E jumps to game over (debug shortcut)
@@ -94,6 +111,13 @@ class GameController:
                             if rect.collidepoint(event.pos):
                                 self._process_input_result(name, now)
                                 break
+
+            # Sync pause state with menu overlay
+            if self._menu_is_open:
+                self._set_paused(True)
+            elif self.paused and self.menu_overlay and not self.menu_overlay.open and self.menu_overlay.active_submenu is None:
+                # Menu just closed — unpause
+                self._set_paused(False)
 
             # After the wrong-input press-flash expires, hand off to game over
             if self.model.state == 'gameover' and now >= self.model.flash_end:

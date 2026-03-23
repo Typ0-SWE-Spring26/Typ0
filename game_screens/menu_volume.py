@@ -98,8 +98,10 @@ class VolumeMenu:
             if self.back_rect and self.back_rect.collidepoint(event.pos):
                 return "Back"
 
-            # Check slider
-            if self.slider_rect and self.slider_rect.collidepoint(event.pos):
+            # Check slider (expanded hit area around the thin bar)
+            if self.slider_rect:
+                hit_rect = self.slider_rect.inflate(0, 30)
+            if self.slider_rect and hit_rect.collidepoint(event.pos):
                 self.dragging = True
                 # Also set volume immediately on click
                 relative_x = event.pos[0] - self.slider_rect.x

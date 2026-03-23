@@ -2,6 +2,7 @@ import pygame
 import asyncio
 from game.core.game_timer import GameTimer
 from game.utils import animation_utils
+from game.screens.credits import CreditsScreen
 
 
 class BopItController:
@@ -23,6 +24,24 @@ class BopItController:
         if pause_overlay is not None:
             pause_overlay.subscribe(self._bus)
 
+    def _set_paused(self, paused: bool) -> None:
+        if paused == self.paused:
+            return
+        self.paused = paused
+        now_tick = pygame.time.get_ticks()
+        if self.paused:
+            self._bus.emit('game_paused', {'now': now_tick})
+            pygame.mixer.music.pause()
+        else:
+            self._bus.emit('game_resumed', {'now': now_tick})
+            pygame.mixer.music.unpause()
+
+    @property
+    def _menu_is_open(self) -> bool:
+        return self.menu_overlay and (
+            self.menu_overlay.open or self.menu_overlay.active_submenu is not None
+        )
+
     def _process_input_result(self, name: str, now: int) -> bool:
         result = self.model.handle_input(name, now)
         if result in ('wrong', 'round_complete'):
@@ -42,16 +61,18 @@ class BopItController:
                     return "quit"
 
                 if self.menu_overlay:
-                    self.menu_overlay.handle_event(event)
+                    menu_action = self.menu_overlay.handle_event(event)
+                    if menu_action == "credits":
+                        self._set_paused(True)
+                        credits = CreditsScreen(self.screen)
+                        cr = await credits.run()
+                        if cr == "quit":
+                            return "quit"
+                        self._set_paused(False)
 
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_p:
-                        self.paused = not self.paused
-                        now_tick = pygame.time.get_ticks()
-                        if self.paused:
-                            self._bus.emit('game_paused', {'now': now_tick})
-                        else:
-                            self._bus.emit('game_resumed', {'now': now_tick})
+                        self._set_paused(not self.paused)
                         continue
 
                     if event.key == pygame.K_e and pygame.key.get_mods() & pygame.KMOD_CTRL:
@@ -69,6 +90,12 @@ class BopItController:
                             if rect.collidepoint(event.pos):
                                 self._process_input_result(name, now)
                                 break
+
+            # Sync pause state with menu overlay
+            if self._menu_is_open:
+                self._set_paused(True)
+            elif self.paused and self.menu_overlay and not self.menu_overlay.open and self.menu_overlay.active_submenu is None:
+                self._set_paused(False)
 
             if self.model.state == 'gameover' and now >= self.model.flash_end:
                 animation_utils.stop_music()
