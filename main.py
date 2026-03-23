@@ -60,7 +60,7 @@ async def main():
                     break
                 continue  # back to menu
             break  # "start" or "quit"
-    if result == "start":
+    if result in ("start", "start_simon", "start_bopit"):
         pause_overlay = PauseOverlay(screen)
         keybinds = KeybindManager()
 

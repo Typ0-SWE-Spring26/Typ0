@@ -11,6 +11,7 @@ class VolumeMenu:
         
         # These will be recalculated in draw() based on bg_rect
         self.slider_rect = None
+        self.slider_hit_rect = None  # Larger hit area for easier clicking
         self.slider_width = 300  # Store this as instance variable
         self.knob_radius = 12
         self.back_rect = None
@@ -30,7 +31,14 @@ class VolumeMenu:
             self.slider_width,
             slider_height
         )
-        
+        # Larger invisible hit area for easier clicking/dragging
+        self.slider_hit_rect = pygame.Rect(
+            self.slider_rect.x - self.knob_radius,
+            self.slider_rect.y - 20,
+            self.slider_width + self.knob_radius * 2,
+            40
+        )
+
         pygame.draw.rect(self.screen, (180, 180, 180), self.slider_rect)
 
         # Volume percentage display
@@ -98,8 +106,8 @@ class VolumeMenu:
             if self.back_rect and self.back_rect.collidepoint(event.pos):
                 return "Back"
 
-            # Check slider
-            if self.slider_rect and self.slider_rect.collidepoint(event.pos):
+            # Check slider (use larger hit area)
+            if self.slider_hit_rect and self.slider_hit_rect.collidepoint(event.pos):
                 self.dragging = True
                 # Also set volume immediately on click
                 relative_x = event.pos[0] - self.slider_rect.x

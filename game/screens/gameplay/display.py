@@ -1,6 +1,7 @@
 from game.core.event_bus import EventBus
 from game.core.game_model import GameModel
 from game.screens.menu import MenuOverlay
+from game.utils import animation_utils
 from .view import GameView
 from .controller import GameController
 
@@ -28,4 +29,7 @@ class GameScreen:
         )
 
     async def run(self):
-        return await self.controller.run()
+        animation_utils.play_music("assets/Typ0__Main_Theme.ogg")
+        result = await self.controller.run()
+        animation_utils.stop_music()
+        return result
