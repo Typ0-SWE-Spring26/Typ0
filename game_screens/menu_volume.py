@@ -6,7 +6,11 @@ class VolumeMenu:
         self.font = pygame.font.SysFont(None, 40)
         self.small_font = pygame.font.SysFont(None, 30)
 
-        self.volume = pygame.mixer.music.get_volume()
+        try:
+            self.volume = pygame.mixer.music.get_volume()
+        except Exception:
+            self.volume = 0.5
+
         self.dragging = False
         
         # These will be recalculated in draw() based on bg_rect
@@ -69,7 +73,8 @@ class VolumeMenu:
             button_height
         )
         
-        pygame.draw.rect(self.screen, (70, 70, 110), self.back_rect, border_radius=8)
+        pygame.draw.rect(self.screen, (100, 150, 200), self.back_rect, border_radius=8)
+        pygame.draw.rect(self.screen, (255, 255, 255), self.back_rect, 2, border_radius=8)  # White border
         back_txt = self.font.render("Back", True, (255, 255, 255))
         self.screen.blit(back_txt, back_txt.get_rect(center=self.back_rect.center))
 

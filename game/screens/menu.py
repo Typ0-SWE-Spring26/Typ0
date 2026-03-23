@@ -62,7 +62,8 @@ class MenuOverlay:
 
     def draw(self):
         # Always draw MENU button
-        pygame.draw.rect(self.screen, (60, 60, 90), self.button_rect, border_radius=8)
+        pygame.draw.rect(self.screen, (80, 120, 180), self.button_rect, border_radius=8)  # Brighter color
+        pygame.draw.rect(self.screen, (255, 255, 255), self.button_rect, 1, border_radius=8)  # White border
         text = self.font.render("MENU", True, (255, 255, 255))
         self.screen.blit(text, text.get_rect(center=self.button_rect.center))
         
@@ -92,7 +93,9 @@ class MenuOverlay:
                 (self.music_rect, "Music"),
                 (self.about_rect, "About")
             ]:
-                pygame.draw.rect(self.screen, (70, 70, 110), rect, border_radius=8)
+                # Draw button with border for better visibility
+                pygame.draw.rect(self.screen, (100, 150, 200), rect, border_radius=8)  # Brighter color
+                pygame.draw.rect(self.screen, (255, 255, 255), rect, 2, border_radius=8)  # White border
                 txt = self.font.render(label, True, (255, 255, 255))
                 self.screen.blit(txt, txt.get_rect(center=rect.center))
 

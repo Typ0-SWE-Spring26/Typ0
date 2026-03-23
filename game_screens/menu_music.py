@@ -1,3 +1,4 @@
+import os
 import pygame
 
 class MusicMenu:
@@ -6,10 +7,10 @@ class MusicMenu:
         self.screen = screen
         self.font = pygame.font.SysFont(None, 40)
 
-        # Song list
+        # Song list (consistent with actual asset names in repository)
         self.songs = [
-            ("Game Theme", "assets/Typ0_Main_Theme.ogg"),
-            ("SciFi Theme", "assets/Scifi.ogg"),
+            ("Game Theme", "assets/Typ0__Main_Theme.ogg"),
+            ("SciFi Theme", "assets/SciFi.ogg"),
             ("Techno Theme", "assets/Techno.ogg")
         ]
 
@@ -48,7 +49,8 @@ class MusicMenu:
             50
         )
 
-        pygame.draw.rect(self.screen, (90,70,70), self.back_rect, border_radius=8)
+        pygame.draw.rect(self.screen, (100, 150, 200), self.back_rect, border_radius=8)
+        pygame.draw.rect(self.screen, (255, 255, 255), self.back_rect, 2, border_radius=8)  # White border
 
         back_txt = self.font.render("Back", True, (255,255,255))
         self.screen.blit(back_txt, back_txt.get_rect(center=self.back_rect.center))
@@ -81,5 +83,20 @@ class MusicMenu:
 
     def play_music(self):
         path = self.songs[self.current_index][1]
-        pygame.mixer.music.load(path)
-        pygame.mixer.music.play(-1)
+
+        if not os.path.exists(path):
+            print(f"[MusicMenu] missing file: {path}")
+            return
+
+        if not pygame.mixer.get_init():
+            try:
+                pygame.mixer.init()
+            except Exception as exc:
+                print(f"[MusicMenu] mixer init failed: {exc}")
+                return
+
+        try:
+            pygame.mixer.music.load(path)
+            pygame.mixer.music.play(-1)
+        except Exception as exc:
+            print(f"[MusicMenu] failed to play {path}: {exc}")
