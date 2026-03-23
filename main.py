@@ -60,18 +60,8 @@ async def main():
                     result = "quit"
                     break
                 continue  # back to menu
-            break  # "start_simon", "start_bopit", or "quit"
-
-    game_mode = None
-    if result == "start_simon":
-        game_mode = "simon"
-    elif result == "start_bopit":
-        game_mode = "bopit"
-    # Legacy: treat bare "start" as simon mode
-    elif result == "start":
-        game_mode = "simon"
-
-    if game_mode:
+            break  # "start" or "quit"
+    if result in ("start", "start_simon", "start_bopit"):
         pause_overlay = PauseOverlay(screen)
         keybinds = KeybindManager()
 

@@ -13,6 +13,18 @@ from game.screens.gameover import GameOverScreen
 
 # ── Helpers ────────────────────────────────────────────────────────────
 
+def run_async(coro):
+    """Run a coroutine, handling the case where an event loop is already running."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+    if loop and loop.is_running():
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            return pool.submit(asyncio.run, coro).result()
+    return asyncio.run(coro)
+
 def make_key_event(pg, key):
     ev = Mock()
     ev.type = pg.KEYDOWN
@@ -63,7 +75,12 @@ def pg_menu():
         mock_font = Mock()
         mock_font.render.return_value = Mock(get_rect=Mock(return_value=Mock()))
         mock_pg.font.Font.return_value = mock_font
-        mock_pg.Rect.return_value = Mock()
+        mock_rect = Mock()
+        mock_rect.collidepoint.return_value = False
+        mock_rect.center = (400, 300)
+        mock_pg.Rect.return_value = mock_rect
+        mock_pg.mouse.get_pos.return_value = (0, 0)
+        mock_pg.MOUSEBUTTONDOWN = 1025
 
         mock_overlay = Mock()
         mock_overlay.open = False
@@ -111,7 +128,7 @@ class TestStartScreen:
         mock_pg.event.get.return_value = [quit_ev]
 
         screen = StartScreen(mock_screen)
-        result = asyncio.run(screen.run())
+        result = run_async(screen.run())
 
         assert result == "quit"
 
@@ -129,7 +146,7 @@ class TestStartScreen:
         mock_pg.event.get.return_value = []
 
         screen = StartScreen(mock_screen)
-        result = asyncio.run(screen.run())
+        result = run_async(screen.run())
 
         assert result == "menu"
 
@@ -152,7 +169,7 @@ class TestStartScreen:
         mock_pg.event.get.return_value = []
 
         screen = StartScreen(mock_screen)
-        result = asyncio.run(screen.run())
+        result = run_async(screen.run())
 
         # Should eventually return "menu" once loading is done
         assert result == "menu"
@@ -172,7 +189,7 @@ class TestStartScreen:
         mock_pg.event.get.return_value = []
 
         screen = StartScreen(mock_screen)
-        asyncio.run(screen.run())
+        run_async(screen.run())
 
         mock_anim.stop_music.assert_called_once()
 
@@ -191,7 +208,7 @@ class TestStartMenu:
         mock_pg.event.get.return_value = [quit_ev]
 
         menu = StartMenu(mock_screen)
-        result = asyncio.run(menu.run())
+        result = run_async(menu.run())
 
         assert result == "quit"
 
@@ -204,7 +221,7 @@ class TestStartMenu:
         mock_pg.event.get.return_value = [key_event]
 
         menu = StartMenu(mock_screen)
-        result = asyncio.run(menu.run())
+        result = run_async(menu.run())
 
         assert result == "start_simon"
 
@@ -223,7 +240,7 @@ class TestGameOverScreen:
         mock_pg.event.get.return_value = [quit_ev]
 
         screen = GameOverScreen(mock_screen, score=5, reason="Wrong input!")
-        result = asyncio.run(screen.run())
+        result = run_async(screen.run())
 
         assert result == "quit"
 
@@ -234,7 +251,7 @@ class TestGameOverScreen:
         mock_pg.event.get.return_value = [ev]
 
         screen = GameOverScreen(mock_screen, score=5, reason="Wrong input!")
-        result = asyncio.run(screen.run())
+        result = run_async(screen.run())
 
         assert result == "retry"
 
@@ -245,7 +262,7 @@ class TestGameOverScreen:
         mock_pg.event.get.return_value = [ev]
 
         screen = GameOverScreen(mock_screen, score=5, reason="Wrong input!")
-        result = asyncio.run(screen.run())
+        result = run_async(screen.run())
 
         assert result == "quit"
 
@@ -256,7 +273,7 @@ class TestGameOverScreen:
         mock_pg.event.get.return_value = [ev]
 
         screen = GameOverScreen(mock_screen, score=3, reason="Time's up!")
-        result = asyncio.run(screen.run())
+        result = run_async(screen.run())
 
         assert result == "quit"
 
@@ -285,7 +302,7 @@ class TestGameOverScreen:
         mock_pg.event.get.side_effect = event_side_effect
 
         screen = GameOverScreen(mock_screen, score=10, reason="Wrong input!")
-        asyncio.run(screen.run())
+        run_async(screen.run())
 
         # Verify gradient was drawn
         mock_anim.draw_gradient.assert_called()

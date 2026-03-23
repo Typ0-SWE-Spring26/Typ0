@@ -20,10 +20,7 @@ def menu_overlay():
         mock_pg.font.SysFont.return_value = mock_font
 
         bg_image = Mock()
-        bg_image.get_rect.return_value = Mock(
-            centerx=400, centery=300,
-            right=650, top=100, left=150, bottom=500,
-        )
+        bg_image.get_rect.return_value = Mock(centerx=400, centery=300, right=650, top=100)
         bg_image.convert_alpha.return_value = bg_image
 
         mock_pg.image.load.return_value = bg_image
@@ -37,6 +34,8 @@ def menu_overlay():
             collidepoint=Mock(return_value=False),
         )
         mock_pg.MOUSEBUTTONDOWN = 1
+        mock_pg.KEYDOWN = 768
+        mock_pg.K_ESCAPE = 27
         mock_pg.SRCALPHA = 1
         mock_pg.Surface.return_value = Mock()
 

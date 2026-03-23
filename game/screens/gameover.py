@@ -19,11 +19,7 @@ class GameOverScreen:
         self.running = True
         self.start_time = None
         self.font_timer = pygame.font.Font(None, 28)
-        try:
-            pygame.mixer.music.load("assets/gameover.ogg")
-            pygame.mixer.music.play(0)  # Play once, no loop
-        except pygame.error as exc:
-            print(f"Warning: failed to load music assets/gameover.ogg: {exc}")
+        animation_utils.play_music("assets/Typ0__Ending_Riff.ogg")
 
     async def run(self):
         clock = pygame.time.Clock()

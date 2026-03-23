@@ -78,15 +78,17 @@ class GameController:
 
                 # Handle menu events
                 if self.menu_overlay:
-                    menu_action = self.menu_overlay.handle_event(event)
-                    if menu_action == "credits":
-                        self._set_paused(True)
-                        credits = CreditsScreen(self.screen)
-                        cr = await credits.run()
-                        if cr == "quit":
-                            return "quit"
-                        # Resume after credits
-                        self._set_paused(False)
+                    was_active = self.menu_overlay.open or self.menu_overlay.active_submenu is not None
+                    self.menu_overlay.handle_event(event)
+                    is_active = self.menu_overlay.open or self.menu_overlay.active_submenu is not None
+
+                    # Pause when menu opens, unpause when menu closes
+                    if is_active and not was_active:
+                        self.paused = True
+                        self._bus.emit('game_paused', {'now': pygame.time.get_ticks()})
+                    elif was_active and not is_active:
+                        self.paused = False
+                        self._bus.emit('game_resumed', {'now': pygame.time.get_ticks()})
 
                 if event.type == pygame.KEYDOWN:
                     # P always toggles pause regardless of game state
