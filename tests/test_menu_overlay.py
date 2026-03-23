@@ -20,7 +20,10 @@ def menu_overlay():
         mock_pg.font.SysFont.return_value = mock_font
 
         bg_image = Mock()
-        bg_image.get_rect.return_value = Mock(centerx=400, centery=300)
+        bg_image.get_rect.return_value = Mock(
+            centerx=400, centery=300,
+            right=650, top=100, left=150, bottom=500,
+        )
         bg_image.convert_alpha.return_value = bg_image
 
         mock_pg.image.load.return_value = bg_image
@@ -105,7 +108,7 @@ def test_click_about_returns_label_when_open(menu_overlay):
 
     result = overlay.handle_event(_mouse_event(mock_pg, overlay.about_rect.center))
 
-    assert result == "About"
+    assert result == "credits"
 
 
 def test_click_option_when_closed_returns_none(menu_overlay):

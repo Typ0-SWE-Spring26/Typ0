@@ -212,3 +212,6 @@ __marimo__/
 
 #vs code folder
 .vscode/
+
+# don't push the highscore file
+highscores.json

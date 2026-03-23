@@ -23,8 +23,13 @@ class MenuOverlay:
 
         # Center it
         self.bg_rect = self.bg_image.get_rect(center=(W // 2, H // 2))
+
+        # Close (X) button — top-right corner of popup
+        self.close_rect = pygame.Rect(
+            self.bg_rect.right - 50, self.bg_rect.top + 10, 40, 40
+        )
+
         # CENTERED MENU OPTIONS
-        
         button_width = 250
         button_height = 50
         spacing = 70
@@ -86,6 +91,11 @@ class MenuOverlay:
         
         # Draw menu options if menu is open (and no submenu is active)
         elif self.open:
+            # Close (X) button
+            pygame.draw.rect(self.screen, (120, 40, 40), self.close_rect, border_radius=6)
+            x_txt = self.font.render("X", True, (255, 255, 255))
+            self.screen.blit(x_txt, x_txt.get_rect(center=self.close_rect.center))
+
             # Draw buttons on top of brick background
             for rect, label in [
                 (self.volume_rect, "Volume"),
@@ -133,6 +143,10 @@ class MenuOverlay:
             # Only allow menu buttons if menu is open
             if self.open:
 
+                if self.close_rect.collidepoint(event.pos):
+                    self.open = False
+                    return None
+
                 if self.volume_rect.collidepoint(event.pos):
                     self.active_submenu = "volume"
                     self.open = False
@@ -144,7 +158,7 @@ class MenuOverlay:
                     return None
 
                 if self.about_rect.collidepoint(event.pos):
-                    print("About clicked")
-                    return "About"
+                    self.open = False
+                    return "credits"
 
         return None

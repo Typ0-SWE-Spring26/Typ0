@@ -8,9 +8,8 @@ class MusicMenu:
 
         # Song list
         self.songs = [
-            ("Game Theme", "assets/correct.ogg"),
-            ("Calm Theme", "assets/gameover.ogg"),
-            ("Retro Theme", "assets/startscreen.ogg")
+            ("Intro Theme", "assets/Typ0__Intro_Theme.ogg"),
+            ("Main Theme", "assets/Typ0__Main_Theme.ogg"),
         ]
 
         self.current_index = 0
