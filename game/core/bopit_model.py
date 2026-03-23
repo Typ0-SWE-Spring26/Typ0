@@ -21,6 +21,14 @@ class BopItModel:
     MIN_TIME    = 1500   # fastest time limit
     TIME_STEP   = 200    # ms shaved off each round
 
+    BASE_ROUND_DELAY = 600   # pause between commands at score 0 (ms)
+    MIN_ROUND_DELAY  = 250   # shortest pause between commands (ms)
+    ROUND_DELAY_STEP = 20    # ms shaved off per successful command
+
+    BASE_FLASH_TIME = 500     # command highlight duration at score 0 (ms)
+    MIN_FLASH_TIME  = 250     # shortest command highlight duration (ms)
+    FLASH_TIME_STEP = 15      # ms shaved off per successful command
+
     def __init__(self, event_bus):
         self._bus = event_bus
         self.reset()
@@ -52,6 +60,16 @@ class BopItModel:
         """Current round's time limit in ms — gets shorter as score grows."""
         return max(self.MIN_TIME, self.BASE_TIME - self.score * self.TIME_STEP)
 
+    @property
+    def round_delay(self) -> int:
+        """Delay before the next command — also shrinks as score grows."""
+        return max(self.MIN_ROUND_DELAY, self.BASE_ROUND_DELAY - self.score * self.ROUND_DELAY_STEP)
+
+    @property
+    def flash_time(self) -> int:
+        """How long the command stays highlighted before input timing pressure starts."""
+        return max(self.MIN_FLASH_TIME, self.BASE_FLASH_TIME - self.score * self.FLASH_TIME_STEP)
+
     # ------------------------------------------------------------------
     # Game logic
     # ------------------------------------------------------------------
@@ -69,7 +87,7 @@ class BopItModel:
 
         self.score += 1
         self.state  = 'prompting'
-        self._next_time = now + 600   # brief pause before next command
+        self._next_time = now + self.round_delay
         self._bus.emit('round_complete', {'score': self.score})
         return 'round_complete'
 
@@ -81,7 +99,7 @@ class BopItModel:
                 self.sequence.append(self.current_command)  # keep round counter accurate
                 self.flash_button = self.current_command
                 self.flash_state  = 'indicated'
-                self.flash_end    = now + 500
+                self.flash_end    = now + self.flash_time
                 self.state = 'input'
                 self._bus.emit('state_changed', {'state': 'input'})
                 return True   # signals controller to start the timer
