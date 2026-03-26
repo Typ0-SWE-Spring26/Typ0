@@ -17,7 +17,7 @@ class BopItScreen:
 
         self.view = BopItView(screen, keybinds.key_labels)
         self.controller = BopItController(
-            screen, self.model, self.view, self._bus, keybinds, pause_overlay, menu_overlay,
+            screen, self.model, self.view, self._bus, keybinds, pause_overlay, menu_overlay
         )
 
     async def run(self):
