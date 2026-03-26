@@ -2,36 +2,36 @@ import pygame
 import os 
 from game_screens.menu_volume import VolumeMenu
 from game_screens.menu_music import MusicMenu
+from game_screens.menu_about import AboutMenu
+from assets.font_loader import FontManager
 
 class MenuOverlay:
     
-
     def __init__(self, screen):
         self.screen = screen
-        self.font = pygame.font.SysFont(None, 40)
+        self.font_manager = FontManager()
         self.open = False
 
         W = screen.get_width()
         H = screen.get_height()
         # MENU button stays bottom-left
-        self.button_rect = pygame.Rect(20, H - 70, 120, 50)
+        self.button_rect = pygame.Rect(20, H - 70, 150, 60)
+        
         # LOAD BACKGROUND IMAGE
         bg_path = os.path.join("assets", "menu_bg.png")
         self.bg_image = pygame.image.load(bg_path).convert_alpha()
-        # Scale it smaller so it's a popup (not full screen)
+        
+        # Scale the original image
         self.bg_image = pygame.transform.smoothscale(self.bg_image, (500, 400))
+        
+        # Create a DARKER version of just the brick background
+        self.bg_image_dark = self.bg_image.copy()
+        dark_overlay = pygame.Surface(self.bg_image.get_size(), pygame.SRCALPHA)
+        dark_overlay.fill((0, 0, 0, 200))  # Adjust this value to control darkness (0-255)
+        self.bg_image_dark.blit(dark_overlay, (0, 0))
 
         # Center it
         self.bg_rect = self.bg_image.get_rect(center=(W // 2, H // 2))
-
-        # X close button (top-right of popup)
-        close_size = 36
-        self.close_rect = pygame.Rect(
-            self.bg_rect.right - close_size - 10,
-            self.bg_rect.top + 10,
-            close_size, close_size
-        )
-        self.close_font = pygame.font.SysFont(None, 32)
 
         # CENTERED MENU OPTIONS
         button_width = 250
@@ -61,132 +61,110 @@ class MenuOverlay:
             button_width,
             button_height
         )
-        # volume subscreen
-        self.volume_menu = VolumeMenu(screen)
-        self.active_submenu = None  # None or "volume"
-
-        #menuu subscreen
-        self.music_menu = MusicMenu(screen)
- 
+        
+        # Initialize submenus
+        self.volume_menu = VolumeMenu(screen, self.font_manager)
+        self.music_menu = MusicMenu(screen, self.font_manager)
+        self.about_menu = AboutMenu(screen, self.font_manager)
+        self.active_submenu = None
 
     def draw(self):
-        # Always draw MENU button
-        pygame.draw.rect(self.screen, (80, 120, 180), self.button_rect, border_radius=8)  # Brighter color
-        pygame.draw.rect(self.screen, (255, 255, 255), self.button_rect, 1, border_radius=8)  # White border
-        text = self.font.render("MENU", True, (255, 255, 255))
-        self.screen.blit(text, text.get_rect(center=self.button_rect.center))
+        # Draw MENU button
+        button_color = (80, 80, 80)
+        if self.button_rect.collidepoint(pygame.mouse.get_pos()):
+            button_color = (120, 120, 120)
         
-        # Draw dark overlay and background if menu is open OR submenu is active
+        pygame.draw.rect(self.screen, button_color, self.button_rect, border_radius=10)
+        pygame.draw.rect(self.screen, (200, 200, 200), self.button_rect, 3, border_radius=10)
+        
+        menu_text = self.font_manager.render_text("MENU", (255, 255, 255), 32)
+        text_rect = menu_text.get_rect(center=self.button_rect.center)
+        self.screen.blit(menu_text, text_rect)
+        
+        # Draw dark overlay and background if menu is open
         if self.open or self.active_submenu is not None:
-            # Dark transparent overlay behind popup
+            # Dark transparent overlay behind popup (only behind, not on brick)
             overlay = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 150))
             self.screen.blit(overlay, (0, 0))
+            
+            # Draw DARKENED brick background (only the brick area is darkened)
+            self.screen.blit(self.bg_image_dark, self.bg_rect)
 
-            # Draw brick background centered
-            self.screen.blit(self.bg_image, self.bg_rect)
-        
-            # Draw X close button
-            pygame.draw.rect(self.screen, (150, 50, 50), self.close_rect, border_radius=6)
-            x_text = self.close_font.render("X", True, (255, 255, 255))
-            self.screen.blit(x_text, x_text.get_rect(center=self.close_rect.center))
-
-        # Draw volume submenu if active (inside the brick background)
+        # Draw submenus
         if self.active_submenu == "volume":
-            # We need to pass the bg_rect to VolumeMenu so it can position elements inside it
             self.volume_menu.draw(self.bg_rect)
-        
         elif self.active_submenu == "music":
             self.music_menu.draw(self.bg_rect)
-        
-        # Draw menu options if menu is open (and no submenu is active)
+        elif self.active_submenu == "about":
+            self.about_menu.draw(self.bg_rect)
         elif self.open:
-            # Close (X) button
-            pygame.draw.rect(self.screen, (120, 40, 40), self.close_rect, border_radius=6)
-            x_txt = self.font.render("X", True, (255, 255, 255))
-            self.screen.blit(x_txt, x_txt.get_rect(center=self.close_rect.center))
-
-            # Draw buttons on top of brick background
+            # Draw menu buttons
             for rect, label in [
-                (self.volume_rect, "Volume"),
-                (self.music_rect, "Music"),
-                (self.about_rect, "About")
+                (self.volume_rect, "VOLUME"),
+                (self.music_rect, "MUSIC"),
+                (self.about_rect, "ABOUT")
             ]:
-                # Draw button with border for better visibility
-                pygame.draw.rect(self.screen, (100, 150, 200), rect, border_radius=8)  # Brighter color
-                pygame.draw.rect(self.screen, (255, 255, 255), rect, 2, border_radius=8)  # White border
-                txt = self.font.render(label, True, (255, 255, 255))
-                self.screen.blit(txt, txt.get_rect(center=rect.center))
+                hover = rect.collidepoint(pygame.mouse.get_pos())
+                button_color = (120, 120, 120) if hover else (80, 80, 80)
+                
+                pygame.draw.rect(self.screen, button_color, rect, border_radius=12)
+                pygame.draw.rect(self.screen, (200, 200, 200), rect, 3, border_radius=12)
+                
+                text_surf = self.font_manager.render_text(label, (255, 255, 255), 28)
+                text_rect = text_surf.get_rect(center=rect.center)
+                self.screen.blit(text_surf, text_rect)
 
-    
     def _close(self):
-        """Close the menu and any active submenu."""
         self.open = False
         self.active_submenu = None
 
     def handle_event(self, event):
-
-        # ESC closes everything
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             if self.open or self.active_submenu is not None:
                 self._close()
                 return None
 
-        # 1️⃣ If volume submenu is open
+        # Submenu handling
         if self.active_submenu == "volume":
             result = self.volume_menu.handle_event(event)
-
             if result == "Back":
                 self.active_submenu = None
                 self.open = True
-
             return None
 
-
-        # 2️⃣ If music submenu is open
         if self.active_submenu == "music":
             result = self.music_menu.handle_event(event)
-
             if result == "Back":
                 self.active_submenu = None
                 self.open = True
-
+            return None
+        
+        if self.active_submenu == "about":
+            result = self.about_menu.handle_event(event)
+            if result == "Back":
+                self.active_submenu = None
+                self.open = True
             return None
 
-
-        # 3️⃣ Normal menu clicks
+        # Main menu clicks
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-
-            # X close button
-            if (self.open or self.active_submenu is not None) and self.close_rect.collidepoint(event.pos):
-                self._close()
-                return None
-
-            # MENU button
             if self.button_rect.collidepoint(event.pos):
                 self.open = not self.open
                 return None
 
-
-            # Only allow menu buttons if menu is open
             if self.open:
-
-                if self.close_rect.collidepoint(event.pos):
-                    self.open = False
-                    return None
-
                 if self.volume_rect.collidepoint(event.pos):
                     self.active_submenu = "volume"
                     self.open = False
                     return None
-
                 if self.music_rect.collidepoint(event.pos):
                     self.active_submenu = "music"
                     self.open = False
                     return None
-
                 if self.about_rect.collidepoint(event.pos):
+                    self.active_submenu = "about"
                     self.open = False
-                    return "credits"
+                    return None
 
         return None
