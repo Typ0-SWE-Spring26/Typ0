@@ -15,7 +15,7 @@ class BopItView(GameView):
         """Render one frame for Bop-It mode."""
         self.screen.fill((15, 15, 25))
         W = self.screen.get_width()
-
+        H = self.screen.get_height()
         # HUD
         score_surf = self.font_small.render(f"Score: {model.score}", True, (200, 200, 200))
         self.screen.blit(score_surf, (20, 20))
@@ -25,12 +25,14 @@ class BopItView(GameView):
 
         # Command prompt
         if model.state == 'input' and model.current_command:
+            press=self.font_small.render("Press", True, (255, 255, 100))
             label = model.COMMAND_LABELS.get(model.current_command, "???")
-            cmd_surf = self.font_command.render(label, True, (255, 255, 100))
-            self.screen.blit(cmd_surf, cmd_surf.get_rect(center=(W // 2, 55)))
+            cmd_surf = self.font_small.render(label, True, (255, 255, 100))
+            self.screen.blit(press, press.get_rect(center=(W // 2, (H // 3)+50)))
+            self.screen.blit(cmd_surf, cmd_surf.get_rect(center=(W // 2, (H // 3)+70)))
         elif model.state == 'prompting':
             s = self.font_small.render("Get ready...", True, (160, 160, 255))
-            self.screen.blit(s, s.get_rect(center=(W // 2, 55)))
+            self.screen.blit(s, s.get_rect(center=(W // 2, (H // 3)+30)))
 
         # Draw buttons — highlight only the target command
         for name, rect in self.button_rects.items():

@@ -10,11 +10,11 @@ class BopItModel:
     """
 
     COMMAND_LABELS = {
-        'left':  'Press LEFT!',
-        'right': 'Press RIGHT!',
-        'up':    'Press UP!',
-        'down':  'Press DOWN!',
-        'space': 'Press SPACE!',
+        'left':  'LEFT!',
+        'right': 'RIGHT!',
+        'up':    'UP!',
+        'down':  'DOWN!',
+        'space': 'SPACE!',
     }
 
     BASE_TIME   = 5000   # starting time limit (ms)
