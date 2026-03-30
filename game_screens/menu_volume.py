@@ -1,119 +1,127 @@
 import pygame
 
 class VolumeMenu:
-    def __init__(self, screen):
+    def __init__(self, screen, font_manager):
         self.screen = screen
-        self.font = pygame.font.SysFont(None, 40)
-        self.small_font = pygame.font.SysFont(None, 30)
+        self.font_manager = font_manager
 
-        self.volume = pygame.mixer.music.get_volume()
+        # Safely get volume
+        try:
+            if pygame.mixer.get_init():
+                self.volume = pygame.mixer.music.get_volume()
+            else:
+                self.volume = 0.5
+        except Exception:
+            self.volume = 0.5
+
         self.dragging = False
-        
-        # These will be recalculated in draw() based on bg_rect
-        self.slider_rect = None
-        self.slider_hit_rect = None  # Larger hit area for easier clicking
-        self.slider_width = 300  # Store this as instance variable
-        self.knob_radius = 12
+        self.slider_width = 380
+        self.knob_radius = 18
         self.back_rect = None
+        self.slider_rect = None
+        self.slider_hit_rect = None
 
     def draw(self, bg_rect):
-        # Title - positioned at top of brick background
-        title = self.font.render("Volume Settings", True, (255, 255, 255))
-        title_rect = title.get_rect(center=(bg_rect.centerx, bg_rect.y + 50))
-        self.screen.blit(title, title_rect)
+        # Title with Courier font
+        title_surf = self.font_manager.render_text("VOLUME", (255, 255, 255), 36)
+        title_rect = title_surf.get_rect(center=(bg_rect.centerx, bg_rect.y + 55))
+        self.screen.blit(title_surf, title_rect)
 
-        # Slider - centered horizontally in brick background
-        slider_height = 6
-        
+        # Slider
+        slider_height = 10
         self.slider_rect = pygame.Rect(
             bg_rect.centerx - self.slider_width // 2,
-            bg_rect.centery - 20,
+            bg_rect.centery - 15,
             self.slider_width,
             slider_height
         )
-        # Larger invisible hit area for easier clicking/dragging
         self.slider_hit_rect = pygame.Rect(
-            self.slider_rect.x - self.knob_radius,
-            self.slider_rect.y - 20,
-            self.slider_width + self.knob_radius * 2,
-            40
+            self.slider_rect.x - self.knob_radius - 10,
+            self.slider_rect.y - 30,
+            self.slider_width + self.knob_radius * 2 + 20,
+            70
         )
 
-        pygame.draw.rect(self.screen, (180, 180, 180), self.slider_rect)
+        pygame.draw.rect(self.screen, (150, 150, 150), self.slider_rect, border_radius=5)
 
-        # Volume percentage display
+        # Volume percentage
         volume_percent = int(self.volume * 100)
-        vol_text = self.small_font.render(f"{volume_percent}%", True, (255, 255, 255))
-        vol_rect = vol_text.get_rect(center=(bg_rect.centerx, self.slider_rect.y - 25))
+        vol_text = self.font_manager.render_text(f"{volume_percent}%", (255, 255, 255), 32)
+        vol_rect = vol_text.get_rect(center=(bg_rect.centerx, self.slider_rect.y - 40))
         self.screen.blit(vol_text, vol_rect)
 
         # Knob
         knob_x = self.slider_rect.x + int(self.volume * self.slider_width)
         pygame.draw.circle(
             self.screen,
-            (255, 255, 255),
+            (220, 220, 220),
             (knob_x, self.slider_rect.centery),
             self.knob_radius
         )
+        
+        pygame.draw.circle(
+            self.screen,
+            (100, 100, 100),
+            (knob_x, self.slider_rect.centery),
+            self.knob_radius + 2,
+            2
+        )
 
-        # Draw a highlight if dragging (optional visual feedback)
         if self.dragging:
             pygame.draw.circle(
                 self.screen,
-                (200, 200, 255),
+                (255, 255, 255),
                 (knob_x, self.slider_rect.centery),
-                self.knob_radius + 2,
+                self.knob_radius + 3,
                 2
             )
 
-        # Back button - positioned at bottom of brick background
-        button_width = 120
-        button_height = 40
-        
+        # Back button
+        button_width = 160
+        button_height = 50
         self.back_rect = pygame.Rect(
             bg_rect.centerx - button_width // 2,
-            bg_rect.bottom - 60,
+            bg_rect.bottom - 70,
             button_width,
             button_height
         )
         
-        pygame.draw.rect(self.screen, (70, 70, 110), self.back_rect, border_radius=8)
-        back_txt = self.font.render("Back", True, (255, 255, 255))
-        self.screen.blit(back_txt, back_txt.get_rect(center=self.back_rect.center))
+        hover = self.back_rect.collidepoint(pygame.mouse.get_pos())
+        button_color = (120, 120, 120) if hover else (80, 80, 80)
+        pygame.draw.rect(self.screen, button_color, self.back_rect, border_radius=12)
+        pygame.draw.rect(self.screen, (200, 200, 200), self.back_rect, 3, border_radius=12)
+        
+        back_text = self.font_manager.render_text("BACK", (255, 255, 255), 28)
+        self.screen.blit(back_text, back_text.get_rect(center=self.back_rect.center))
 
     def handle_event(self, event):
-        # Always check for mouse button UP first to stop dragging
         if event.type == pygame.MOUSEBUTTONUP:
-            if event.button == 1:  # Left mouse button
+            if event.button == 1:
                 self.dragging = False
             return None
 
-        # Handle mouse motion for dragging
         if event.type == pygame.MOUSEMOTION:
             if self.dragging and self.slider_rect:
-                # Constrain mouse position to slider bounds
                 relative_x = event.pos[0] - self.slider_rect.x
-                # Clamp between 0 and slider_width
                 relative_x = max(0, min(self.slider_width, relative_x))
                 self.volume = relative_x / self.slider_width
-                pygame.mixer.music.set_volume(self.volume)
-                return "volume_changed"  # Return something to indicate we handled it
+                # Only set volume if mixer is initialized
+                if pygame.mixer.get_init():
+                    pygame.mixer.music.set_volume(self.volume)
+                return "volume_changed"
             return None
 
-        # Handle mouse button down
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            # Check back button first
             if self.back_rect and self.back_rect.collidepoint(event.pos):
                 return "Back"
-
-            # Check slider (use larger hit area)
             if self.slider_hit_rect and self.slider_hit_rect.collidepoint(event.pos):
                 self.dragging = True
-                # Also set volume immediately on click
                 relative_x = event.pos[0] - self.slider_rect.x
                 relative_x = max(0, min(self.slider_width, relative_x))
                 self.volume = relative_x / self.slider_width
-                pygame.mixer.music.set_volume(self.volume)
+                # Only set volume if mixer is initialized
+                if pygame.mixer.get_init():
+                    pygame.mixer.music.set_volume(self.volume)
                 return "volume_changed"
 
         return None
