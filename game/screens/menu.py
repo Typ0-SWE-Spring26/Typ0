@@ -104,8 +104,6 @@ class MenuOverlay:
             self.volume_menu.draw(self.bg_rect)
         elif self.active_submenu == "music":
             self.music_menu.draw(self.bg_rect)
-        elif self.active_submenu == "about":
-            self.about_menu.draw(self.bg_rect)
         elif self.open:
             # Draw menu buttons
             for rect, label in [
@@ -148,13 +146,6 @@ class MenuOverlay:
                 self.open = True
             return None
         
-        if self.active_submenu == "about":
-            result = self.about_menu.handle_event(event)
-            if result == "Back":
-                self.active_submenu = None
-                self.open = True
-            return None
-
         # Main menu clicks
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.button_rect.collidepoint(event.pos):
@@ -171,8 +162,7 @@ class MenuOverlay:
                     self.open = False
                     return None
                 if self.about_rect.collidepoint(event.pos):
-                    self.active_submenu = "about"
                     self.open = False
-                    return None
+                    return "credits"
 
         return None
