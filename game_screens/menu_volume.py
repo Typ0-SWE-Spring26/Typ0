@@ -1,5 +1,7 @@
 import pygame
 
+from game.utils.button import Button
+
 class VolumeMenu:
     def __init__(self, screen):
         self.screen = screen
@@ -79,9 +81,9 @@ class VolumeMenu:
             button_height
         )
         
-        pygame.draw.rect(self.screen, (70, 70, 110), self.back_rect, border_radius=8)
-        back_txt = self.font.render("Back", True, (255, 255, 255))
-        self.screen.blit(back_txt, back_txt.get_rect(center=self.back_rect.center))
+        if self._back_btn is None or self._back_btn.rect != self.back_rect:
+            self._back_btn = Button(self.back_rect, "Back", self._font)
+        self._back_btn.draw(self.screen)
 
     def handle_event(self, event):
         # Always check for mouse button UP first to stop dragging

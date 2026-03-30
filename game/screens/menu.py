@@ -2,6 +2,7 @@ import pygame
 import os 
 from game_screens.menu_volume import VolumeMenu
 from game_screens.menu_music import MusicMenu
+from game.utils.button import Button
 
 class MenuOverlay:
     
@@ -67,13 +68,15 @@ class MenuOverlay:
 
         #menuu subscreen
         self.music_menu = MusicMenu(screen)
- 
+        self._font_btn = pygame.font.SysFont(None, 40)
+        self.btn_menu   = Button(self.button_rect, "MENU",   self._font_btn)
+        self.btn_volume = Button(self.volume_rect, "Volume", self._font_btn)
+        self.btn_music  = Button(self.music_rect,  "Music",  self._font_btn)
+        self.btn_about  = Button(self.about_rect,  "About",  self._font_btn)
 
     def draw(self):
         # Always draw MENU button
-        pygame.draw.rect(self.screen, (60, 60, 90), self.button_rect, border_radius=8)
-        text = self.font.render("MENU", True, (255, 255, 255))
-        self.screen.blit(text, text.get_rect(center=self.button_rect.center))
+        self.btn_menu.draw(self.screen)
         
         # Draw dark overlay and background if menu is open OR submenu is active
         if self.open or self.active_submenu is not None:
@@ -102,14 +105,9 @@ class MenuOverlay:
         elif self.open:
 
             # Draw buttons on top of brick background
-            for rect, label in [
-                (self.volume_rect, "Volume"),
-                (self.music_rect, "Music"),
-                (self.about_rect, "About")
-            ]:
-                pygame.draw.rect(self.screen, (70, 70, 110), rect, border_radius=8)
-                txt = self.font.render(label, True, (255, 255, 255))
-                self.screen.blit(txt, txt.get_rect(center=rect.center))
+            self.btn_volume.draw(self.screen)
+            self.btn_music.draw(self.screen)
+            self.btn_about.draw(self.screen)
 
     
     def _close(self):
