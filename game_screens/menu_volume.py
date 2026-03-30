@@ -86,6 +86,10 @@ class VolumeMenu:
         self._back_btn.draw(self.screen)
 
     def handle_event(self, event):
+        # Check back button first using Button's handle_event
+        if self._back_btn and self._back_btn.handle_event(event):
+            return "Back"
+
         # Always check for mouse button UP first to stop dragging
         if event.type == pygame.MOUSEBUTTONUP:
             if event.button == 1:  # Left mouse button
@@ -106,10 +110,6 @@ class VolumeMenu:
 
         # Handle mouse button down
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            # Check back button first
-            if self.back_rect and self.back_rect.collidepoint(event.pos):
-                return "Back"
-
             # Check slider (use larger hit area)
             if self.slider_hit_rect and self.slider_hit_rect.collidepoint(event.pos):
                 self.dragging = True
