@@ -5,13 +5,16 @@ class MusicMenu:
     def __init__(self, screen, font_manager):
         self.screen = screen
         self.font_manager = font_manager
+        
+        # Check if assets directory exists, if not use fallback
+        assets_dir = "assets"
+        if not os.path.exists(assets_dir):
+            os.makedirs(assets_dir, exist_ok=True)
 
         self.songs = [
-            
-            ("TECHNO THEME", "assets/Techno.ogg"),
-            ("SCIFI THEME", "assets/SciFi.ogg"),
-            ("MAIN THEME", "assets/Typ0__Main_Theme.ogg"),
-            
+            ("TECHNO THEME", os.path.join(assets_dir, "Techno.ogg")),
+            ("SCIFI THEME", os.path.join(assets_dir, "SciFi.ogg")),
+            ("MAIN THEME", os.path.join(assets_dir, "Typ0__Main_Theme.ogg")),
         ]
 
         self.current_index = 0
@@ -84,9 +87,11 @@ class MusicMenu:
 
     def play_music(self):
         path = self.songs[self.current_index][1]
+        # Check if file exists before trying to play
         if not os.path.exists(path):
             print(f"[MusicMenu] missing file: {path}")
             return
+        # Check if mixer is initialized
         if not pygame.mixer.get_init():
             try:
                 pygame.mixer.init()

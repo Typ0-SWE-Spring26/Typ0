@@ -17,18 +17,26 @@ class MenuOverlay:
         # MENU button stays bottom-left
         self.button_rect = pygame.Rect(20, H - 70, 150, 60)
         
-        # LOAD BACKGROUND IMAGE
+        # LOAD BACKGROUND IMAGE - Add error handling
         bg_path = os.path.join("assets", "menu_bg.png")
-        self.bg_image = pygame.image.load(bg_path).convert_alpha()
-        
-        # Scale the original image
-        self.bg_image = pygame.transform.smoothscale(self.bg_image, (500, 400))
-        
-        # Create a DARKER version of just the brick background
-        self.bg_image_dark = self.bg_image.copy()
-        dark_overlay = pygame.Surface(self.bg_image.get_size(), pygame.SRCALPHA)
-        dark_overlay.fill((0, 0, 0, 200))  # Adjust this value to control darkness (0-255)
-        self.bg_image_dark.blit(dark_overlay, (0, 0))
+        try:
+            self.bg_image = pygame.image.load(bg_path).convert_alpha()
+            # Scale the original image
+            self.bg_image = pygame.transform.smoothscale(self.bg_image, (500, 400))
+            
+            # Create a DARKER version of just the brick background
+            self.bg_image_dark = self.bg_image.copy()
+            dark_overlay = pygame.Surface(self.bg_image.get_size(), pygame.SRCALPHA)
+            dark_overlay.fill((0, 0, 0, 200))  # Adjust this value to control darkness (0-255)
+            self.bg_image_dark.blit(dark_overlay, (0, 0))
+        except (pygame.error, FileNotFoundError):
+            # Create a fallback background surface if image not found
+            self.bg_image = pygame.Surface((500, 400))
+            self.bg_image.fill((50, 50, 50))
+            self.bg_image_dark = self.bg_image.copy()
+            dark_overlay = pygame.Surface(self.bg_image.get_size(), pygame.SRCALPHA)
+            dark_overlay.fill((0, 0, 0, 200))
+            self.bg_image_dark.blit(dark_overlay, (0, 0))
 
         # Center it
         self.bg_rect = self.bg_image.get_rect(center=(W // 2, H // 2))
