@@ -15,6 +15,8 @@ class VolumeMenu:
         self.slider_width = 300  # Store this as instance variable
         self.knob_radius = 12
         self.back_rect = None
+        self._font = pygame.font.SysFont(None, 40)
+        self._back_btn = None
 
     def draw(self, bg_rect):
         # Title - positioned at top of brick background

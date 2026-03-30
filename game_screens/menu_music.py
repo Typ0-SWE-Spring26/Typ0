@@ -1,5 +1,7 @@
 import pygame
 
+from game.utils.button import Button
+
 class MusicMenu:
 
     def __init__(self, screen):
@@ -29,20 +31,24 @@ class MusicMenu:
         song_text = self.font.render(name, True, (255,255,255))
         self.screen.blit(song_text, song_text.get_rect(center=(bg_rect.centerx, bg_rect.centery)))
 
-        # Left arrow
-        self.left_rect = pygame.Rect(bg_rect.centerx - 170, bg_rect.centery - 25, 50, 50)
-        left_txt = self.font.render("<", True, (255,255,255))
-        self.screen.blit(left_txt, left_txt.get_rect(center=self.left_rect.center))
-
-        # Right arrow
-        self.right_rect = pygame.Rect(bg_rect.centerx + 120, bg_rect.centery - 25, 50, 50)
-        right_txt = self.font.render(">", True, (255,255,255))
-        self.screen.blit(right_txt, right_txt.get_rect(center=self.right_rect.center))
-
         # Label below
         label = self.font.render("Music", True, (200,200,200))
         self.screen.blit(label, label.get_rect(center=(bg_rect.centerx, bg_rect.centery + 60)))
 
+
+        # Left and right arrows for song selection
+        self.left_rect  = pygame.Rect(bg_rect.centerx - 170, bg_rect.centery - 25, 50, 50)
+        self.right_rect = pygame.Rect(bg_rect.centerx + 120, bg_rect.centery - 25, 50, 50)
+
+        if self._left_btn is None:
+            self._left_btn  = Button(self.left_rect,  "<", self._font_btn)
+            self._right_btn = Button(self.right_rect, ">", self._font_btn)
+            self._back_btn  = Button(self.back_rect,  "Back", self._font_btn)
+
+        self._left_btn.draw(self.screen)
+        self._right_btn.draw(self.screen)
+        self._back_btn.draw(self.screen)
+    
         # Back button
         self.back_rect = pygame.Rect(
             bg_rect.centerx - 80,
@@ -50,11 +56,6 @@ class MusicMenu:
             160,
             50
         )
-
-        pygame.draw.rect(self.screen, (90,70,70), self.back_rect, border_radius=8)
-
-        back_txt = self.font.render("Back", True, (255,255,255))
-        self.screen.blit(back_txt, back_txt.get_rect(center=self.back_rect.center))
 
 
     def handle_event(self, event):
