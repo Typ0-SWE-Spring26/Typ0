@@ -120,28 +120,28 @@ class TestPauseOverlay:
 
         overlay.draw()
 
-        # Should create a surface with screen size
-        mock_pygame.Surface.assert_called_with((800, 600))
+        # Should create a surface with screen size and SRCALPHA flag
+        mock_pygame.Surface.assert_called_with((800, 600), mock_pygame.SRCALPHA)
 
     def test_draw_sets_overlay_alpha(self, mock_pygame, mock_screen):
-        """draw() should set overlay surface alpha to 128."""
+        """draw() should fill overlay with alpha baked into the color."""
         overlay = PauseOverlay(mock_screen)
         overlay.visible = True
 
         overlay.draw()
 
         mock_surface = mock_pygame.Surface.return_value
-        mock_surface.set_alpha.assert_called_once_with(128)
+        mock_surface.fill.assert_called_once_with((0, 0, 0, 160))
 
     def test_draw_fills_overlay_black(self, mock_pygame, mock_screen):
-        """draw() should fill overlay surface with black."""
+        """draw() should fill overlay surface with black + alpha."""
         overlay = PauseOverlay(mock_screen)
         overlay.visible = True
 
         overlay.draw()
 
         mock_surface = mock_pygame.Surface.return_value
-        mock_surface.fill.assert_called_once_with((0, 0, 0))
+        mock_surface.fill.assert_called_once_with((0, 0, 0, 160))
 
     def test_draw_blits_overlay_to_screen(self, mock_pygame, mock_screen):
         """draw() should blit overlay surface to screen at origin."""
@@ -155,14 +155,14 @@ class TestPauseOverlay:
         assert mock_screen.blit.call_args_list[0] == call(mock_surface, (0, 0))
 
     def test_draw_renders_paused_text(self, mock_pygame, mock_screen):
-        """draw() should render 'PAUSED' text in white."""
+        """draw() should render 'PAUSED' text."""
         overlay = PauseOverlay(mock_screen)
         overlay.visible = True
 
         overlay.draw()
 
-        # Check that font_large.render was called with correct arguments
-        overlay.font_large.render.assert_called_with("PAUSED", True, (255, 255, 255))
+        # Check that font_large.render was called with PAUSED
+        overlay.font_large.render.assert_called_with("PAUSED", True, (200, 200, 255))
 
     def test_draw_centers_paused_text(self, mock_pygame, mock_screen):
         """draw() should center PAUSED text horizontally and position it above center."""
@@ -172,7 +172,6 @@ class TestPauseOverlay:
         overlay.draw()
 
         # Check that render was called for PAUSED text
-        # The actual positioning is done in the implementation
         assert overlay.font_large.render.called
         assert overlay.font_small.render.called
 
@@ -184,7 +183,7 @@ class TestPauseOverlay:
         overlay.draw()
 
         overlay.font_small.render.assert_called_once_with(
-            "Press P to Resume", True, (200, 200, 200)
+            "Press P to Resume", True, (160, 160, 210)
         )
 
     def test_draw_centers_instruction_text(self, mock_pygame, mock_screen):
@@ -194,20 +193,19 @@ class TestPauseOverlay:
 
         overlay.draw()
 
-        # Check that instruction text was rendered
         overlay.font_small.render.assert_called_with(
-            "Press P to Resume", True, (200, 200, 200)
+            "Press P to Resume", True, (160, 160, 210)
         )
 
     def test_draw_blits_both_texts_to_screen(self, mock_pygame, mock_screen):
-        """draw() should blit both text surfaces to screen."""
+        """draw() should blit overlay + shadow + paused text + instruction text."""
         overlay = PauseOverlay(mock_screen)
         overlay.visible = True
 
         overlay.draw()
 
-        # Should have 3 blits: overlay surface, paused text, instruction text
-        assert mock_screen.blit.call_count == 3
+        # 4 blits: overlay surface, shadow text, paused text, instruction text
+        assert mock_screen.blit.call_count == 4
 
     def test_pause_resume_cycle(self, mock_pygame, mock_screen):
         """Should handle pause and resume cycle correctly."""
@@ -288,8 +286,8 @@ class TestPauseOverlay:
         overlay.visible = True
         overlay.draw()
 
-        # Should create overlay with correct size
-        mock_pygame.Surface.assert_called_with((1024, 768))
+        # Should create overlay with correct size and SRCALPHA flag
+        mock_pygame.Surface.assert_called_with((1024, 768), mock_pygame.SRCALPHA)
 
     def test_subscribe_to_multiple_buses(self, mock_pygame, mock_screen):
         """Should be able to subscribe to multiple event buses."""
@@ -335,14 +333,14 @@ class TestPauseOverlay:
         assert overlay.font_small is initial_font_small
 
     def test_overlay_alpha_transparency(self, mock_pygame, mock_screen):
-        """Overlay should be semi-transparent (alpha 128 = 50%)."""
+        """Overlay should be semi-transparent via SRCALPHA fill."""
         overlay = PauseOverlay(mock_screen)
         overlay.visible = True
 
         overlay.draw()
 
         mock_surface = mock_pygame.Surface.return_value
-        mock_surface.set_alpha.assert_called_once_with(128)
+        mock_surface.fill.assert_called_once_with((0, 0, 0, 160))
 
     def test_color_values(self, mock_pygame, mock_screen):
         """Should use correct color values for all elements."""
@@ -351,16 +349,16 @@ class TestPauseOverlay:
 
         overlay.draw()
 
-        # Overlay background should be black
+        # Overlay background should be black with alpha
         mock_surface = mock_pygame.Surface.return_value
-        mock_surface.fill.assert_called_once_with((0, 0, 0))
+        mock_surface.fill.assert_called_once_with((0, 0, 0, 160))
 
-        # PAUSED text should be white
-        overlay.font_large.render.assert_called_with("PAUSED", True, (255, 255, 255))
+        # PAUSED text should be light blue-white
+        overlay.font_large.render.assert_called_with("PAUSED", True, (200, 200, 255))
 
-        # Instruction text should be light gray
+        # Instruction text should be muted blue-gray
         overlay.font_small.render.assert_called_with(
-            "Press P to Resume", True, (200, 200, 200)
+            "Press P to Resume", True, (160, 160, 210)
         )
 
     def test_text_antialiasing_enabled(self, mock_pygame, mock_screen):
@@ -371,8 +369,8 @@ class TestPauseOverlay:
         overlay.draw()
 
         # Second parameter to render is antialias (True)
-        overlay.font_large.render.assert_called_with("PAUSED", True, (255, 255, 255))
-        overlay.font_small.render.assert_called_with("Press P to Resume", True, (200, 200, 200))
+        overlay.font_large.render.assert_called_with("PAUSED", True, (200, 200, 255))
+        overlay.font_small.render.assert_called_with("Press P to Resume", True, (160, 160, 210))
 
     def test_paused_text_positioning(self, mock_pygame, mock_screen):
         """PAUSED text should be positioned correctly."""
@@ -382,7 +380,7 @@ class TestPauseOverlay:
         overlay.draw()
 
         # Verify the PAUSED text was rendered
-        overlay.font_large.render.assert_called_with("PAUSED", True, (255, 255, 255))
+        overlay.font_large.render.assert_called_with("PAUSED", True, (200, 200, 255))
 
     def test_instruction_text_positioning(self, mock_pygame, mock_screen):
         """Instruction text should be positioned correctly."""
@@ -393,7 +391,7 @@ class TestPauseOverlay:
 
         # Verify instruction text was rendered
         overlay.font_small.render.assert_called_with(
-            "Press P to Resume", True, (200, 200, 200)
+            "Press P to Resume", True, (160, 160, 210)
         )
 
     def test_rapid_pause_resume_toggles(self, mock_pygame, mock_screen):
@@ -428,7 +426,8 @@ class TestPauseOverlay:
         overlay.visible = True
         overlay.draw()
 
-        assert mock_screen.blit.call_count == 3
+        # 4 blits: overlay, shadow, paused text, instruction text
+        assert mock_screen.blit.call_count == 4
 
     def test_state_independent_of_draw_calls(self, mock_pygame, mock_screen):
         """Visibility state should not change from draw calls."""
