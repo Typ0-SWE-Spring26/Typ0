@@ -1,5 +1,7 @@
 import pygame
 
+from game.utils.button import Button
+
 class VolumeMenu:
     def __init__(self, screen, font_manager):
         self.screen = screen

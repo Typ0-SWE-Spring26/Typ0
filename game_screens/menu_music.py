@@ -1,6 +1,8 @@
 import os
 import pygame
 
+from game.utils.button import Button
+
 class MusicMenu:
     def __init__(self, screen, font_manager):
         self.screen = screen
@@ -21,6 +23,11 @@ class MusicMenu:
         self.left_rect = pygame.Rect(0, 0, 0, 0)
         self.right_rect = pygame.Rect(0, 0, 0, 0)
         self.back_rect = pygame.Rect(0, 0, 0, 0)
+        self._font_btn  = pygame.font.SysFont(None, 40)
+        self._left_btn  = None
+        self._right_btn = None
+        self._back_btn  = None
+
 
     def draw(self, bg_rect):
         # Title
