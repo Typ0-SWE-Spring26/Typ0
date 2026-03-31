@@ -53,7 +53,7 @@ jobs:
       - name: Download pygame-ce wheel
         run: |
           mkdir -p ./build/web/cdn/cp312
-          curl -L "https://pygame-web.github.io/cdn/0.9.3/cp312/pygame_ce-2.5.7-cp312-cp312-wasm32_bi_emscripten.whl" \
+          curl -L "https://pygame-web.github.io/cdn/cp312/pygame_ce-2.5.7-cp312-cp312-wasm32_bi_emscripten.whl" \
             -o "./build/web/cdn/cp312/pygame_ce-2.5.7-cp312-cp312-wasm32_bi_emscripten.whl"
 
       - name: Set up SSH
