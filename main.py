@@ -22,6 +22,11 @@ from game.core.keybinds import KeybindManager
 from game.core.high_scores import is_high_score, add_score
 from game.screens.gameplay.pause_overlay import PauseOverlay
 from game.screens.menu import MenuOverlay
+from game.network.client import WebSocketClient
+from game.screens.multiplayer.login import MultiplayerLoginScreen
+from game.screens.multiplayer.lobby import MultiplayerLobbyScreen
+from game.screens.multiplayer.game import MultiplayerGameScreen
+from game.screens.multiplayer.result import MultiplayerResultScreen
 
 
 def _seed_session_randomness():
@@ -35,12 +40,71 @@ def _seed_session_randomness():
         seed = time.time_ns() ^ time.perf_counter_ns()
     random.seed(seed)
 
+
+async def _run_multiplayer(screen, keybinds):
+    """Full multiplayer flow: login → lobby → game → result → repeat."""
+    client = WebSocketClient()
+
+    # Login
+    login = MultiplayerLoginScreen(screen, client)
+    login_result = await login.run()
+
+    if login_result == "quit":
+        return "quit"
+    if login_result == "back":
+        return "menu"
+
+    _, my_name = login_result  # ("lobby", name)
+
+    # Lobby → Game → Result loop (stays in multiplayer until player leaves)
+    while True:
+        lobby = MultiplayerLobbyScreen(screen, client, my_name)
+        lobby_result = await lobby.run()
+
+        if lobby_result == "quit":
+            return "quit"
+        if lobby_result == "menu":
+            return "menu"
+
+        # lobby_result == ("game", seed, settings, opponent_name)
+        _, seed, settings, opponent = lobby_result
+
+        game = MultiplayerGameScreen(
+            screen, client, my_name, opponent, seed, settings, keybinds
+        )
+        game_result = await game.run()
+
+        if game_result == "quit":
+            return "quit"
+
+        # game_result == ("win"|"lose", my_score, opponent_score)
+        outcome, my_score, opp_score = game_result
+        result_screen = MultiplayerResultScreen(
+            screen,
+            won=(outcome == "win"),
+            my_score=my_score,
+            opponent_score=opp_score,
+            my_name=my_name,
+            opponent_name=opponent,
+        )
+        res = await result_screen.run()
+
+        if res == "quit":
+            return "quit"
+        if res == "menu":
+            await client.close()
+            return "menu"
+        # res == "lobby" → loop back to lobby screen
+
+
 async def main():
     pygame.init()
     _seed_session_randomness()
     window = pygame.display.set_mode((800, 600), pygame.RESIZABLE)
     pygame.display.set_caption("TYP0")
     screen = ScaledScreen(window)
+
+    keybinds = KeybindManager()
 
     # Show start screen
     start_screen = StartScreen(screen)
@@ -49,6 +113,7 @@ async def main():
     if result == "quit":
         pygame.quit()
         return
+
     if result == "menu":
         while True:
             menu_screen = StartMenu(screen)
@@ -60,11 +125,15 @@ async def main():
                     result = "quit"
                     break
                 continue  # back to menu
-            break  # "start" or "quit"
+            break  # "start_simon", "start_bopit", "multiplayer", or "quit"
+
+    if result == "multiplayer":
+        result = await _run_multiplayer(screen, keybinds)
+        # result is now "menu", "quit", etc.
+
     if result in ("start", "start_simon", "start_bopit"):
         game_mode = "bopit" if result == "start_bopit" else "simon"
         pause_overlay = PauseOverlay(screen)
-        keybinds = KeybindManager()
 
         while True:
             if game_mode == "bopit":

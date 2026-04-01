@@ -60,15 +60,28 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Deploy via rsync
+      - name: Deploy game via rsync
         run: |
           rsync -az --delete \
             -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
             ./build/web/ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/typo/deploy/
 
-      - name: Restart server
+      - name: Deploy multiplayer server via rsync
+        run: |
+          rsync -az \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            ./server/ \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/typo/server/
+
+      - name: Restart game and multiplayer server
         run: |
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-            "screen -S typ0 -X quit; sleep 1; screen -dmS typ0 bash -c 'cd /home/typo/deploy && python3 -m http.server 14023'"
+            "
+              pip3 install -q websockets &&
+              screen -S typ0 -X quit; sleep 1
+              screen -S typ0-ws -X quit; sleep 1
+              screen -dmS typ0 bash -c 'cd /home/typo/deploy && python3 -m http.server 14023'
+              screen -dmS typ0-ws bash -c 'cd /home/typo/server && python3 server.py'
+            "

@@ -25,12 +25,14 @@ class StartMenu:
         btn_w, btn_h = 400, 75
         btn_x = cx - btn_w // 2
 
-        self.simon_rect = pygame.Rect(btn_x, H // 2 + 10, btn_w, btn_h)
-        self.bopit_rect = pygame.Rect(btn_x, H // 2 + 110, btn_w, btn_h)
-        self.settings_rect = pygame.Rect(btn_x, H // 2 + 210, btn_w, btn_h)
-        self.btn_simon    = Button(self.simon_rect,    "Simon Mode", self.font_btn)
-        self.btn_bopit    = Button(self.bopit_rect,    "Bop It Mode", self.font_btn)
-        self.btn_settings = Button(self.settings_rect, "Settings",   self.font_btn)
+        self.simon_rect = pygame.Rect(btn_x, H // 2 - 40, btn_w, btn_h)
+        self.bopit_rect = pygame.Rect(btn_x, H // 2 + 60, btn_w, btn_h)
+        self.multi_rect = pygame.Rect(btn_x, H // 2 + 160, btn_w, btn_h)
+        self.settings_rect = pygame.Rect(btn_x, H // 2 + 260, btn_w, btn_h)
+        self.btn_simon      = Button(self.simon_rect,    "Simon Mode",   self.font_btn)
+        self.btn_bopit      = Button(self.bopit_rect,    "Bop It Mode",  self.font_btn)
+        self.btn_multi      = Button(self.multi_rect,    "Multiplayer",  self.font_btn)
+        self.btn_settings   = Button(self.settings_rect, "Settings",     self.font_btn)
 
         while self.running:
 
@@ -44,9 +46,10 @@ class StartMenu:
                     continue
 
                 for btn, result in [
-                    (self.btn_simon, "start_simon"),
-                    (self.btn_bopit, "start_bopit"),
-                    (self.btn_settings, None)
+                    (self.btn_simon,    "start_simon"),
+                    (self.btn_bopit,    "start_bopit"),
+                    (self.btn_multi,    "multiplayer"),
+                    (self.btn_settings, None),
                 ]:
                     if btn.handle_event(event):
                         if result:
@@ -60,15 +63,11 @@ class StartMenu:
             # Draw gradient background
             animation_utils.draw_gradient(self.screen, self.gradient_top, self.gradient_bottom)
             menu_text = self.font_large.render("Welcome to TYP0!", True, (255, 255, 255))
-            self.screen.blit(menu_text, menu_text.get_rect(center=(cx, H // 2 - 50)))
+            self.screen.blit(menu_text, menu_text.get_rect(center=(cx, H // 4)))
 
-            # Simon mode button
             self.btn_simon.draw(self.screen)
-
-            # Bop It mode button
             self.btn_bopit.draw(self.screen)
-
-            # Settings button
+            self.btn_multi.draw(self.screen)
             self.btn_settings.draw(self.screen)
 
             # Draw menu overlay on top if open

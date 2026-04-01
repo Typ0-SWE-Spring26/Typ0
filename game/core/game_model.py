@@ -10,10 +10,14 @@ class GameModel:
 
     The sequence list lives here as the single source of truth,
     making it easy to share across players in a future multiplayer mode.
+
+    Pass ``seed`` to get a deterministic sequence — used in multiplayer so
+    both clients generate the exact same button order from the same seed.
     """
 
-    def __init__(self, event_bus):
+    def __init__(self, event_bus, seed=None):
         self._bus = event_bus
+        self._rng = random.Random(seed)
         self.reset()
 
     # ------------------------------------------------------------------
@@ -78,7 +82,7 @@ class GameModel:
         """Advance the state machine. Returns True when entering 'input' state."""
         if self.state == 'adding':
             if now >= self._next_time:
-                self.sequence.append(random.choice(list(BUTTON_NAMES)))
+                self.sequence.append(self._rng.choice(list(BUTTON_NAMES)))
                 self.player_index = 0
                 self._show_index  = 0
                 self._showing_lit = False
