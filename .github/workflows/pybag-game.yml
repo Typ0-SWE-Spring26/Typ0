@@ -69,3 +69,9 @@ jobs:
             -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
             ./build/web/ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/typo/deploy/
+
+      - name: Restart server
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "screen -S typ0 -X quit; sleep 1; screen -dmS typ0 bash -c 'cd /home/typo/deploy && python3 -m http.server 14023'"
