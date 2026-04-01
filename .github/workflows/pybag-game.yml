@@ -1,23 +1,20 @@
-name: Deploy Pygame to GitHub Pages
+name: Deploy Pygame to Server
 
 on:
   push:
     branches:
-      - main  # Change to 'master' if that's your default branch
-  workflow_dispatch: # Allows manual triggering from the Actions tab
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
-# Only allow one deployment at a time
 concurrency:
-  group: "pages"
-  cancel-in-progress: true
+  group: "deploy"
+  cancel-in-progress: false
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -27,7 +24,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11" # pygbag defaults to 3.11 — change if needed
+          python-version: "3.11"
 
       - name: Install dependencies
         run: |
@@ -50,21 +47,28 @@ jobs:
             exit 1
           fi
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          # pygbag outputs to <game-folder>/build/web
-          # If your game is in root '.', this will be ./build/web
-          path: ./build/web
+      - name: Download pygame-ce wheel
+        run: |
+          mkdir -p ./build/web/cdn/cp312
+          curl -L "https://pygame-web.github.io/cdn/cp312/pygame_ce-2.5.7-cp312-cp312-wasm32_bi_emscripten.whl" \
+            -o "./build/web/cdn/cp312/pygame_ce-2.5.7-cp312-cp312-wasm32_bi_emscripten.whl"
 
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" | base64 -d > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Deploy via rsync
+        run: |
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            ./build/web/ \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/typo/deploy/
+
+      - name: Restart server
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "screen -S typ0 -X quit; sleep 1; screen -dmS typ0 bash -c 'cd /home/typo/deploy && python3 -m http.server 14023'"
