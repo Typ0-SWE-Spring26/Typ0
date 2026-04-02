@@ -10,20 +10,63 @@ Run with:
 
 These are excluded from normal CI (they need a real browser + pygbag server).
 """
+import socket
+import subprocess
+import sys
 import time
 import pytest
 
-GAME_URL  = "http://localhost:8000"
+GAME_URL       = "http://localhost:8000"
+WS_PORT        = 14023
 LOAD_WAIT_MS   = 12_000   # time for WASM runtime to initialise
 RENDER_BUDGET_S = 30      # max wait for a non-blank frame
 
 
 # ---------------------------------------------------------------------------
-# Shared fixture
+# WS server fixture — start the multiplayer server for the module
+# ---------------------------------------------------------------------------
+
+def _wait_for_port(port, host="127.0.0.1", timeout=10.0):
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            with socket.create_connection((host, port), timeout=0.5):
+                return True
+        except OSError:
+            time.sleep(0.2)
+    return False
+
+
+@pytest.fixture(scope="module")
+def ws_server():
+    """Start the multiplayer WS server for the duration of this module."""
+    # Check if a server is already running (e.g. developer started it manually)
+    try:
+        with socket.create_connection(("127.0.0.1", WS_PORT), timeout=0.5):
+            yield None   # already up — don't manage it
+            return
+    except OSError:
+        pass
+
+    proc = subprocess.Popen(
+        [sys.executable, "server/server.py"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    if not _wait_for_port(WS_PORT):
+        proc.kill()
+        pytest.skip(f"WS server did not start on port {WS_PORT}")
+    yield proc
+    proc.kill()
+    proc.wait()
+
+
+# ---------------------------------------------------------------------------
+# Shared browser fixture
 # ---------------------------------------------------------------------------
 
 @pytest.fixture(scope="module")
-def page(playwright):
+def page(playwright, ws_server):
     browser = playwright.chromium.launch(headless=True)
     ctx = browser.new_context()
     pg = ctx.new_page()
@@ -31,22 +74,21 @@ def page(playwright):
     browser.close()
 
 
+# ---------------------------------------------------------------------------
+# Rendering helper — uses screenshot byte size, same approach as test_browser.py
+# pygbag renders via WebGL; getContext('2d') on a WebGL canvas returns null on CI
+# ---------------------------------------------------------------------------
+
 def _wait_for_render(page, timeout_s=RENDER_BUDGET_S):
-    """Block until the canvas has at least one non-black pixel."""
+    """Block until the canvas screenshot exceeds 500 bytes (real content)."""
     deadline = time.time() + timeout_s
     while time.time() < deadline:
-        result = page.evaluate("""() => {
-            const canvas = document.querySelector('canvas');
-            if (!canvas) return false;
-            const ctx = canvas.getContext('2d');
-            const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-            for (let i = 0; i < data.length; i += 4) {
-                if (data[i] > 10 || data[i+1] > 10 || data[i+2] > 10) return true;
-            }
-            return false;
-        }""")
-        if result:
-            return True
+        try:
+            data = page.locator("#canvas").screenshot()
+            if len(data) > 500:
+                return True
+        except Exception:
+            pass
         time.sleep(0.5)
     return False
 
@@ -66,6 +108,7 @@ def _get_python_errors(page):
 def test_mp_game_loads(page):
     """Game reaches a rendered frame — precondition for all multiplayer tests."""
     page.goto(GAME_URL)
+    page.wait_for_selector("#canvas", timeout=15_000)
     page.wait_for_timeout(LOAD_WAIT_MS)
     assert _wait_for_render(page), "Game canvas never rendered a non-blank frame"
 
@@ -88,7 +131,7 @@ def test_mp_button_exists_in_menu(page):
     page.keyboard.press("Enter")
     page.wait_for_timeout(1000)
 
-    # Canvas pixel check — we just verify the game is still rendering
+    # Canvas screenshot check — game is still rendering
     assert _wait_for_render(page, timeout_s=5), \
         "Canvas stopped rendering after pressing Enter on start screen"
 
@@ -100,9 +143,6 @@ def test_mp_button_exists_in_menu(page):
 @pytest.mark.browser
 def test_mp_login_screen_renders_after_button_click(page):
     """Clicking Multiplayer navigates to the login screen without crashing."""
-    # The game is a canvas-based app — simulate the Multiplayer button click
-    # by pressing 'M' (no direct keyboard shortcut) via mouse coordinates.
-    # Since button position depends on screen size we just verify no errors.
     errors_before = len(_get_python_errors(page))
 
     # Simulate clicking near the Multiplayer button (centre of canvas, ~2/3 down)
