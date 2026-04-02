@@ -71,4 +71,4 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-            "screen -ls typ0 | grep -o '[0-9]*\.typ0' | xargs -I{} screen -S {} -X quit; sleep 1; screen -dmS typ0 bash -c 'cd /home/typo/deploy && python3 -m http.server 14023'"
+            "screen -ls typ0 | grep -o '[0-9]*\.typ0' | xargs -I{} screen -S {} -X quit; sleep 1; screen -dmS typ0 bash -c 'cd /home/typo/deploy && python3 -m http.server 15090'"
