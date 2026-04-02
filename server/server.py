@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""TYP0 Multiplayer WebSocket Server
+"""TYP0 Multiplayer WebSocket Server + Score API
 
 Run with:
-    pip install websockets
+    pip install websockets aiohttp
     python server/server.py
 
-Players connect, join a lobby, challenge each other, and play Simon Says
-with a shared RNG seed so both clients see the exact same sequence.
-The server is the arbiter: the first player to send a "mistake" message loses.
+WebSocket multiplayer:  ws://host:14023
+Score HTTP API:         http://host:14024
+  GET  /scores/{game_type}          -> JSON array of top 10
+  POST /scores/{game_type}          -> body {"name":"..","score":0}, returns updated top 10
+  Valid game_type values: simon, bopit, multiplayer
 """
 
 import asyncio
@@ -15,9 +17,19 @@ import json
 import random
 import websockets
 from websockets.exceptions import ConnectionClosed
+from aiohttp import web
+
+from scores import load_scores, add_score, is_high_score, VALID_GAME_TYPES
 
 HOST = "0.0.0.0"
-PORT = 14023
+WS_PORT = 14023
+HTTP_PORT = 14024
+
+CORS_HEADERS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+}
 
 # name -> websocket connection
 _players: dict[str, websockets.ServerConnection] = {}
@@ -231,9 +243,78 @@ async def handler(websocket) -> None:
             await _broadcast_lobby()
 
 
+# ── HTTP Score API ───────────────────────────────────────────────────────────
+
+async def handle_options(request: web.Request) -> web.Response:
+    """Handle CORS preflight requests."""
+    return web.Response(headers=CORS_HEADERS)
+
+
+async def handle_get_scores(request: web.Request) -> web.Response:
+    game_type = request.match_info["game_type"]
+    if game_type not in VALID_GAME_TYPES:
+        return web.Response(status=404, text="Unknown game type",
+                            headers=CORS_HEADERS)
+    scores = load_scores(game_type)
+    return web.Response(
+        text=json.dumps(scores),
+        content_type="application/json",
+        headers=CORS_HEADERS,
+    )
+
+
+async def handle_post_score(request: web.Request) -> web.Response:
+    game_type = request.match_info["game_type"]
+    if game_type not in VALID_GAME_TYPES:
+        return web.Response(status=404, text="Unknown game type",
+                            headers=CORS_HEADERS)
+    try:
+        body = await request.json()
+        name = str(body["name"]).strip()[:20]
+        score = int(body["score"])
+    except Exception:
+        return web.Response(status=400, text="Invalid body",
+                            headers=CORS_HEADERS)
+    if not name:
+        return web.Response(status=400, text="Name required",
+                            headers=CORS_HEADERS)
+    if not is_high_score(score, game_type):
+        scores = load_scores(game_type)
+        return web.Response(
+            text=json.dumps(scores),
+            content_type="application/json",
+            headers=CORS_HEADERS,
+        )
+    updated = add_score(name, score, game_type)
+    print(f"[score] {game_type}  {name}={score}")
+    return web.Response(
+        text=json.dumps(updated),
+        content_type="application/json",
+        headers=CORS_HEADERS,
+    )
+
+
+def _build_http_app() -> web.Application:
+    app = web.Application()
+    app.router.add_route("OPTIONS", "/scores/{game_type}", handle_options)
+    app.router.add_get("/scores/{game_type}", handle_get_scores)
+    app.router.add_post("/scores/{game_type}", handle_post_score)
+    return app
+
+
 async def main() -> None:
-    print(f"TYP0 multiplayer server  ws://{HOST}:{PORT}")
-    async with websockets.serve(handler, HOST, PORT):
+    print(f"TYP0 multiplayer server  ws://{HOST}:{WS_PORT}")
+    print(f"TYP0 score API           http://{HOST}:{HTTP_PORT}")
+
+    # HTTP score API
+    app = _build_http_app()
+    runner = web.AppRunner(app)
+    await runner.setup()
+    http_site = web.TCPSite(runner, HOST, HTTP_PORT)
+    await http_site.start()
+
+    # WebSocket multiplayer
+    async with websockets.serve(handler, HOST, WS_PORT):
         await asyncio.Future()  # run forever
 
 

@@ -87,6 +87,8 @@ jobs:
 
           python3 -m pip install -q -r /home/typo/server/requirements.txt
 
+          mkdir -p /home/typo/scores
+
           # Stop existing screen sessions if running
           screen -S typ0    -X quit 2>/dev/null || true
           screen -S typ0-ws -X quit 2>/dev/null || true
@@ -96,9 +98,9 @@ jobs:
           screen -dmS typ0 bash -c \
             'cd /home/typo/deploy && python3 -m http.server 15090 >> /home/typo/logs/http.log 2>&1'
 
-          # Multiplayer WebSocket server on port 14023
+          # Multiplayer WebSocket server (14023) + Score API (14024)
           screen -dmS typ0-ws bash -c \
-            'cd /home/typo/server && python3 server.py >> /home/typo/logs/ws.log 2>&1'
+            'cd /home/typo/server && SCORES_DIR=/home/typo/scores python3 server.py >> /home/typo/logs/ws.log 2>&1'
 
           echo "Servers started."
           EOF
@@ -126,6 +128,17 @@ jobs:
             echo "✓ WebSocket server  :14023  →  port open"
           else
             echo "✗ WebSocket server  :14023  →  port not reachable"
+            FAILED=1
+          fi
+
+          # Score API (HTTP check)
+          SCORE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 10 \
+            "http://${{ secrets.SSH_HOST }}:14024/scores/simon")
+          if [ "$SCORE_STATUS" = "200" ]; then
+            echo "✓ Score API         :14024  →  HTTP $SCORE_STATUS"
+          else
+            echo "✗ Score API         :14024  →  HTTP $SCORE_STATUS (expected 200)"
             FAILED=1
           fi
 

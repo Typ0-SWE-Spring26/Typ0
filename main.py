@@ -19,7 +19,7 @@ from game.screens.credits import CreditsScreen
 from game.screens.name_entry import NameEntryScreen
 from game.screens.high_scores import HighScoresScreen
 from game.core.keybinds import KeybindManager
-from game.core.high_scores import is_high_score, add_score
+from game.core.high_scores import is_high_score_async, add_score_async
 from game.screens.gameplay.pause_overlay import PauseOverlay
 from game.screens.menu import MenuOverlay
 from game.network.client import WebSocketClient
@@ -79,6 +79,11 @@ async def _run_multiplayer(screen, keybinds):
 
         # game_result == ("win"|"lose", my_score, opponent_score)
         outcome, my_score, opp_score = game_result
+
+        # Persist multiplayer score (name already known from login)
+        if await is_high_score_async(my_score, "multiplayer"):
+            await add_score_async(my_name, my_score, "multiplayer")
+
         result_screen = MultiplayerResultScreen(
             screen,
             won=(outcome == "win"),
@@ -150,14 +155,14 @@ async def main():
 
             # Arcade-style: name entry if high score
             hs_name = None
-            if is_high_score(score):
+            if await is_high_score_async(score, game_mode):
                 name_entry = NameEntryScreen(screen, score)
                 name_result = await name_entry.run()
                 if name_result == "quit":
                     result = "quit"
                     break
                 hs_name = name_result
-                add_score(hs_name, score)
+                await add_score_async(hs_name, score, game_mode)
 
             # Game over screen (auto-switches to high scores after 10s)
             result = "high_scores"  # enter loop
@@ -169,6 +174,7 @@ async def main():
                     if result == "high_scores":
                         hs_screen = HighScoresScreen(
                             screen,
+                            game_type=game_mode,
                             highlight_name=hs_name,
                             highlight_score=score if hs_name else None,
                         )
