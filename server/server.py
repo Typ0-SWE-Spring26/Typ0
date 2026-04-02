@@ -16,7 +16,7 @@ import random
 import websockets
 
 HOST = "0.0.0.0"
-PORT = 8765
+PORT = 14023
 
 # name -> websocket connection
 _players: dict[str, websockets.ServerConnection] = {}

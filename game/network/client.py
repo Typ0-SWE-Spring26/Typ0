@@ -17,7 +17,7 @@ import asyncio
 import json
 import sys
 
-WS_PORT = 8765
+WS_PORT = 14023
 NATIVE_SERVER_URL = f"ws://localhost:{WS_PORT}"
 
 _IN_BROWSER: bool = sys.platform == "emscripten"

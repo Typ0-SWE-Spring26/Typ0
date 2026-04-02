@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -60,28 +63,70 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Deploy game via rsync
+      - name: Deploy game files
         run: |
           rsync -az --delete \
             -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
             ./build/web/ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/typo/deploy/
 
-      - name: Deploy multiplayer server via rsync
+      - name: Deploy multiplayer server
         run: |
           rsync -az \
             -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
             ./server/ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/typo/server/
 
-      - name: Restart game and multiplayer server
+      - name: Restart servers
         run: |
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-            "
-              pip3 install -q websockets &&
-              screen -S typ0 -X quit; sleep 1
-              screen -S typ0-ws -X quit; sleep 1
-              screen -dmS typ0 bash -c 'cd /home/typo/deploy && python3 -m http.server 14023'
-              screen -dmS typ0-ws bash -c 'cd /home/typo/server && python3 server.py'
-            "
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          set -e
+
+          mkdir -p /home/typo/logs
+
+          pip3 install -q websockets
+
+          # Stop existing screen sessions if running
+          screen -S typ0    -X quit 2>/dev/null || true
+          screen -S typ0-ws -X quit 2>/dev/null || true
+          sleep 1
+
+          # Game HTTP server on port 15090
+          screen -dmS typ0 bash -c \
+            'cd /home/typo/deploy && python3 -m http.server 15090 >> /home/typo/logs/http.log 2>&1'
+
+          # Multiplayer WebSocket server on port 14023
+          screen -dmS typ0-ws bash -c \
+            'cd /home/typo/server && python3 server.py >> /home/typo/logs/ws.log 2>&1'
+
+          echo "Servers started."
+          EOF
+
+      - name: Health check
+        run: |
+          echo "Waiting for servers to come up..."
+          sleep 6
+
+          FAILED=0
+
+          # Game HTTP server
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 10 \
+            "http://${{ secrets.SSH_HOST }}:15090/index.html")
+          if [ "$HTTP_STATUS" = "200" ]; then
+            echo "✓ Game server       :15090  →  HTTP $HTTP_STATUS"
+          else
+            echo "✗ Game server       :15090  →  HTTP $HTTP_STATUS (expected 200)"
+            FAILED=1
+          fi
+
+          # WebSocket server (TCP port check)
+          if timeout 10 bash -c "</dev/tcp/${{ secrets.SSH_HOST }}/14023" 2>/dev/null; then
+            echo "✓ WebSocket server  :14023  →  port open"
+          else
+            echo "✗ WebSocket server  :14023  →  port not reachable"
+            FAILED=1
+          fi
+
+          [ "$FAILED" -eq 0 ] && echo "All health checks passed." || exit 1
