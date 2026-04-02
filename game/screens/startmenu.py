@@ -25,10 +25,17 @@ class StartMenu:
         btn_w, btn_h = 400, 75
         btn_x = cx - btn_w // 2
 
-        self.simon_rect = pygame.Rect(btn_x, H // 2 - 40, btn_w, btn_h)
-        self.bopit_rect = pygame.Rect(btn_x, H // 2 + 60, btn_w, btn_h)
-        self.multi_rect = pygame.Rect(btn_x, H // 2 + 160, btn_w, btn_h)
-        self.settings_rect = pygame.Rect(btn_x, H // 2 + 260, btn_w, btn_h)
+        # Distribute 4 buttons evenly in the space below the title
+        btn_gap   = 16
+        block_h   = 4 * btn_h + 3 * btn_gap
+        title_clearance = H // 4 + 60          # first pixel available below title
+        btn_start = title_clearance + (H - 20 - title_clearance - block_h) // 2
+        stride    = btn_h + btn_gap
+
+        self.simon_rect    = pygame.Rect(btn_x, btn_start,              btn_w, btn_h)
+        self.bopit_rect    = pygame.Rect(btn_x, btn_start + stride,     btn_w, btn_h)
+        self.multi_rect    = pygame.Rect(btn_x, btn_start + stride * 2, btn_w, btn_h)
+        self.settings_rect = pygame.Rect(btn_x, btn_start + stride * 3, btn_w, btn_h)
         self.btn_simon      = Button(self.simon_rect,    "Simon Mode",   self.font_btn)
         self.btn_bopit      = Button(self.bopit_rect,    "Bop It Mode",  self.font_btn)
         self.btn_multi      = Button(self.multi_rect,    "Multiplayer",  self.font_btn)
@@ -53,7 +60,8 @@ class StartMenu:
                 ]:
                     if btn.handle_event(event):
                         if result:
-                            animation_utils.stop_music()
+                            if result != "multiplayer":
+                                animation_utils.stop_music()
                             return result
                         else:
                             self.menu_overlay.open = True

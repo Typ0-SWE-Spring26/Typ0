@@ -23,7 +23,6 @@ class StartScreen:
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                     elapsed = pygame.time.get_ticks() - self.start_time
                     if elapsed >= load_time_ms:
-                        animation_utils.stop_music()
                         return "menu"
 
             # Draw gradient background
@@ -45,7 +44,6 @@ class StartScreen:
                 animation_utils.flashing_text(self.screen, "Press Space to Start", (self.screen.get_width() // 2, self.screen.get_height() - 100))
                 keys = pygame.key.get_pressed()
                 if keys[pygame.K_SPACE]:
-                    animation_utils.stop_music()  # Stop music when starting the game
                     return "menu"
 
 
