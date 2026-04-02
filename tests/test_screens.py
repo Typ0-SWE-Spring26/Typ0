@@ -388,7 +388,7 @@ class TestSequenceCaching:
             # Build up sequence
             model.state = 'adding'
             model._next_time = 0
-            with patch('game.core.game_model.random.choice', return_value='left'):
+            with patch.object(model._rng, 'choice', return_value='left'):
                 model.update(10000)
 
             assert len(model.sequence) == 1
@@ -402,7 +402,7 @@ class TestSequenceCaching:
             # Wrong input -> gameover
             model.state = 'adding'
             model._next_time = 0
-            with patch('game.core.game_model.random.choice', return_value='right'):
+            with patch.object(model._rng, 'choice', return_value='right'):
                 model.update(20000)
             model._show_index = len(model.sequence)
             model.update(25000)

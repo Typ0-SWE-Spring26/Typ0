@@ -4,3 +4,4 @@ pytest
 behave
 playwright
 pytest-playwright
+websockets

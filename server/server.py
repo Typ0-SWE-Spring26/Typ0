@@ -14,6 +14,7 @@ import asyncio
 import json
 import random
 import websockets
+from websockets.exceptions import ConnectionClosed
 
 HOST = "0.0.0.0"
 PORT = 14023
@@ -202,7 +203,7 @@ async def handler(websocket) -> None:
                 _sessions.pop(session_id, None)
                 await _broadcast_lobby()
 
-    except websockets.exceptions.ConnectionClosed:
+    except ConnectionClosed:
         pass
     finally:
         if name:

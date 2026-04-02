@@ -36,7 +36,7 @@ class TestScoreIncrement:
             model.state = 'adding'
             model._next_time = 0
 
-            with patch('game.core.game_model.random.choice', return_value='up'):
+            with patch.object(model._rng, 'choice', return_value='up'):
                 model.update(round_num * 10000)
 
             # Fast-forward through showing
@@ -102,7 +102,7 @@ class TestScoreReset:
         # Wrong input -> gameover
         model.state = 'adding'
         model._next_time = 0
-        with patch('game.core.game_model.random.choice', return_value='right'):
+        with patch.object(model._rng, 'choice', return_value='right'):
             model.update(5000)
         model._show_index = len(model.sequence)
         model.update(6000)
@@ -119,7 +119,7 @@ class TestScoreReset:
 
         # New game round 1
         model._next_time = 0
-        with patch('game.core.game_model.random.choice', return_value='up'):
+        with patch.object(model._rng, 'choice', return_value='up'):
             model.update(10000)
         model._show_index = 1
         model.update(15000)
@@ -150,7 +150,7 @@ class TestScoreEvents:
         for round_num in range(1, 4):
             model.state = 'adding'
             model._next_time = 0
-            with patch('game.core.game_model.random.choice', return_value='left'):
+            with patch.object(model._rng, 'choice', return_value='left'):
                 model.update(round_num * 10000)
 
             model._show_index = len(model.sequence)
