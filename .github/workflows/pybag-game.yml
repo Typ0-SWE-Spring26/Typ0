@@ -85,7 +85,7 @@ jobs:
 
           mkdir -p /home/typo/logs
 
-          pip3 install -q websockets
+          python3 -m pip install -q -r /home/typo/server/requirements.txt
 
           # Stop existing screen sessions if running
           screen -S typ0    -X quit 2>/dev/null || true
