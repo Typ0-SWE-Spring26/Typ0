@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+  pull request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -72,3 +75,13 @@ jobs:
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "screen -ls typ0 | grep -o '[0-9]*\.typ0' | xargs -I{} screen -S {} -X quit; sleep 1; screen -dmS typ0 bash -c 'cd /home/typo/deploy && python3 -m http.server 15090'"
+
+      - name: Verify deployment
+        run: |
+          sleep 5
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.SSH_HOST }}:15090/index.html)
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "ERROR: Deployment verification failed. Expected HTTP 200, got $HTTP_STATUS."
+            exit 1
+          fi
+          echo "Deployment verified successfully (HTTP $HTTP_STATUS)."
