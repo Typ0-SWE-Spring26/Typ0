@@ -152,7 +152,6 @@ class MultiplayerLobbyScreen:
                     self.status = f"{msg['opponent']} declined your challenge."
 
                 elif t == "game_start":
-                    animation_utils.stop_music()
                     return (
                         "game",
                         msg["seed"],

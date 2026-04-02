@@ -179,7 +179,7 @@ class TestStartScreen:
         StartScreen(mock_screen)
         mock_anim.play_music.assert_called_once_with("assets/Typ0__Intro_Theme.ogg")
 
-    def test_stops_music_before_transitioning(self, pg_start):
+    def test_music_continues_into_menu(self, pg_start):
         mock_pg, mock_screen, mock_anim = pg_start
 
         mock_anim.loading_bar.return_value = True
@@ -191,7 +191,7 @@ class TestStartScreen:
         screen = StartScreen(mock_screen)
         run_async(screen.run())
 
-        mock_anim.stop_music.assert_called_once()
+        mock_anim.stop_music.assert_not_called()
 
 
 # ======================================================================
