@@ -19,7 +19,7 @@ class GameOverScreen:
         self.running = True
         self.start_time = None
         self.font_timer = pygame.font.Font(None, 28)
-        animation_utils.play_music("assets/Typ0__Ending_Riff.ogg")
+        animation_utils.play_music("assets/Typ0__Ending_Riff.ogg", loops=0)
 
     async def run(self):
         clock = pygame.time.Clock()

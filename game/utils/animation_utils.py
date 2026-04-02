@@ -107,11 +107,11 @@ def loading_bar(screen, start_time, position=None, width=400, height=20, color=(
     pygame.draw.rect(screen, color, (bar_x, bar_y, fill_width, height))
     return progress >= 1.0  # Return True when bar is full
 
-def play_music(file):
-    """Play background music"""
+def play_music(file, loops=-1):
+    """Play background music.  loops=-1 repeats forever; loops=0 plays once."""
     try:
         pygame.mixer.music.load(file)
-        pygame.mixer.music.play(-1)  # Loop indefinitely
+        pygame.mixer.music.play(loops)
         return True
     except pygame.error as exc:
         print(f"Warning: failed to load music {file}: {exc}")

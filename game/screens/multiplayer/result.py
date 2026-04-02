@@ -60,9 +60,9 @@ class MultiplayerResultScreen:
         start_time = pygame.time.get_ticks()
 
         if self.won:
-            animation_utils.play_music("assets/Typ0__Ending_Riff.ogg")
+            animation_utils.play_music("assets/Typ0__Ending_Riff.ogg", loops=0)
         else:
-            animation_utils.play_music("assets/Typ0__Ending_Riff.ogg")
+            animation_utils.play_music("assets/Typ0__Ending_Riff.ogg", loops=0)
 
         W, H = self.screen.get_width(), self.screen.get_height()
         cx = W // 2
