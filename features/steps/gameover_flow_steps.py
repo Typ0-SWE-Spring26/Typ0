@@ -47,7 +47,7 @@ def step_gameover_screen(ctx, score):
 def step_hs_screen(ctx):
     ctx._hs_pg_patch = patch('game.screens.high_scores.pygame')
     ctx._hs_anim_patch = patch('game.screens.high_scores.animation_utils')
-    ctx._hs_load_patch = patch('game.screens.high_scores.load_scores', return_value=[])
+    ctx._hs_load_patch = patch('game.screens.high_scores.load_scores_async', return_value=[])
     ctx.mock_pg = ctx._hs_pg_patch.start()
     ctx.mock_anim = ctx._hs_anim_patch.start()
     ctx._hs_load_patch.start()
@@ -58,7 +58,7 @@ def step_hs_screen(ctx):
     ctx.mock_screen.get_height.return_value = 600
 
     from game.screens.high_scores import HighScoresScreen
-    ctx.screen_obj = HighScoresScreen(ctx.mock_screen)
+    ctx.screen_obj = HighScoresScreen(ctx.mock_screen, game_type="simon")
 
 
 

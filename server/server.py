@@ -19,7 +19,10 @@ import websockets
 from websockets.exceptions import ConnectionClosed
 from aiohttp import web
 
-from scores import load_scores, add_score, is_high_score, VALID_GAME_TYPES
+try:
+    from scores import load_scores, add_score, is_high_score, VALID_GAME_TYPES
+except ImportError:
+    from server.scores import load_scores, add_score, is_high_score, VALID_GAME_TYPES
 
 HOST = "0.0.0.0"
 WS_PORT = 14023
