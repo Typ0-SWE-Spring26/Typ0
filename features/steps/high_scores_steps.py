@@ -7,11 +7,19 @@ from unittest.mock import patch
 
 # Imports deferred to step functions — pygame must be mocked first by environment.py
 
+_GAME_TYPE = "simon"
+
 
 def _track_temp_file(ctx, path):
     if not hasattr(ctx, '_temp_files'):
         ctx._temp_files = []
     ctx._temp_files.append(path)
+
+
+def _patch_scores_file(ctx):
+    """Return a context manager that patches _scores_file to return ctx.scores_file."""
+    from pathlib import Path
+    return patch("game.core.high_scores._scores_file", return_value=Path(ctx.scores_file))
 
 
 @given('an empty scores file')
@@ -73,30 +81,30 @@ def step_missing_scores(ctx):
 
 @then('a score of {n:d} should qualify as a high score')
 def step_qualifies(ctx, n):
-    with patch('game.core.high_scores.SCORES_FILE', ctx.scores_file):
-        from game.core.high_scores import is_high_score
-        assert is_high_score(n) is True
+    from game.core.high_scores import is_high_score
+    with _patch_scores_file(ctx):
+        assert is_high_score(n, _GAME_TYPE) is True
 
 
 @then('a score of {n:d} should not qualify as a high score')
 def step_not_qualifies(ctx, n):
     from game.core.high_scores import is_high_score
-    with patch('game.core.high_scores.SCORES_FILE', ctx.scores_file):
-        assert is_high_score(n) is False
+    with _patch_scores_file(ctx):
+        assert is_high_score(n, _GAME_TYPE) is False
 
 
 @when('the player adds score {score:d} with name "{name}"')
 def step_add_score(ctx, score, name):
     from game.core.high_scores import add_score
-    with patch('game.core.high_scores.SCORES_FILE', ctx.scores_file):
-        ctx.result_scores = add_score(name, score)
+    with _patch_scores_file(ctx):
+        ctx.result_scores = add_score(name, score, _GAME_TYPE)
 
 
 @when('the scores are loaded')
 def step_load_scores(ctx):
     from game.core.high_scores import load_scores
-    with patch('game.core.high_scores.SCORES_FILE', ctx.scores_file):
-        ctx.result_scores = load_scores()
+    with _patch_scores_file(ctx):
+        ctx.result_scores = load_scores(_GAME_TYPE)
 
 
 @then('the leaderboard should have {n:d} entry')

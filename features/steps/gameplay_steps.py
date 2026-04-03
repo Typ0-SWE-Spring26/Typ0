@@ -10,8 +10,8 @@ def step_player_input(ctx, button):
 
 @when('the game updates')
 def step_game_updates(ctx):
-    """Advance the model once, mocking random.choice to return 'left'."""
-    with patch('game.core.game_model.random.choice', return_value='left'):
+    """Advance the model once, mocking _rng.choice to return 'left'."""
+    with patch.object(ctx.model._rng, 'choice', return_value='left'):
         ctx.model.update(10_000)  # 10 s — well past any pending _next_time
 
 

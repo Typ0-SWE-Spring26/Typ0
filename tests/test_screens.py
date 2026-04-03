@@ -179,7 +179,7 @@ class TestStartScreen:
         StartScreen(mock_screen)
         mock_anim.play_music.assert_called_once_with("assets/Typ0__Intro_Theme.ogg")
 
-    def test_stops_music_before_transitioning(self, pg_start):
+    def test_music_continues_into_menu(self, pg_start):
         mock_pg, mock_screen, mock_anim = pg_start
 
         mock_anim.loading_bar.return_value = True
@@ -191,7 +191,7 @@ class TestStartScreen:
         screen = StartScreen(mock_screen)
         run_async(screen.run())
 
-        mock_anim.stop_music.assert_called_once()
+        mock_anim.stop_music.assert_not_called()
 
 
 # ======================================================================
@@ -388,7 +388,7 @@ class TestSequenceCaching:
             # Build up sequence
             model.state = 'adding'
             model._next_time = 0
-            with patch('game.core.game_model.random.choice', return_value='left'):
+            with patch.object(model._rng, 'choice', return_value='left'):
                 model.update(10000)
 
             assert len(model.sequence) == 1
@@ -402,7 +402,7 @@ class TestSequenceCaching:
             # Wrong input -> gameover
             model.state = 'adding'
             model._next_time = 0
-            with patch('game.core.game_model.random.choice', return_value='right'):
+            with patch.object(model._rng, 'choice', return_value='right'):
                 model.update(20000)
             model._show_index = len(model.sequence)
             model.update(25000)

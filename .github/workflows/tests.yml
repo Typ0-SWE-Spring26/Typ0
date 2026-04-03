@@ -97,4 +97,4 @@ jobs:
         run: |
           python -m http.server 8000 --directory build/web &
           sleep 3
-          python -m pytest tests/test_browser.py tests/test_browser_features.py -v -m browser
+          python -m pytest tests/test_browser.py tests/test_browser_features.py tests/test_browser_multiplayer.py tests/test_browser_ws.py -v -m browser

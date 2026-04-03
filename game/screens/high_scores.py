@@ -3,18 +3,19 @@
 import pygame
 import asyncio
 from game.utils import animation_utils
-from game.core.high_scores import load_scores
+from game.core.high_scores import load_scores_async
 
 
 class HighScoresScreen:
-    def __init__(self, screen, highlight_name=None, highlight_score=None):
+    def __init__(self, screen, game_type: str, highlight_name=None, highlight_score=None):
         self.screen = screen
+        self.game_type = game_type
         self.highlight_name = highlight_name
         self.highlight_score = highlight_score
         self.gradient_top = (10, 10, 50)
         self.gradient_bottom = (0, 0, 15)
         self.running = True
-        self.scores = load_scores()
+        self.scores = []  # loaded async at start of run()
 
         self.font_rank = pygame.font.Font(None, 36)
         self.font_name = pygame.font.Font(None, 40)
@@ -22,6 +23,7 @@ class HighScoresScreen:
         self.font_empty = pygame.font.Font(None, 30)
 
     async def run(self):
+        self.scores = await load_scores_async(self.game_type)
         clock = pygame.time.Clock()
 
         while self.running:

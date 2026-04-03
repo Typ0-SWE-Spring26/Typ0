@@ -256,7 +256,7 @@ class TestGameModelUpdate:
         model._next_time = 1000
         model.sequence = []
 
-        with patch('game.core.game_model.random.choice', return_value='left'):
+        with patch.object(model._rng, 'choice', return_value='left'):
             model.update(1000)
 
         assert 'left' in model.sequence
@@ -265,7 +265,7 @@ class TestGameModelUpdate:
         model.state = 'adding'
         model._next_time = 1000
 
-        with patch('game.core.game_model.random.choice', return_value='up'):
+        with patch.object(model._rng, 'choice', return_value='up'):
             model.update(1000)
 
         assert model.state == 'showing'
@@ -457,7 +457,7 @@ class TestGameScreenIntegration:
     def test_full_game_cycle_single_round(self, model):
         assert model.state == 'adding'
 
-        with patch('game.core.game_model.random.choice', return_value='left'):
+        with patch.object(model._rng, 'choice', return_value='left'):
             model.update(10000)
 
         assert model.state == 'showing'
@@ -485,7 +485,7 @@ class TestGameScreenIntegration:
     def test_sequence_grows_each_round(self, model):
         initial_length = len(model.sequence)
 
-        with patch('game.core.game_model.random.choice', return_value='up'):
+        with patch.object(model._rng, 'choice', return_value='up'):
             model.state = 'adding'
             model._next_time = 0
             model.update(1000)
@@ -550,7 +550,7 @@ class TestGameScreenEdgeCases:
         # adding -> showing
         model.state = 'adding'
         model._next_time = 0
-        with patch('game.core.game_model.random.choice', return_value='left'):
+        with patch.object(model._rng, 'choice', return_value='left'):
             model.update(1000)
         assert model.state == 'showing'
 

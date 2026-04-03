@@ -413,7 +413,7 @@ class TestPause:
         model.state = 'adding'
         model._next_time = 0
 
-        with patch('game.core.game_model.random.choice', return_value='up'):
+        with patch.object(model._rng, 'choice', return_value='up'):
             if not ctrl.paused:
                 model.update(10000)
 
@@ -447,7 +447,7 @@ class TestGameplayMechanics:
         model.state = 'adding'
         model._next_time = 0
 
-        with patch('game.core.game_model.random.choice', return_value='left'):
+        with patch.object(model._rng, 'choice', return_value='left'):
             model.update(10000)  # adding -> showing
 
         # Fast-forward showing
