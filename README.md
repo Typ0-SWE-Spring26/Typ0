@@ -4,7 +4,7 @@ A Simon Says-style memory game built with pygame, playable in the browser via py
 
 Watch a growing sequence of directional buttons, then reproduce it from memory. One wrong input ends the run. Compete solo for a spot on the top-10 leaderboard, or challenge another player head-to-head in multiplayer.
 
-**Play it now:** [GitHub Pages](https://typ0-swe-spring26.github.io/Typ0/)
+**Play it now:** [typo.kentcs.org:15090](http://typo.kentcs.org:15090)
 
 ---
 
@@ -107,8 +107,9 @@ python server.py
 
 | Service | Address | Purpose |
 |---------|---------|---------|
-| WebSocket | `ws://host:14023` | Real-time matchmaking & game events |
-| HTTP API  | `http://host:14024` | Score submission and leaderboard |
+| Game (web) | `http://host:15090` | Serves the pygbag web build |
+| WebSocket  | `ws://host:14023`   | Real-time matchmaking & game events |
+| Score API  | `http://host:14024` | Score submission and leaderboard |
 
 ### Score API
 
@@ -142,11 +143,23 @@ build.bat
 pygbag .
 ```
 
-This bundles the game for the browser using [pygbag](https://github.com/pygame-web/pygbag). The dev server runs at `http://localhost:8080`.
+This bundles the game for the browser using [pygbag](https://github.com/pygame-web/pygbag). The local dev server runs at `http://localhost:8080`.
 
-### GitHub Pages deployment
+### Server deployment
 
-This repo is connected to GitHub Pages. Every push to `main` triggers the deployment workflow automatically.
+Every push to `main` triggers the [deploy workflow](.github/workflows/pybag-game.yml), which:
+
+1. Builds the game with `pygbag --build`
+2. Patches the generated `index.html` (`ume_block` fix)
+3. Downloads the pygame-ce WASM wheel into the build output
+4. `rsync`s the built web files to `/home/typo/deploy/` on the server
+5. `rsync`s `server/` to `/home/typo/server/` on the server
+6. Restarts both server processes via `screen`:
+   - `typ0` — game HTTP server on **port 15090**
+   - `typ0-ws` — multiplayer WebSocket + Score API on **ports 14023 / 14024**
+7. Health-checks all three ports before marking the deploy successful
+
+Deployment uses SSH with a private key stored as the `SSH_PRIVATE_KEY` GitHub secret (`SSH_HOST` and `SSH_USER` also required).
 
 ---
 
