@@ -3,6 +3,14 @@ name: Run Tests
 on:
   pull_request:
     branches: [main]
+    paths:
+      - "game/**"
+      - "server/**"
+      - "tests/**"
+      - "features/**"
+      - "main.py"
+      - "requirements.txt"
+      - "run_tests.py"
 
 jobs:
   unit-tests:
