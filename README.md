@@ -133,6 +133,18 @@ Valid `game_type` values: `simon`, `bopit`, `multiplayer`
 
 ## Building for Web
 
+### Prerequisites
+- Python with `pygbag` installed (`pip install pygbag`)
+- [Node.js](https://nodejs.org/) 18+ (for TypeScript audio manager)
+
+### First-time setup
+```bash
+cd web
+npm install
+```
+
+### Build
+
 **Windows:**
 ```powershell
 build.bat
@@ -140,24 +152,37 @@ build.bat
 
 **Mac / Linux:**
 ```bash
-pygbag .
+cd web && npm run build && cd ..
+python -m pygbag --ume_block=0 .
+cp assets/*.ogg build/web/assets/
 ```
 
-This bundles the game for the browser using [pygbag](https://github.com/pygame-web/pygbag). The local dev server runs at `http://localhost:8080`.
+`build.bat` (and the equivalent manual steps above) does three things:
+1. Compiles `web/audio_manager.ts` → `assets/audio_manager.js` (bundled into the APK)
+2. Runs pygbag to build the WASM bundle
+3. Copies `assets/*.ogg` to `build/web/assets/` so the browser can fetch them via HTTP
+
+The local dev server runs at `http://localhost:8080`.
+
+### Why a TypeScript audio manager?
+
+`pygame.mixer` is broken in pygbag web builds. When running in the browser (`sys.platform == "emscripten"`), all audio calls are routed to a JavaScript `AudioManager` class (`window.typAudio`) that uses the Web Audio API instead. On desktop the normal `pygame.mixer` path is used — no behaviour change for local play.
 
 ### Server deployment
 
 Every push to `main` triggers the [deploy workflow](.github/workflows/pybag-game.yml), which:
 
-1. Builds the game with `pygbag --build`
-2. Patches the generated `index.html` (`ume_block` fix)
-3. Downloads the pygame-ce WASM wheel into the build output
-4. `rsync`s the built web files to `/home/typo/deploy/` on the server
-5. `rsync`s `server/` to `/home/typo/server/` on the server
-6. Restarts both server processes via `screen`:
+1. Compiles `web/audio_manager.ts` → `assets/audio_manager.js`
+2. Builds the game with `pygbag --build` (bundles the compiled JS into the APK)
+3. Copies `assets/*.ogg` to `build/web/assets/` for HTTP serving
+4. Patches the generated `index.html` (`ume_block` fix)
+5. Downloads the pygame-ce WASM wheel into the build output
+6. `rsync`s the built web files to `/home/typo/deploy/` on the server
+7. `rsync`s `server/` to `/home/typo/server/` on the server
+8. Restarts both server processes via `screen`:
    - `typ0` — game HTTP server on **port 15090**
    - `typ0-ws` — multiplayer WebSocket + Score API on **ports 14023 / 14024**
-7. Health-checks all three ports before marking the deploy successful
+9. Health-checks all three ports before marking the deploy successful
 
 Deployment uses SSH with a private key stored as the `SSH_PRIVATE_KEY` GitHub secret (`SSH_HOST` and `SSH_USER` also required).
 
@@ -190,6 +215,11 @@ Typ0/
 ├── requirements.txt
 ├── build.bat                # Windows web build script
 ├── high_scores.json         # Local singleplayer leaderboard
+│
+├── web/                     # TypeScript audio manager (web builds)
+│   ├── audio_manager.ts     # Source — compiles to assets/audio_manager.js
+│   ├── tsconfig.json
+│   └── package.json
 │
 ├── game/
 │   ├── core/
@@ -225,7 +255,7 @@ Typ0/
 │   └── utils/
 │       ├── scaled_screen.py # Resolution-independent rendering
 │       ├── button.py        # Reusable UI button component
-│       └── animation_utils.py
+│       └── animation_utils.py  # Audio helpers (desktop + web bridge)
 │
 ├── server/
 │   ├── server.py            # WebSocket matchmaking + HTTP score API

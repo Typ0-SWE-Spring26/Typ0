@@ -1,5 +1,31 @@
 import pygame
 import math
+import sys
+import platform as _p
+
+# ── Web audio bridge ──────────────────────────────────────────────────────────
+# When running as a pygbag/WASM web build, pygame.mixer is broken.
+# Instead we delegate to window.typAudio — a JS AudioManager injected via a
+# <script> tag in index.html by the CI build process.
+_IS_WEB = sys.platform == "emscripten"
+
+
+def _web_audio(method, *args):
+    """Call window.typAudio.<method>(*args) in the browser.
+
+    Returns the JS return value on success; True when the method returns void
+    (JS undefined → Python None). Returns None on any exception so callers can
+    distinguish success from failure without crashing the game.
+    """
+    try:
+        result = getattr(_p.window.typAudio, method)(*args)
+        return result if result is not None else True
+    except Exception as _exc:
+        print(f"[Web Audio] {method} failed: {_exc}")
+        return None
+
+
+# ── Audio helpers ─────────────────────────────────────────────────────────────
 
 # Cache for pre-rendered gradient surfaces, keyed by (size, top_color, bottom_color)
 _gradient_cache = {}
@@ -109,7 +135,11 @@ def loading_bar(screen, start_time, position=None, width=400, height=20, color=(
 
 def play_music(file, loops=-1):
     """Play background music.  loops=-1 repeats forever; loops=0 plays once."""
+    if _IS_WEB:
+        return _web_audio("playMusic", file, loops) is not None
     try:
+        if not pygame.mixer.get_init():
+            return False
         pygame.mixer.music.load(file)
         pygame.mixer.music.play(loops)
         return True
@@ -117,12 +147,102 @@ def play_music(file, loops=-1):
         print(f"Warning: failed to load music {file}: {exc}")
         return False
 
+
 def stop_music():
-    """Stop background music"""
+    """Stop background music."""
+    if _IS_WEB:
+        _web_audio("stopMusic")
+        return
+    if not pygame.mixer.get_init():
+        return
     pygame.mixer.music.stop()
 
+
+def pause_music():
+    """Pause background music."""
+    if _IS_WEB:
+        _web_audio("pauseMusic")
+        return
+    if not pygame.mixer.get_init():
+        return
+    pygame.mixer.music.pause()
+
+
+def unpause_music():
+    """Resume paused background music."""
+    if _IS_WEB:
+        _web_audio("unpauseMusic")
+        return
+    if not pygame.mixer.get_init():
+        return
+    pygame.mixer.music.unpause()
+
+
+def set_volume(volume):
+    """Set music volume (0.0-1.0)."""
+    if _IS_WEB:
+        _web_audio("setVolume", volume)
+        return
+    if pygame.mixer.get_init():
+        pygame.mixer.music.set_volume(volume)
+
+
+def get_volume():
+    """Get current music volume (0.0-1.0)."""
+    if _IS_WEB:
+        result = _web_audio("getVolume")
+        return float(result) if result is not None else 0.5
+    if pygame.mixer.get_init():
+        return pygame.mixer.music.get_volume()
+    return 0.5
+
+
+# ── User-upload bridge (web only) ────────────────────────────────────────────
+
+def show_upload_button():
+    """Show the HTML upload-music button overlay (web builds only)."""
+    if _IS_WEB:
+        _web_audio("showUploadButton")
+
+
+def hide_upload_button():
+    """Hide the HTML upload-music button overlay (web builds only)."""
+    if _IS_WEB:
+        _web_audio("hideUploadButton")
+
+
+def get_user_track_count():
+    """Return the number of tracks the user has uploaded this session."""
+    if not _IS_WEB:
+        return 0
+    result = _web_audio("getUserTrackCount")
+    try:
+        return int(result) if result is not None and result is not True else 0
+    except (TypeError, ValueError):
+        return 0
+
+
+def get_user_track_name(index):
+    """Return the display name of user track at index."""
+    if not _IS_WEB:
+        return ""
+    result = _web_audio("getUserTrackName", index)
+    return str(result) if result is not None and result is not True else ""
+
+
+def get_user_track_url(index):
+    """Return the blob URL of user track at index (pass to play_music)."""
+    if not _IS_WEB:
+        return ""
+    result = _web_audio("getUserTrackUrl", index)
+    return str(result) if result is not None and result is not True else ""
+
+
 def play_sound(file):
-    """Play a one-shot sound effect"""
+    """Play a one-shot sound effect."""
+    if _IS_WEB:
+        _web_audio("playSound", file)
+        return
     try:
         sound = pygame.mixer.Sound(file)
         sound.play()

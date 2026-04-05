@@ -5,14 +5,34 @@ on:
     branches: [main]
     paths:
       - "game/**"
+      - "game_screens/**"
       - "server/**"
       - "tests/**"
       - "features/**"
+      - "web/**"
       - "main.py"
       - "requirements.txt"
       - "run_tests.py"
 
 jobs:
+  web-audio-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run web audio unit tests
+        run: |
+          cd web
+          npm ci
+          npm test
+
   unit-tests:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -98,8 +118,24 @@ jobs:
       - name: Install Playwright browsers
         run: python -m playwright install --with-deps chromium
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build TypeScript audio manager
+        run: |
+          cd web
+          npm ci
+          npm run build
+
       - name: Build pygbag bundle
         run: python -m pygbag --build .
+
+      - name: Copy audio assets for JS playback
+        run: |
+          mkdir -p ./build/web/assets
+          cp assets/*.ogg ./build/web/assets/
 
       - name: Start pygbag server and run browser tests
         run: |

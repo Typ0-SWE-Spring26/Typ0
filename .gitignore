@@ -215,3 +215,6 @@ __marimo__/
 
 # don't push the highscore file
 highscores.json
+
+# Node / TypeScript (web audio manager)
+web/node_modules/

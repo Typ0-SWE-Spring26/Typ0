@@ -5,6 +5,7 @@ on:
     branches:
       - main
   workflow_dispatch:
+  
 
 permissions:
   contents: read
@@ -31,19 +32,41 @@ jobs:
           pip install pygbag
           grep -v pygame-ce requirements.txt | pip install -r /dev/stdin
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build TypeScript audio manager
+        run: |
+          cd web
+          npm ci
+          npm run build
+
       - name: Build with pygbag
         run: |
           python -m pygbag --build --ume_block 0 .
 
-      - name: Patch ume_block in generated index.html
+      - name: Copy audio assets and JS audio manager for web
+        run: |
+          mkdir -p ./build/web/assets
+          cp assets/*.ogg ./build/web/assets/
+          cp assets/audio_manager.js ./build/web/audio_manager.js
+
+      - name: Patch index.html (ume_block + inject audio manager script)
         run: |
           sed -i 's/ume_block : 1/ume_block : 0/' ./build/web/index.html
+          sed -i 's|</head>|<script src="audio_manager.js"></script>\n</head>|' ./build/web/index.html
           if grep -q 'ume_block : 1' ./build/web/index.html; then
-            echo "ERROR: ume_block patch verification failed; stale value still present."
+            echo "ERROR: ume_block patch failed — stale value still present."
             exit 1
           fi
           if ! grep -q 'ume_block : 0' ./build/web/index.html; then
-            echo "ERROR: ume_block patch verification failed; expected value not found."
+            echo "ERROR: ume_block patch failed — expected value not found."
+            exit 1
+          fi
+          if ! grep -q 'audio_manager.js' ./build/web/index.html; then
+            echo "ERROR: audio manager script tag not injected into index.html."
             exit 1
           fi
 
