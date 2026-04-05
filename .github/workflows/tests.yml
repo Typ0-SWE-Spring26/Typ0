@@ -15,6 +15,24 @@ on:
       - "run_tests.py"
 
 jobs:
+  web-audio-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run web audio unit tests
+        run: |
+          cd web
+          npm ci
+          npm test
+
   unit-tests:
     runs-on: ${{ matrix.os }}
     strategy:

@@ -16,7 +16,7 @@ interface UserTrack {
   url: string;
 }
 
-class AudioManager {
+export class AudioManager {
   private musicEl: HTMLAudioElement | null = null;
   private _volume: number = 0.7;
   private _paused: boolean = false;

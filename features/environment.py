@@ -50,6 +50,8 @@ def after_scenario(context, scenario):
         "_credits_anim_patch",
         "_ne_pg_patch",
         "_ne_anim_patch",
+        "_mm_pg_patch",
+        "_mm_anim_patch",
     ):
         _safe_stop(context, attr)
 
