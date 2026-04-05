@@ -1,6 +1,7 @@
 import pygame
 import math
 import sys
+import platform as _p
 
 # ── Web audio bridge ──────────────────────────────────────────────────────────
 # When running as a pygbag/WASM web build, pygame.mixer is broken.
@@ -10,14 +11,18 @@ _IS_WEB = sys.platform == "emscripten"
 
 
 def _web_audio(method, *args):
-    """Safely call window.typAudio.<method>(*args) in the browser.
-    Any failure is printed and swallowed so missing audio never crashes the game.
+    """Call window.typAudio.<method>(*args) in the browser.
+
+    Returns the JS return value on success; True when the method returns void
+    (JS undefined → Python None). Returns None on any exception so callers can
+    distinguish success from failure without crashing the game.
     """
     try:
-        import platform as _p
-        getattr(_p.window.typAudio, method)(*args)
+        result = getattr(_p.window.typAudio, method)(*args)
+        return result if result is not None else True
     except Exception as _exc:
         print(f"[Web Audio] {method} failed: {_exc}")
+        return None
 
 
 # ── Audio helpers ─────────────────────────────────────────────────────────────
@@ -131,8 +136,7 @@ def loading_bar(screen, start_time, position=None, width=400, height=20, color=(
 def play_music(file, loops=-1):
     """Play background music.  loops=-1 repeats forever; loops=0 plays once."""
     if _IS_WEB:
-        _web_audio("playMusic", file, loops)
-        return True
+        return _web_audio("playMusic", file, loops) is not None
     try:
         if not pygame.mixer.get_init():
             return False
@@ -149,6 +153,8 @@ def stop_music():
     if _IS_WEB:
         _web_audio("stopMusic")
         return
+    if not pygame.mixer.get_init():
+        return
     pygame.mixer.music.stop()
 
 
@@ -156,6 +162,8 @@ def pause_music():
     """Pause background music."""
     if _IS_WEB:
         _web_audio("pauseMusic")
+        return
+    if not pygame.mixer.get_init():
         return
     pygame.mixer.music.pause()
 
@@ -165,11 +173,13 @@ def unpause_music():
     if _IS_WEB:
         _web_audio("unpauseMusic")
         return
+    if not pygame.mixer.get_init():
+        return
     pygame.mixer.music.unpause()
 
 
 def set_volume(volume):
-    """Set music volume (0.0–1.0)."""
+    """Set music volume (0.0-1.0)."""
     if _IS_WEB:
         _web_audio("setVolume", volume)
         return
@@ -178,13 +188,10 @@ def set_volume(volume):
 
 
 def get_volume():
-    """Get current music volume (0.0–1.0)."""
+    """Get current music volume (0.0-1.0)."""
     if _IS_WEB:
-        try:
-            import platform as _p
-            return float(_p.window.typAudio.getVolume())
-        except Exception:
-            return 0.5
+        result = _web_audio("getVolume")
+        return float(result) if result is not None else 0.5
     if pygame.mixer.get_init():
         return pygame.mixer.music.get_volume()
     return 0.5
