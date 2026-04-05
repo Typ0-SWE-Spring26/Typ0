@@ -197,6 +197,47 @@ def get_volume():
     return 0.5
 
 
+# ── User-upload bridge (web only) ────────────────────────────────────────────
+
+def show_upload_button():
+    """Show the HTML upload-music button overlay (web builds only)."""
+    if _IS_WEB:
+        _web_audio("showUploadButton")
+
+
+def hide_upload_button():
+    """Hide the HTML upload-music button overlay (web builds only)."""
+    if _IS_WEB:
+        _web_audio("hideUploadButton")
+
+
+def get_user_track_count():
+    """Return the number of tracks the user has uploaded this session."""
+    if not _IS_WEB:
+        return 0
+    result = _web_audio("getUserTrackCount")
+    try:
+        return int(result) if result is not None and result is not True else 0
+    except (TypeError, ValueError):
+        return 0
+
+
+def get_user_track_name(index):
+    """Return the display name of user track at index."""
+    if not _IS_WEB:
+        return ""
+    result = _web_audio("getUserTrackName", index)
+    return str(result) if result is not None and result is not True else ""
+
+
+def get_user_track_url(index):
+    """Return the blob URL of user track at index (pass to play_music)."""
+    if not _IS_WEB:
+        return ""
+    result = _web_audio("getUserTrackUrl", index)
+    return str(result) if result is not None and result is not True else ""
+
+
 def play_sound(file):
     """Play a one-shot sound effect."""
     if _IS_WEB:
