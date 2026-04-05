@@ -8,6 +8,11 @@ sys.modules["pygame"] = MagicMock()
 
 from game.utils import animation_utils
 from game_screens.menu_music import MusicMenu
+import game_screens.menu_music as menu_music_mod
+
+
+# Keep pygame event constants stable across platforms/runners.
+menu_music_mod.pygame.MOUSEBUTTONDOWN = 1
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -134,9 +139,8 @@ class TestSyncUserTracks:
 
 def _make_event(button, pos=(0, 0)):
     """Build a mock MOUSEBUTTONDOWN event."""
-    import pygame
     ev = Mock()
-    ev.type = pygame.MOUSEBUTTONDOWN
+    ev.type = menu_music_mod.pygame.MOUSEBUTTONDOWN
     ev.button = button
     ev.pos = pos
     return ev
