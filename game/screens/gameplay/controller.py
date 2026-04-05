@@ -36,10 +36,10 @@ class GameController:
         now_tick = pygame.time.get_ticks()
         if self.paused:
             self._bus.emit('game_paused', {'now': now_tick})
-            pygame.mixer.music.pause()
+            animation_utils.pause_music()
         else:
             self._bus.emit('game_resumed', {'now': now_tick})
-            pygame.mixer.music.unpause()
+            animation_utils.unpause_music()
 
     @property
     def _menu_is_open(self) -> bool:

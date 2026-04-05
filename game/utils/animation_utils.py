@@ -1,5 +1,37 @@
 import pygame
 import math
+import sys
+
+# ── Web audio bridge ──────────────────────────────────────────────────────────
+# When running as a pygbag/WASM web build, pygame.mixer is broken.
+# Instead we delegate all audio to a JavaScript AudioManager (window.typAudio)
+# that was loaded by _init_web_audio() at app startup.
+_IS_WEB = sys.platform == "emscripten"
+
+
+def _win():
+    """Return the pygbag JS window proxy for bridge calls."""
+    import platform as _platform
+    return _platform.window
+
+
+def init_web_audio():
+    """Load and eval the JS audio manager.  Call once at app startup.
+
+    The compiled audio_manager.js is bundled inside the APK at
+    /data/data/typ0/assets/audio_manager.js (same dir as main.py),
+    so plain open() works at runtime.
+    """
+    if not _IS_WEB:
+        return
+    try:
+        with open("audio_manager.js", "r") as _f:
+            _win().eval(_f.read())
+    except Exception as _exc:
+        print(f"[Web Audio] init failed: {_exc}")
+
+
+# ── Audio helpers ─────────────────────────────────────────────────────────────
 
 # Cache for pre-rendered gradient surfaces, keyed by (size, top_color, bottom_color)
 _gradient_cache = {}
@@ -109,7 +141,12 @@ def loading_bar(screen, start_time, position=None, width=400, height=20, color=(
 
 def play_music(file, loops=-1):
     """Play background music.  loops=-1 repeats forever; loops=0 plays once."""
+    if _IS_WEB:
+        _win().typAudio.playMusic(file, loops)
+        return True
     try:
+        if not pygame.mixer.get_init():
+            return False
         pygame.mixer.music.load(file)
         pygame.mixer.music.play(loops)
         return True
@@ -117,12 +154,54 @@ def play_music(file, loops=-1):
         print(f"Warning: failed to load music {file}: {exc}")
         return False
 
+
 def stop_music():
-    """Stop background music"""
+    """Stop background music."""
+    if _IS_WEB:
+        _win().typAudio.stopMusic()
+        return
     pygame.mixer.music.stop()
 
+
+def pause_music():
+    """Pause background music."""
+    if _IS_WEB:
+        _win().typAudio.pauseMusic()
+        return
+    pygame.mixer.music.pause()
+
+
+def unpause_music():
+    """Resume paused background music."""
+    if _IS_WEB:
+        _win().typAudio.unpauseMusic()
+        return
+    pygame.mixer.music.unpause()
+
+
+def set_volume(volume):
+    """Set music volume (0.0–1.0)."""
+    if _IS_WEB:
+        _win().typAudio.setVolume(volume)
+        return
+    if pygame.mixer.get_init():
+        pygame.mixer.music.set_volume(volume)
+
+
+def get_volume():
+    """Get current music volume (0.0–1.0)."""
+    if _IS_WEB:
+        return float(_win().typAudio.getVolume())
+    if pygame.mixer.get_init():
+        return pygame.mixer.music.get_volume()
+    return 0.5
+
+
 def play_sound(file):
-    """Play a one-shot sound effect"""
+    """Play a one-shot sound effect."""
+    if _IS_WEB:
+        _win().typAudio.playSound(file)
+        return
     try:
         sound = pygame.mixer.Sound(file)
         sound.play()

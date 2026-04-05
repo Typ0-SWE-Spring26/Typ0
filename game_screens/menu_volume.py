@@ -1,20 +1,13 @@
 import pygame
 
 from game.utils.button import Button
+from game.utils import animation_utils
 
 class VolumeMenu:
     def __init__(self, screen, font_manager):
         self.screen = screen
         self.font_manager = font_manager
-
-        # Safely get volume
-        try:
-            if pygame.mixer.get_init():
-                self.volume = pygame.mixer.music.get_volume()
-            else:
-                self.volume = 0.5
-        except Exception:
-            self.volume = 0.5
+        self.volume = animation_utils.get_volume()
 
         self.dragging = False
         self.slider_width = 380
@@ -107,9 +100,7 @@ class VolumeMenu:
                 relative_x = event.pos[0] - self.slider_rect.x
                 relative_x = max(0, min(self.slider_width, relative_x))
                 self.volume = relative_x / self.slider_width
-                # Only set volume if mixer is initialized
-                if pygame.mixer.get_init():
-                    pygame.mixer.music.set_volume(self.volume)
+                animation_utils.set_volume(self.volume)
                 return "volume_changed"
             return None
 
@@ -121,9 +112,7 @@ class VolumeMenu:
                 relative_x = event.pos[0] - self.slider_rect.x
                 relative_x = max(0, min(self.slider_width, relative_x))
                 self.volume = relative_x / self.slider_width
-                # Only set volume if mixer is initialized
-                if pygame.mixer.get_init():
-                    pygame.mixer.music.set_volume(self.volume)
+                animation_utils.set_volume(self.volume)
                 return "volume_changed"
 
         return None

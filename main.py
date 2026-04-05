@@ -104,6 +104,8 @@ async def _run_multiplayer(screen, keybinds):
 
 async def main():
     pygame.init()
+    from game.utils.animation_utils import init_web_audio
+    init_web_audio()
     _seed_session_randomness()
     window = pygame.display.set_mode((800, 600))
     pygame.display.set_caption("TYP0")

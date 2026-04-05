@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -31,9 +34,25 @@ jobs:
           pip install pygbag
           grep -v pygame-ce requirements.txt | pip install -r /dev/stdin
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build TypeScript audio manager
+        run: |
+          cd web
+          npm ci
+          npm run build
+
       - name: Build with pygbag
         run: |
           python -m pygbag --build --ume_block 0 .
+
+      - name: Copy audio assets for JS playback
+        run: |
+          mkdir -p ./build/web/assets
+          cp assets/*.ogg ./build/web/assets/
 
       - name: Patch ume_block in generated index.html
         run: |

@@ -2,6 +2,7 @@ import os
 import pygame
 
 from game.utils.button import Button
+from game.utils import animation_utils
 
 class MusicMenu:
     def __init__(self, screen, font_manager):
@@ -94,19 +95,4 @@ class MusicMenu:
 
     def play_music(self):
         path = self.songs[self.current_index][1]
-        # Check if file exists before trying to play
-        if not os.path.exists(path):
-            print(f"[MusicMenu] missing file: {path}")
-            return
-        # Check if mixer is initialized
-        if not pygame.mixer.get_init():
-            try:
-                pygame.mixer.init()
-            except Exception as exc:
-                print(f"[MusicMenu] mixer init failed: {exc}")
-                return
-        try:
-            pygame.mixer.music.load(path)
-            pygame.mixer.music.play(-1)
-        except Exception as exc:
-            print(f"[MusicMenu] failed to play {path}: {exc}")
+        animation_utils.play_music(path)

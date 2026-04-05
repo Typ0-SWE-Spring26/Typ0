@@ -1,0 +1,12 @@
+{
+  "name": "typ0-web-audio",
+  "version": "1.0.0",
+  "description": "TypeScript audio manager for Typ0 web builds",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
