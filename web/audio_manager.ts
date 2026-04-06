@@ -21,16 +21,50 @@ export class AudioManager {
   private _volume: number = 0.7;
   private _paused: boolean = false;
 
+  // ── Autoplay unlock ───────────────────────────────────────────────────────
+  private _unlocked: boolean = false;
+  private _pendingFile: string | null = null;
+  private _pendingLoops: number = -1;
+
   // ── User-uploaded tracks ──────────────────────────────────────────────────
   private _userTracks: UserTrack[] = [];
   private _uploadBtn: HTMLButtonElement | null = null;
   private _fileInput: HTMLInputElement | null = null;
+
+  constructor() {
+    // On the first user gesture, unlock audio and replay anything that was
+    // blocked by the browser's autoplay policy.
+    const unlock = () => {
+      if (this._unlocked) return;
+      this._unlocked = true;
+      if (this._pendingFile !== null) {
+        const file = this._pendingFile;
+        const loops = this._pendingLoops;
+        this._pendingFile = null;
+        this._playNow(file, loops);
+      }
+    };
+    ["click", "keydown", "touchstart", "pointerdown"].forEach((evt) => {
+      window.addEventListener(evt, unlock, { once: false, passive: true });
+    });
+  }
 
   /**
    * Load and play background music.
    * loops: -1 = infinite loop, 0 = play once, n > 0 = loop n+1 times (pygame semantics)
    */
   playMusic(file: string, loops: number = -1): void {
+    if (!this._unlocked) {
+      // Autoplay not yet allowed — remember intent and play on first gesture
+      this._pendingFile = file;
+      this._pendingLoops = loops;
+      this.stopMusic();
+      return;
+    }
+    this._playNow(file, loops);
+  }
+
+  private _playNow(file: string, loops: number): void {
     this.stopMusic();
 
     const audio = new Audio(this._toUrl(file));
@@ -58,7 +92,14 @@ export class AudioManager {
 
     this.musicEl = audio;
     this._paused = false;
-    audio.play().catch((e) => console.warn("[typAudio] playMusic failed:", e));
+    audio.play().catch((e) => {
+      console.warn("[typAudio] playMusic failed:", e);
+      // If play was blocked despite the unlock flag, queue it for retry
+      this._unlocked = false;
+      this._pendingFile = file;
+      this._pendingLoops = loops;
+      this.musicEl = null;
+    });
   }
 
   stopMusic(): void {
@@ -100,6 +141,7 @@ export class AudioManager {
 
   /** Play a one-shot sound effect (fire and forget). */
   playSound(file: string): void {
+    if (!this._unlocked) return; // drop SFX before first gesture — not worth queuing
     const audio = new Audio(this._toUrl(file));
     audio.volume = this._volume;
     audio.play().catch((e) => console.warn("[typAudio] playSound failed:", e));
