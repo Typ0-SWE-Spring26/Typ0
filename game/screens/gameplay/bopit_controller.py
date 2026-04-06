@@ -8,6 +8,10 @@ from game.screens.credits import CreditsScreen
 class BopItController:
     """Controller for Bop-It mode — dynamic timer that speeds up each round."""
 
+    # Grace period (ms) given after a beat fires while waiting for player input.
+    # The player has this long past the beat to respond before it's game over.
+    BEAT_GRACE_MS = 1500
+
     def __init__(self, screen, model, view, event_bus, keybinds, pause_overlay=None, menu_overlay=None):
         self.screen = screen
         self.model = model
@@ -109,7 +113,13 @@ class BopItController:
                     beat_count = animation_utils.get_beat_count()
                     if beat_count != self._last_beat_count:
                         self._last_beat_count = beat_count
-                        self.model.notify_beat()
+                        if self.model.state == 'input':
+                            # Beat fired during input: reset a short grace-period
+                            # countdown instead of dying immediately.
+                            self.game_timer.TIME_LIMIT = self.BEAT_GRACE_MS
+                            self.game_timer.start(now)
+                        else:
+                            self.model.notify_beat()
 
                 entered_input = self.model.update(now)
                 if entered_input:
