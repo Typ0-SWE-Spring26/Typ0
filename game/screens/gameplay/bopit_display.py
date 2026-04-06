@@ -8,9 +8,9 @@ from .bopit_controller import BopItController
 class BopItScreen:
     """MVC facade for Bop-It mode."""
 
-    def __init__(self, screen, keybinds, pause_overlay=None):
+    def __init__(self, screen, keybinds, pause_overlay=None, difficulty: str = 'normal'):
         self._bus = EventBus()
-        self.model = BopItModel(self._bus)
+        self.model = BopItModel(self._bus, difficulty=difficulty)
         self.keybinds = keybinds
 
         menu_overlay = MenuOverlay(screen)

@@ -9,17 +9,16 @@ from .controller import GameController
 class GameScreen:
     """Thin MVC facade — wires up Model, View, and Controller.
 
-    Constructor: GameScreen(screen, keybinds, pause_overlay=None)
-      keybinds — a KeybindManager (or compatible object) supplying button_keys
-                 and key_labels; main.py must pass this argument.
-      pause_overlay — optional overlay object; subscribe() is called on it if provided.
+    Constructor: GameScreen(screen, keybinds, pause_overlay=None, difficulty='normal')
+      keybinds   — a KeybindManager supplying button_keys and key_labels.
+      difficulty — 'easy', 'normal', or 'hard' (default 'normal').
     """
 
-    def __init__(self, screen, keybinds, pause_overlay=None):
+    def __init__(self, screen, keybinds, pause_overlay=None, difficulty: str = 'normal'):
         self._bus = EventBus()
-        self.model = GameModel(self._bus)
+        self.model = GameModel(self._bus, difficulty=difficulty)
         self.keybinds = keybinds
-        
+
         # Create menu overlay
         menu_overlay = MenuOverlay(screen)
 
@@ -27,9 +26,8 @@ class GameScreen:
         self.controller = GameController(
             screen, self.model, self.view, self._bus, keybinds, pause_overlay, menu_overlay,
         )
+        # Propagate difficulty-derived timer limit to the controller's timer
+        self.controller.game_timer.TIME_LIMIT = self.model.timer_limit
 
     async def run(self):
-        animation_utils.play_music("assets/Typ0__Main_Theme.ogg")
-        result = await self.controller.run()
-        animation_utils.stop_music()
-        return result
+        return await self.controller.run()

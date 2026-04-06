@@ -16,9 +16,11 @@ def before_all(context):
     # (K_a, K_d, etc.) are already resolved against the MagicMock.
     from game.core.event_bus import EventBus
     from game.core.game_model import GameModel
+    from game.core.bopit_model import BopItModel
 
     context.EventBus = EventBus
     context.GameModel = GameModel
+    context.BopItModel = BopItModel
 
 
 def before_scenario(context, scenario):

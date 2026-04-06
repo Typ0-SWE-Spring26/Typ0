@@ -22,6 +22,7 @@ from game.core.keybinds import KeybindManager
 from game.core.high_scores import is_high_score_async, add_score_async
 from game.screens.gameplay.pause_overlay import PauseOverlay
 from game.screens.menu import MenuOverlay
+from game.screens.config_screen import ConfigScreen
 from game.network.client import WebSocketClient
 from game.screens.multiplayer.login import MultiplayerLoginScreen
 from game.screens.multiplayer.lobby import MultiplayerLobbyScreen
@@ -102,6 +103,101 @@ async def _run_multiplayer(screen, keybinds):
         # res == "lobby" → loop back to lobby screen
 
 
+async def _run_single_player_post_game(screen, game_mode, score, reason, hs_name):
+    """Run the game-over/high-scores/credits loop and return next navigation state."""
+    result = "high_scores"
+
+    while result in ("high_scores", "credits"):
+        if result == "high_scores":
+            game_over = GameOverScreen(screen, score=score, reason=reason)
+            result = await game_over.run()
+
+            if result == "high_scores":
+                hs_screen = HighScoresScreen(
+                    screen,
+                    game_type=game_mode,
+                    highlight_name=hs_name,
+                    highlight_score=score if hs_name else None,
+                )
+                result = await hs_screen.run()
+
+        if result == "credits":
+            credits = CreditsScreen(screen)
+            cr = await credits.run()
+            if cr == "quit":
+                return "quit"
+            result = "high_scores"
+
+    return result
+
+
+async def _run_single_player(screen, keybinds, game_mode):
+    """Run config -> gameplay -> post-game loop for one single-player mode."""
+    pause_overlay = PauseOverlay(screen)
+
+    # Persist previous selection across retries so the config screen feels continuous.
+    selected_inverted = False
+    selected_difficulty = "normal"
+    result = "retry"
+
+    while result == "retry":
+        config_screen = ConfigScreen(
+            screen,
+            game_mode,
+            initial_inverted=selected_inverted,
+            initial_difficulty=selected_difficulty,
+        )
+        config_result = await config_screen.run()
+        if config_result == "quit":
+            return "quit"
+        if config_result == "back":
+            return "menu"
+
+        selected_inverted = config_result["inverted"]
+        selected_difficulty = config_result["difficulty"]
+
+        # Apply user choices
+        keybinds.inverted = selected_inverted
+
+        if game_mode == "bopit":
+            game_screen = BopItScreen(
+                screen,
+                keybinds,
+                pause_overlay=pause_overlay,
+                difficulty=selected_difficulty,
+            )
+        else:
+            game_screen = GameScreen(
+                screen,
+                keybinds,
+                pause_overlay=pause_overlay,
+                difficulty=selected_difficulty,
+            )
+        game_result = await game_screen.run()
+
+        if game_result == "quit":
+            return "quit"
+
+        # game_result is ("gameover", score, reason)
+        _, score, reason = game_result
+
+        # Arcade-style: name entry if high score
+        hs_name = None
+        if await is_high_score_async(score, game_mode):
+            name_entry = NameEntryScreen(screen, score)
+            name_result = await name_entry.run()
+            if name_result == "quit":
+                return "quit"
+            hs_name = name_result
+            await add_score_async(hs_name, score, game_mode)
+
+        result = await _run_single_player_post_game(
+            screen, game_mode, score, reason, hs_name
+        )
+
+    return result
+
+
 async def main():
     pygame.init()
     _seed_session_randomness()
@@ -111,7 +207,7 @@ async def main():
 
     keybinds = KeybindManager()
 
-    # Show start screen
+    # Show start screen (once)
     start_screen = StartScreen(screen)
     result = await start_screen.run()
 
@@ -119,79 +215,42 @@ async def main():
         pygame.quit()
         return
 
-    if result == "menu":
-        while True:
-            menu_screen = StartMenu(screen)
-            result = await menu_screen.run()
-            if result == "credits":
-                credits = CreditsScreen(screen)
-                cr = await credits.run()
-                if cr == "quit":
-                    result = "quit"
-                    break
-                continue  # back to menu
-            break  # "start_simon", "start_bopit", "multiplayer", or "quit"
+    # ------------------------------------------------------------------ #
+    # Main navigation loop — allows returning to the menu from anywhere.  #
+    # ------------------------------------------------------------------ #
+    while result != "quit":
 
-    if result == "multiplayer":
-        result = await _run_multiplayer(screen, keybinds)
-        # result is now "menu", "quit", etc.
-
-    if result in ("start", "start_simon", "start_bopit"):
-        game_mode = "bopit" if result == "start_bopit" else "simon"
-        pause_overlay = PauseOverlay(screen)
-
-        while True:
-            if game_mode == "bopit":
-                game_screen = BopItScreen(screen, keybinds, pause_overlay=pause_overlay)
-            else:
-                game_screen = GameScreen(screen, keybinds, pause_overlay=pause_overlay)
-            result = await game_screen.run()
-
-            if result == "quit":
-                break
-
-            # result is ("gameover", score, reason)
-            _, score, reason = result
-
-            # Arcade-style: name entry if high score
-            hs_name = None
-            if await is_high_score_async(score, game_mode):
-                name_entry = NameEntryScreen(screen, score)
-                name_result = await name_entry.run()
-                if name_result == "quit":
-                    result = "quit"
-                    break
-                hs_name = name_result
-                await add_score_async(hs_name, score, game_mode)
-
-            # Game over screen (auto-switches to high scores after 10s)
-            result = "high_scores"  # enter loop
-            while result == "high_scores" or result == "credits":
-                if result == "high_scores":
-                    game_over = GameOverScreen(screen, score=score, reason=reason)
-                    result = await game_over.run()
-
-                    if result == "high_scores":
-                        hs_screen = HighScoresScreen(
-                            screen,
-                            game_type=game_mode,
-                            highlight_name=hs_name,
-                            highlight_score=score if hs_name else None,
-                        )
-                        result = await hs_screen.run()
-
+        # --- Start menu ---
+        if result == "menu":
+            while True:
+                menu_screen = StartMenu(screen)
+                result = await menu_screen.run()
                 if result == "credits":
                     credits = CreditsScreen(screen)
                     cr = await credits.run()
                     if cr == "quit":
                         result = "quit"
                         break
-                    result = "high_scores"
-                    continue
+                    continue  # back to menu
+                break  # "start_simon", "start_bopit", "multiplayer", or "quit"
 
-            if result == "quit":
-                break
-            # "retry" loops back to a new GameScreen
+        if result == "quit":
+            break
+
+        # --- Multiplayer ---
+        if result == "multiplayer":
+            result = await _run_multiplayer(screen, keybinds)
+            # result is "menu", "quit", etc. — loop back to top
+            continue
+
+        # --- Single-player game modes ---
+        if result in ("start", "start_simon", "start_bopit"):
+            game_mode = "bopit" if result == "start_bopit" else "simon"
+            result = await _run_single_player(screen, keybinds, game_mode)
+            continue
+
+        # Unknown result — fall back to menu
+        result = "menu"
 
     pygame.quit()
 
