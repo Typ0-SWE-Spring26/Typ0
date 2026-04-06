@@ -151,26 +151,24 @@ async def main():
         # --- Single-player game modes ---
         if result in ("start", "start_simon", "start_bopit"):
             game_mode = "bopit" if result == "start_bopit" else "simon"
-
-            # Configuration screen
-            config_screen = ConfigScreen(screen, game_mode)
-            config_result = await config_screen.run()
-            if config_result == "quit":
-                result = "quit"
-                break
-            if config_result == "back":
-                result = "menu"
-                continue
-
-            # Apply user choices
-            keybinds.inverted = config_result["inverted"]
-            difficulty = config_result["difficulty"]
-
             pause_overlay = PauseOverlay(screen)
 
-            # Game loop (retry keeps same difficulty/settings)
+            # Config screen shown before every attempt (including retries)
             result = "retry"
             while result == "retry":
+                config_screen = ConfigScreen(screen, game_mode)
+                config_result = await config_screen.run()
+                if config_result == "quit":
+                    result = "quit"
+                    break
+                if config_result == "back":
+                    result = "menu"
+                    break
+
+                # Apply user choices
+                keybinds.inverted = config_result["inverted"]
+                difficulty = config_result["difficulty"]
+
                 if game_mode == "bopit":
                     game_screen = BopItScreen(screen, keybinds, pause_overlay=pause_overlay, difficulty=difficulty)
                 else:
@@ -218,8 +216,8 @@ async def main():
                             break
                         result = "high_scores"
                         continue
-                # "retry" → inner while loops back to new GameScreen
-            # After inner loop: result is "quit" or something else (e.g. "menu")
+                # "retry" → outer while loops back to config screen
+            # After loop: result is "quit", "menu", or something else
             continue
 
         # Unknown result — fall back to menu
