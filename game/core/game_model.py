@@ -5,6 +5,15 @@ import random
 BUTTON_NAMES = ('left', 'right', 'up', 'down', 'space')
 
 
+# Difficulty presets for Simon mode:
+# (flash_time_ms, inter_gap_ms, pre_show_pause_ms, post_round_pause_ms, timer_limit_ms)
+_DIFFICULTY_PRESETS = {
+    'easy':   (900, 450, 1200, 1500, 12000),
+    'normal': (600, 300,  800, 1000,  8000),
+    'hard':   (350, 200,  500,  700,  4000),
+}
+
+
 class GameModel:
     """Pure game state and logic — no pygame dependency.
 
@@ -15,9 +24,13 @@ class GameModel:
     both clients generate the exact same button order from the same seed.
     """
 
-    def __init__(self, event_bus, seed=None):
+    def __init__(self, event_bus, seed=None, difficulty: str = 'normal'):
         self._bus = event_bus
         self._rng = random.Random(seed)
+        preset = _DIFFICULTY_PRESETS.get(difficulty, _DIFFICULTY_PRESETS['normal'])
+        (self._flash_time, self._inter_gap,
+         self._pre_show_pause, self._post_round_pause,
+         self.timer_limit) = preset
         self.reset()
 
     # ------------------------------------------------------------------
@@ -71,7 +84,7 @@ class GameModel:
             # Whole sequence matched — advance to next round
             self.score     += 1
             self.state      = 'adding'
-            self._next_time = now + 1000  # pause before next round begins
+            self._next_time = now + self._post_round_pause
             self._bus.emit('round_complete', {'score': self.score})
             return 'round_complete'
 
@@ -88,7 +101,7 @@ class GameModel:
                 self._showing_lit = False
                 self.flash_button = None
                 self.flash_state  = 'normal'
-                self._next_time   = now + 800  # brief pause before playback
+                self._next_time   = now + self._pre_show_pause
                 self.state        = 'showing'
                 self._bus.emit('sequence_updated', {'sequence': self.sequence})
 
@@ -105,7 +118,7 @@ class GameModel:
                 if now >= self._next_time:
                     self.flash_button = self.sequence[self._show_index]
                     self.flash_state  = 'indicated'
-                    self.flash_end    = now + 600
+                    self.flash_end    = now + self._flash_time
                     self._showing_lit = True
             else:
                 if now >= self.flash_end:
@@ -113,7 +126,7 @@ class GameModel:
                     self.flash_state  = 'normal'
                     self._showing_lit = False
                     self._show_index += 1
-                    self._next_time   = now + 300
+                    self._next_time   = now + self._inter_gap
 
         elif self.state == 'input':
             # Expire the press flash after it times out

@@ -3,6 +3,16 @@ import random
 from game.core.game_model import BUTTON_NAMES
 
 
+# Difficulty presets: (BASE_TIME, MIN_TIME, TIME_STEP,
+#                      BASE_ROUND_DELAY, MIN_ROUND_DELAY, ROUND_DELAY_STEP,
+#                      BASE_FLASH_TIME, MIN_FLASH_TIME, FLASH_TIME_STEP)
+_DIFFICULTY_PRESETS = {
+    'easy':   (7000, 2500, 100, 900,  350, 12, 700, 350, 8),
+    'normal': (5000, 1500, 200, 600,  250, 20, 500, 250, 15),
+    'hard':   (3500, 1000, 300, 400,  200, 28, 350, 175, 22),
+}
+
+
 class BopItModel:
     """Bop-It style game: one random command at a time, speed increases.
 
@@ -29,8 +39,12 @@ class BopItModel:
     MIN_FLASH_TIME  = 250     # shortest command highlight duration (ms)
     FLASH_TIME_STEP = 15      # ms shaved off per successful command
 
-    def __init__(self, event_bus):
+    def __init__(self, event_bus, difficulty: str = 'normal'):
         self._bus = event_bus
+        preset = _DIFFICULTY_PRESETS.get(difficulty, _DIFFICULTY_PRESETS['normal'])
+        (self.BASE_TIME, self.MIN_TIME, self.TIME_STEP,
+         self.BASE_ROUND_DELAY, self.MIN_ROUND_DELAY, self.ROUND_DELAY_STEP,
+         self.BASE_FLASH_TIME, self.MIN_FLASH_TIME, self.FLASH_TIME_STEP) = preset
         self.reset()
 
     # ------------------------------------------------------------------

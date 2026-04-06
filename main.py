@@ -22,6 +22,7 @@ from game.core.keybinds import KeybindManager
 from game.core.high_scores import is_high_score_async, add_score_async
 from game.screens.gameplay.pause_overlay import PauseOverlay
 from game.screens.menu import MenuOverlay
+from game.screens.config_screen import ConfigScreen
 from game.network.client import WebSocketClient
 from game.screens.multiplayer.login import MultiplayerLoginScreen
 from game.screens.multiplayer.lobby import MultiplayerLobbyScreen
@@ -111,7 +112,7 @@ async def main():
 
     keybinds = KeybindManager()
 
-    # Show start screen
+    # Show start screen (once)
     start_screen = StartScreen(screen)
     result = await start_screen.run()
 
@@ -119,79 +120,110 @@ async def main():
         pygame.quit()
         return
 
-    if result == "menu":
-        while True:
-            menu_screen = StartMenu(screen)
-            result = await menu_screen.run()
-            if result == "credits":
-                credits = CreditsScreen(screen)
-                cr = await credits.run()
-                if cr == "quit":
-                    result = "quit"
-                    break
-                continue  # back to menu
-            break  # "start_simon", "start_bopit", "multiplayer", or "quit"
+    # ------------------------------------------------------------------ #
+    # Main navigation loop — allows returning to the menu from anywhere.  #
+    # ------------------------------------------------------------------ #
+    while result != "quit":
 
-    if result == "multiplayer":
-        result = await _run_multiplayer(screen, keybinds)
-        # result is now "menu", "quit", etc.
-
-    if result in ("start", "start_simon", "start_bopit"):
-        game_mode = "bopit" if result == "start_bopit" else "simon"
-        pause_overlay = PauseOverlay(screen)
-
-        while True:
-            if game_mode == "bopit":
-                game_screen = BopItScreen(screen, keybinds, pause_overlay=pause_overlay)
-            else:
-                game_screen = GameScreen(screen, keybinds, pause_overlay=pause_overlay)
-            result = await game_screen.run()
-
-            if result == "quit":
-                break
-
-            # result is ("gameover", score, reason)
-            _, score, reason = result
-
-            # Arcade-style: name entry if high score
-            hs_name = None
-            if await is_high_score_async(score, game_mode):
-                name_entry = NameEntryScreen(screen, score)
-                name_result = await name_entry.run()
-                if name_result == "quit":
-                    result = "quit"
-                    break
-                hs_name = name_result
-                await add_score_async(hs_name, score, game_mode)
-
-            # Game over screen (auto-switches to high scores after 10s)
-            result = "high_scores"  # enter loop
-            while result == "high_scores" or result == "credits":
-                if result == "high_scores":
-                    game_over = GameOverScreen(screen, score=score, reason=reason)
-                    result = await game_over.run()
-
-                    if result == "high_scores":
-                        hs_screen = HighScoresScreen(
-                            screen,
-                            game_type=game_mode,
-                            highlight_name=hs_name,
-                            highlight_score=score if hs_name else None,
-                        )
-                        result = await hs_screen.run()
-
+        # --- Start menu ---
+        if result == "menu":
+            while True:
+                menu_screen = StartMenu(screen)
+                result = await menu_screen.run()
                 if result == "credits":
                     credits = CreditsScreen(screen)
                     cr = await credits.run()
                     if cr == "quit":
                         result = "quit"
                         break
-                    result = "high_scores"
-                    continue
+                    continue  # back to menu
+                break  # "start_simon", "start_bopit", "multiplayer", or "quit"
 
-            if result == "quit":
+        if result == "quit":
+            break
+
+        # --- Multiplayer ---
+        if result == "multiplayer":
+            result = await _run_multiplayer(screen, keybinds)
+            # result is "menu", "quit", etc. — loop back to top
+            continue
+
+        # --- Single-player game modes ---
+        if result in ("start", "start_simon", "start_bopit"):
+            game_mode = "bopit" if result == "start_bopit" else "simon"
+
+            # Configuration screen
+            config_screen = ConfigScreen(screen, game_mode)
+            config_result = await config_screen.run()
+            if config_result == "quit":
+                result = "quit"
                 break
-            # "retry" loops back to a new GameScreen
+            if config_result == "back":
+                result = "menu"
+                continue
+
+            # Apply user choices
+            keybinds.inverted = config_result["inverted"]
+            difficulty = config_result["difficulty"]
+
+            pause_overlay = PauseOverlay(screen)
+
+            # Game loop (retry keeps same difficulty/settings)
+            result = "retry"
+            while result == "retry":
+                if game_mode == "bopit":
+                    game_screen = BopItScreen(screen, keybinds, pause_overlay=pause_overlay, difficulty=difficulty)
+                else:
+                    game_screen = GameScreen(screen, keybinds, pause_overlay=pause_overlay, difficulty=difficulty)
+                result = await game_screen.run()
+
+                if result == "quit":
+                    break
+
+                # result is ("gameover", score, reason)
+                _, score, reason = result
+
+                # Arcade-style: name entry if high score
+                hs_name = None
+                if await is_high_score_async(score, game_mode):
+                    name_entry = NameEntryScreen(screen, score)
+                    name_result = await name_entry.run()
+                    if name_result == "quit":
+                        result = "quit"
+                        break
+                    hs_name = name_result
+                    await add_score_async(hs_name, score, game_mode)
+
+                # Game over → high scores loop
+                result = "high_scores"
+                while result in ("high_scores", "credits"):
+                    if result == "high_scores":
+                        game_over = GameOverScreen(screen, score=score, reason=reason)
+                        result = await game_over.run()
+
+                        if result == "high_scores":
+                            hs_screen = HighScoresScreen(
+                                screen,
+                                game_type=game_mode,
+                                highlight_name=hs_name,
+                                highlight_score=score if hs_name else None,
+                            )
+                            result = await hs_screen.run()
+
+                    if result == "credits":
+                        credits = CreditsScreen(screen)
+                        cr = await credits.run()
+                        if cr == "quit":
+                            result = "quit"
+                            break
+                        result = "high_scores"
+                        continue
+                # "retry" → inner while loops back to new GameScreen
+            # After inner loop: result is "quit" or something else (e.g. "menu")
+            continue
+
+        # Unknown result — fall back to menu
+        result = "menu"
 
     pygame.quit()
 
