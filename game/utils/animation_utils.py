@@ -238,6 +238,26 @@ def get_user_track_url(index):
     return str(result) if result is not None and result is not True else ""
 
 
+def is_web() -> bool:
+    """Return True when running as a pygbag/WASM web build."""
+    return _IS_WEB
+
+
+def get_beat_count() -> int:
+    """Return total beats detected since the current track started (web only).
+
+    Resets to 0 on every new playMusic call.  Poll each frame and trigger on
+    any increase.  Returns 0 on desktop (beat mode is web-only).
+    """
+    if not _IS_WEB:
+        return 0
+    result = _web_audio("getBeatCount")
+    try:
+        return int(result) if result is not None and result is not True else 0
+    except (TypeError, ValueError):
+        return 0
+
+
 def play_sound(file):
     """Play a one-shot sound effect."""
     if _IS_WEB:

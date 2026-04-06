@@ -20,6 +20,7 @@ class BopItController:
 
         self.game_timer = GameTimer(self._bus)
         self._bus.subscribe('timer_expired', self.model.on_timer_expired)
+        self._last_beat_count = 0
 
         if pause_overlay is not None:
             pause_overlay.subscribe(self._bus)
@@ -50,6 +51,8 @@ class BopItController:
 
     async def run(self):
         self.model.reset()
+        self._last_beat_count = 0
+        self.model.beat_mode = animation_utils.is_web()
         animation_utils.play_music("assets/Typ0__Main_Theme.ogg")
         clock = pygame.time.Clock()
 
@@ -102,6 +105,12 @@ class BopItController:
                 return ("gameover", self.model.score, self.model.gameover_reason)
 
             if not self.paused:
+                if self.model.beat_mode:
+                    beat_count = animation_utils.get_beat_count()
+                    if beat_count != self._last_beat_count:
+                        self._last_beat_count = beat_count
+                        self.model.notify_beat()
+
                 entered_input = self.model.update(now)
                 if entered_input:
                     # Set the timer's time limit based on current score

@@ -26,6 +26,25 @@ export class AudioManager {
   private _uploadBtn: HTMLButtonElement | null = null;
   private _fileInput: HTMLInputElement | null = null;
 
+  // ── Beat detection ────────────────────────────────────────────────────────
+  private _audioCtx: AudioContext | null = null;
+  private _analyser: AnalyserNode | null = null;
+  private _beatDataArray: Uint8Array<ArrayBuffer> | null = null;
+  private _beatCount: number = 0;
+  private _lastBeatTime: number = 0;
+  private _energyHistory: Float32Array = new Float32Array(43); // ~720ms at 60fps
+  private _energyHistoryIdx: number = 0;
+  private _energyHistoryFull: boolean = false;
+  private _beatRafId: number | null = null;
+
+  // Tuning knobs — conservative defaults that work across genres
+  private readonly BEAT_FFT_SIZE = 2048;
+  private readonly BEAT_BASS_BINS = 12;        // ~0-258Hz: kick drum range
+  private readonly BEAT_THRESHOLD = 1.5;       // energy must be 50% above rolling avg
+  private readonly BEAT_MIN_ENERGY = 200;      // ignore near-silence
+  private readonly BEAT_MIN_INTERVAL_MS = 250; // cap at ~240 BPM
+  private readonly BEAT_HISTORY_SIZE = 43;     // rolling-average window size
+
   /**
    * Load and play background music.
    * loops: -1 = infinite loop, 0 = play once, n > 0 = loop n+1 times (pygame semantics)
@@ -59,6 +78,7 @@ export class AudioManager {
     this.musicEl = audio;
     this._paused = false;
     audio.play().catch((e) => console.warn("[typAudio] playMusic failed:", e));
+    this._setupBeatDetection(audio);
   }
 
   stopMusic(): void {
@@ -68,6 +88,12 @@ export class AudioManager {
       this.musicEl = null;
     }
     this._paused = false;
+    this._stopBeatLoop();
+    this._beatCount = 0;
+    this._lastBeatTime = 0;
+    this._energyHistory.fill(0);
+    this._energyHistoryIdx = 0;
+    this._energyHistoryFull = false;
   }
 
   pauseMusic(): void {
@@ -133,7 +159,107 @@ export class AudioManager {
     return this._userTracks[index]?.url ?? "";
   }
 
+  // ── Beat detection API ────────────────────────────────────────────────────
+
+  /**
+   * Total beats detected since the current track started playing.
+   * Resets to 0 on every stopMusic() / playMusic() call.
+   * Poll this from Python each frame; a change means a new beat fired.
+   */
+  getBeatCount(): number {
+    return this._beatCount;
+  }
+
   // ── Private helpers ───────────────────────────────────────────────────────
+
+  /**
+   * Wire a freshly-created audio element into an AnalyserNode so we can
+   * run real-time beat detection against whatever track is playing.
+   */
+  private _setupBeatDetection(audio: HTMLAudioElement): void {
+    try {
+      if (!this._audioCtx) {
+        this._audioCtx = new AudioContext();
+      }
+      if (this._audioCtx.state === "suspended") {
+        this._audioCtx.resume().catch(() => {});
+      }
+
+      // Disconnect any previous analyser
+      if (this._analyser) {
+        this._analyser.disconnect();
+        this._analyser = null;
+      }
+
+      const source = this._audioCtx.createMediaElementSource(audio);
+      const analyser = this._audioCtx.createAnalyser();
+      analyser.fftSize = this.BEAT_FFT_SIZE;
+      analyser.smoothingTimeConstant = 0.0; // raw data — our own rolling avg handles smoothing
+      source.connect(analyser);
+      analyser.connect(this._audioCtx.destination);
+
+      this._analyser = analyser;
+      this._beatDataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      this._stopBeatLoop();
+      this._runBeatLoop();
+    } catch (e) {
+      console.warn("[typAudio] Beat detection unavailable:", e);
+    }
+  }
+
+  /** requestAnimationFrame loop that detects energy spikes in bass frequencies. */
+  private _runBeatLoop(): void {
+    const loop = () => {
+      this._beatRafId = requestAnimationFrame(loop);
+
+      const analyser = this._analyser;
+      const dataArray = this._beatDataArray;
+      if (!analyser || !dataArray) return;
+
+      analyser.getByteFrequencyData(dataArray);
+
+      // Average squared amplitude of bass bins (sub-bass / kick drum range)
+      let energy = 0;
+      for (let i = 0; i < this.BEAT_BASS_BINS; i++) {
+        energy += dataArray[i] * dataArray[i];
+      }
+      energy /= this.BEAT_BASS_BINS;
+
+      // Update ring-buffer rolling average
+      this._energyHistory[this._energyHistoryIdx] = energy;
+      this._energyHistoryIdx =
+        (this._energyHistoryIdx + 1) % this.BEAT_HISTORY_SIZE;
+      if (this._energyHistoryIdx === 0) this._energyHistoryFull = true;
+
+      const filledCount = this._energyHistoryFull
+        ? this.BEAT_HISTORY_SIZE
+        : this._energyHistoryIdx;
+      if (filledCount < 10) return; // warmup: need a few samples first
+
+      let sum = 0;
+      for (let i = 0; i < filledCount; i++) sum += this._energyHistory[i];
+      const avgEnergy = sum / filledCount;
+
+      const now = performance.now();
+      if (
+        energy > this.BEAT_THRESHOLD * avgEnergy &&
+        energy > this.BEAT_MIN_ENERGY &&
+        now - this._lastBeatTime > this.BEAT_MIN_INTERVAL_MS
+      ) {
+        this._beatCount++;
+        this._lastBeatTime = now;
+      }
+    };
+    loop();
+  }
+
+  private _stopBeatLoop(): void {
+    if (this._beatRafId !== null) {
+      cancelAnimationFrame(this._beatRafId);
+      this._beatRafId = null;
+    }
+  }
 
   /**
    * Create the hidden file input and the visible upload button.

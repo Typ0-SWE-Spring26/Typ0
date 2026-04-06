@@ -51,6 +51,11 @@ class BopItModel:
         self._next_time     = 0
         self.gameover_reason = "Wrong input!"
 
+        # Beat-sync mode: commands fire on detected music beats instead of a
+        # fixed timer.  Enabled by the controller on web builds only.
+        self.beat_mode      = False
+        self._beat_pending  = False
+
     # ------------------------------------------------------------------
     # Timer scaling
     # ------------------------------------------------------------------
@@ -74,6 +79,15 @@ class BopItModel:
     # Game logic
     # ------------------------------------------------------------------
 
+    def notify_beat(self) -> None:
+        """Called by the controller each time a beat is detected (beat_mode only).
+
+        Sets a one-shot flag that update() consumes to issue the next command.
+        Ignored when not in the prompting state so mid-round beats are discarded.
+        """
+        if self.beat_mode and self.state == 'prompting':
+            self._beat_pending = True
+
     def handle_input(self, name: str, now: int) -> str:
         """Process a player button press.  Returns 'correct', 'round_complete', or 'wrong'."""
         self.flash_button = name
@@ -94,7 +108,12 @@ class BopItModel:
     def update(self, now: int) -> bool:
         """Advance the state machine.  Returns True when entering 'input'."""
         if self.state == 'prompting':
-            if now >= self._next_time:
+            should_advance = (
+                self._beat_pending if self.beat_mode
+                else now >= self._next_time
+            )
+            if should_advance:
+                self._beat_pending = False
                 self.current_command = random.choice(list(BUTTON_NAMES))
                 self.sequence.append(self.current_command)  # keep round counter accurate
                 self.flash_button = self.current_command
