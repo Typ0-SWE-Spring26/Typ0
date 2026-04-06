@@ -181,9 +181,19 @@ export class AudioManager {
       if (!this._audioCtx) {
         this._audioCtx = new AudioContext();
       }
-      if (this._audioCtx.state === "suspended") {
-        this._audioCtx.resume().catch(() => {});
-      }
+
+      // Browsers suspend AudioContext when created outside a user gesture.
+      // Hook into capture-phase events so we resume on the very next interaction
+      // even if pygbag's canvas handler calls stopPropagation().
+      const ctx = this._audioCtx;
+      const tryResume = () => {
+        if (ctx.state === "suspended") {
+          ctx.resume().catch(() => {});
+        }
+      };
+      tryResume(); // attempt immediately in case we're already in a gesture
+      document.addEventListener("click",   tryResume, { once: true, capture: true });
+      document.addEventListener("keydown", tryResume, { once: true, capture: true });
 
       // Disconnect any previous analyser
       if (this._analyser) {

@@ -53,8 +53,12 @@ class BopItModel:
 
         # Beat-sync mode: commands fire on detected music beats instead of a
         # fixed timer.  Enabled by the controller on web builds only.
-        self.beat_mode      = False
-        self._beat_pending  = False
+        self.beat_mode       = False
+        self._beat_pending   = False
+        # If no beat is detected within this window, fall back to time-based
+        # advancement so the game never permanently stalls (e.g. AudioContext
+        # suspended, quiet section, or very slow tempo).
+        self.BEAT_TIMEOUT_MS = 3000
 
     # ------------------------------------------------------------------
     # Timer scaling
@@ -109,7 +113,8 @@ class BopItModel:
         """Advance the state machine.  Returns True when entering 'input'."""
         if self.state == 'prompting':
             should_advance = (
-                self._beat_pending if self.beat_mode
+                self._beat_pending or now >= self._next_time + self.BEAT_TIMEOUT_MS
+                if self.beat_mode
                 else now >= self._next_time
             )
             if should_advance:
