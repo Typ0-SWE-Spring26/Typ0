@@ -30,7 +30,4 @@ class GameScreen:
         self.controller.game_timer.TIME_LIMIT = self.model.timer_limit
 
     async def run(self):
-        animation_utils.play_music("assets/Typ0__Main_Theme.ogg")
-        result = await self.controller.run()
-        animation_utils.stop_music()
-        return result
+        return await self.controller.run()

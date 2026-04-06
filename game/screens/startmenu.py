@@ -60,8 +60,6 @@ class StartMenu:
                 ]:
                     if btn.handle_event(event):
                         if result:
-                            if result != "multiplayer":
-                                animation_utils.stop_music()
                             return result
                         else:
                             self.menu_overlay.open = True
@@ -84,7 +82,6 @@ class StartMenu:
 
             keys = pygame.key.get_pressed()
             if keys[pygame.K_w] and not self.menu_overlay.open and self.menu_overlay.active_submenu is None:
-                animation_utils.stop_music()
                 return "start_simon"
 
             self.screen.present()
