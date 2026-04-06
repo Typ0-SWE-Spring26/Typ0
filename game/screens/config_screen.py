@@ -23,12 +23,22 @@ class ConfigScreen:
     SEL_COLOR       = (80, 120, 200)
     SEL_HOVER_COLOR = (100, 145, 225)
 
-    def __init__(self, screen, game_mode: str):
+    def __init__(
+        self,
+        screen,
+        game_mode: str,
+        initial_inverted: bool = False,
+        initial_difficulty: str = "normal",
+    ):
         self.screen    = screen
         self.game_mode = game_mode   # "simon" or "bopit"
 
-        self.inverted   = False
-        self.difficulty = "Normal"   # default
+        self.inverted = bool(initial_inverted)
+
+        difficulty_label = str(initial_difficulty).strip().capitalize()
+        if difficulty_label not in DIFFICULTIES:
+            difficulty_label = "Normal"
+        self.difficulty = difficulty_label
 
         self.font_title  = pygame.font.Font(None, 72)
         self.font_label  = pygame.font.Font(None, 42)
