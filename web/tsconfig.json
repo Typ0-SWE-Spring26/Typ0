@@ -1,11 +1,13 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
+    "target": "ES2020",
+    "module": "ESNext",
     "outDir": "../assets",
-    "lib": ["ES2017", "DOM"],
+    "lib": ["ES2020", "DOM"],
     "strict": true,
     "noEmitOnError": true,
     "skipLibCheck": true
   },
-  "include": ["audio_manager.ts"]
+  "include": ["audio_manager.ts"],
+  "exclude": ["**/*.test.ts", "node_modules"]
 }
