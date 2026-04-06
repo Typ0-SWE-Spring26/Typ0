@@ -57,7 +57,8 @@ class BopItController:
         self.model.reset()
         self._last_beat_count = 0
         self.model.beat_mode = animation_utils.is_web()
-        animation_utils.play_music("assets/Typ0__Main_Theme.ogg")
+        track = animation_utils.get_selected_music() or "assets/Typ0__Main_Theme.ogg"
+        animation_utils.play_music(track)
         clock = pygame.time.Clock()
 
         while True:

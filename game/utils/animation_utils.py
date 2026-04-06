@@ -9,6 +9,23 @@ import platform as _p
 # <script> tag in index.html by the CI build process.
 _IS_WEB = sys.platform == "emscripten"
 
+# ── Shared music selection ────────────────────────────────────────────────────
+# Persists the track the user picked in the music settings menu so game modes
+# can pick it up without any extra plumbing through the screen hierarchy.
+# Empty string means "no explicit selection yet — use the game default".
+_selected_music_url: str = ""
+
+
+def set_selected_music(url: str) -> None:
+    """Save the user's explicit music-menu selection (call from MusicMenu)."""
+    global _selected_music_url
+    _selected_music_url = url
+
+
+def get_selected_music() -> str:
+    """Return the user's chosen track URL, or '' if none selected yet."""
+    return _selected_music_url
+
 
 def _web_audio(method, *args):
     """Call window.typAudio.<method>(*args) in the browser.

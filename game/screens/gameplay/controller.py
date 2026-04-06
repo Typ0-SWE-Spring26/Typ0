@@ -66,7 +66,8 @@ class GameController:
 
     async def run(self):
         self.model.reset()
-        animation_utils.play_music("assets/Typ0__Main_Theme.ogg")
+        track = animation_utils.get_selected_music() or "assets/Typ0__Main_Theme.ogg"
+        animation_utils.play_music(track)
         clock = pygame.time.Clock()
 
         while True:

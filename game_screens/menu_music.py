@@ -22,7 +22,12 @@ class MusicMenu:
         self._user_songs = []   # populated by _sync_user_tracks() in web builds
         self.songs = list(self._builtin_songs)
 
-        self.current_index = 0
+        # Sync to any track the user already picked this session.
+        saved = animation_utils.get_selected_music()
+        self.current_index = next(
+            (i for i, (_, p) in enumerate(self.songs) if p == saved),
+            0,
+        )
         self.left_rect  = pygame.Rect(0, 0, 0, 0)
         self.right_rect = pygame.Rect(0, 0, 0, 0)
         self.back_rect  = pygame.Rect(0, 0, 0, 0)
@@ -138,4 +143,5 @@ class MusicMenu:
 
     def play_music(self):
         path = self.songs[self.current_index][1]
+        animation_utils.set_selected_music(path)
         animation_utils.play_music(path)
