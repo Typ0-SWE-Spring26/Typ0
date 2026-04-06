@@ -50,6 +50,7 @@ class BopItController:
 
     async def run(self):
         self.model.reset()
+        animation_utils.stop_music()
         animation_utils.play_music("assets/Typ0__Main_Theme.ogg")
         clock = pygame.time.Clock()
 
