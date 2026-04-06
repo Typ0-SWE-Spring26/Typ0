@@ -59,6 +59,8 @@ beforeEach(() => {
     .querySelectorAll('input[type="file"]')
     .forEach((el) => el.remove());
   manager = new AudioManager();
+  // Simulate a user gesture so the autoplay-unlock gate is open for all tests
+  window.dispatchEvent(new MouseEvent("click"));
 });
 
 // ── Volume ───────────────────────────────────────────────────────────────────

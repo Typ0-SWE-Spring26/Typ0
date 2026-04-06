@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "TypeScript audio manager for Typ0 web builds",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --noEmit",
     "watch": "tsc --watch",
     "test": "vitest run",
     "test:watch": "vitest"
