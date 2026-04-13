@@ -238,27 +238,49 @@ class MultiplayerLobbyScreen:
                         midright=(row_rect.right - 18, row_rect.centery)
                     ))
 
-        # ── Status bar ───────────────────────────────────────────────────
-        status_y = H - 148 if (self._incoming_from or self._outgoing_to) else H - 40
-        status_surf = self.font_small.render(self.status, True, (190, 190, 200))
-        self.screen.blit(status_surf, status_surf.get_rect(center=(cx, status_y)))
-
         # ── Challenge prompt / action buttons ────────────────────────────
         if self._incoming_from:
+            # Shaded backdrop so the popup stands out from the player list
+            popup_rect = pygame.Rect(cx - 240, H - 200, 480, 140)
+            popup_surf = pygame.Surface(popup_rect.size, pygame.SRCALPHA)
+            popup_surf.fill((20, 20, 50, 200))
+            self.screen.blit(popup_surf, popup_rect)
+            pygame.draw.rect(self.screen, (100, 100, 200), popup_rect, 2, border_radius=8)
+
             prompt = self.font_player.render(
-                f"{self._incoming_from} is challenging you!", True, (255, 220, 60)
+                f"{self._incoming_from} challenged you!", True, (255, 220, 60)
             )
-            self.screen.blit(prompt, prompt.get_rect(center=(cx, H - 158)))
+            self.screen.blit(prompt, prompt.get_rect(center=(cx, H - 175)))
+
+            status_surf = self.font_small.render(self.status, True, (190, 190, 200))
+            self.screen.blit(status_surf, status_surf.get_rect(center=(cx, H - 148)))
+
             self.btn_accept.draw(self.screen)
             self.btn_decline.draw(self.screen)
 
         elif self._outgoing_to:
+            # Shaded backdrop
+            popup_rect = pygame.Rect(cx - 240, H - 200, 480, 130)
+            popup_surf = pygame.Surface(popup_rect.size, pygame.SRCALPHA)
+            popup_surf.fill((20, 20, 50, 200))
+            self.screen.blit(popup_surf, popup_rect)
+            pygame.draw.rect(self.screen, (80, 80, 160), popup_rect, 2, border_radius=8)
+
             animation_utils.flashing_text(
                 self.screen,
-                f"Waiting for {self._outgoing_to}…",
-                (cx, H - 158),
+                f"Waiting for {self._outgoing_to}...",
+                (cx, H - 172),
                 font_size=34,
                 color_on=(255, 220, 60),
                 color_off=(140, 120, 30),
             )
+
+            status_surf = self.font_small.render(self.status, True, (190, 190, 200))
+            self.screen.blit(status_surf, status_surf.get_rect(center=(cx, H - 148)))
+
             self.btn_cancel.draw(self.screen)
+
+        else:
+            # ── Status bar (no challenge active) ─────────────────────────
+            status_surf = self.font_small.render(self.status, True, (190, 190, 200))
+            self.screen.blit(status_surf, status_surf.get_rect(center=(cx, H - 40)))

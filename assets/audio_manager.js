@@ -24,6 +24,9 @@ class AudioManager {
         this._userTracks = [];
         this._uploadBtn = null;
         this._fileInput = null;
+        // ── New-track notification (polled by Python) ─────────────────────────────
+        this._newTrackAdded = false;
+        this._lastAddedIndex = -1;
         // On the first user gesture, unlock audio and replay anything that was
         // blocked by the browser's autoplay policy.
         const unlock = () => {
@@ -39,6 +42,21 @@ class AudioManager {
         ["click", "keydown", "touchstart", "pointerdown"].forEach((evt) => {
             window.addEventListener(evt, unlock, { once: false, passive: true });
         });
+    }
+    /**
+     * Explicitly unlock audio — called from Python on the first pygame event
+     * so audio starts as soon as the user interacts with the game canvas,
+     * without requiring a separate DOM click.
+     */
+    tryUnlock() {
+        if (this._unlocked) return;
+        this._unlocked = true;
+        if (this._pendingFile !== null) {
+            const file = this._pendingFile;
+            const loops = this._pendingLoops;
+            this._pendingFile = null;
+            this._playNow(file, loops);
+        }
     }
     /**
      * Load and play background music.
@@ -97,6 +115,8 @@ class AudioManager {
             this.musicEl.src = "";
             this.musicEl = null;
         }
+        // Clear any queued file so it doesn't fire unexpectedly after an unlock.
+        this._pendingFile = null;
         this._paused = false;
     }
     pauseMusic() {
@@ -157,6 +177,18 @@ class AudioManager {
         var _a, _b;
         return (_b = (_a = this._userTracks[index]) === null || _a === void 0 ? void 0 : _a.url) !== null && _b !== void 0 ? _b : "";
     }
+    /** True if a new track was added since the last clearNewTrackFlag() call. */
+    hasNewTrack() {
+        return this._newTrackAdded;
+    }
+    /** Index of the most recently added user track (within _userTracks). */
+    getLastAddedTrackIndex() {
+        return this._lastAddedIndex;
+    }
+    /** Reset the new-track flag — call from Python after auto-selecting the track. */
+    clearNewTrackFlag() {
+        this._newTrackAdded = false;
+    }
     // ── Private helpers ───────────────────────────────────────────────────────
     /**
      * Create the hidden file input and the visible upload button.
@@ -178,21 +210,24 @@ class AudioManager {
         Object.assign(this._uploadBtn.style, {
             display: "none",
             position: "fixed",
-            bottom: "24px",
+            bottom: "16px",
             left: "50%",
             transform: "translateX(-50%)",
-            padding: "10px 24px",
+            padding: "14px 36px",
             background: "#0d0d2b",
             color: "#ffffff",
             border: "2px solid #aaaaaa",
-            borderRadius: "8px",
+            borderRadius: "10px",
             fontFamily: "monospace, sans-serif",
-            fontSize: "13px",
+            fontSize: "16px",
             fontWeight: "bold",
-            letterSpacing: "2px",
+            letterSpacing: "3px",
             cursor: "pointer",
             zIndex: "9999",
             userSelect: "none",
+            minWidth: "240px",
+            textAlign: "center",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
         });
         this._uploadBtn.addEventListener("mouseenter", () => {
             if (this._uploadBtn)
@@ -216,7 +251,23 @@ class AudioManager {
         const input = this._fileInput;
         if (!((_a = input === null || input === void 0 ? void 0 : input.files) === null || _a === void 0 ? void 0 : _a.length))
             return;
+        const MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
+        const ALLOWED_TYPES = /^audio\//;
+        const ALLOWED_EXTS = /\.(mp3|ogg|wav|flac|aac|m4a|opus|webm)$/i;
         for (const file of Array.from(input.files)) {
+            // File-type check: MIME type OR extension (MIME can be empty on some OS)
+            const mimeOk = ALLOWED_TYPES.test(file.type);
+            const extOk = ALLOWED_EXTS.test(file.name);
+            if (!mimeOk && !extOk) {
+                console.warn(`[typAudio] Rejected non-audio file: ${file.name} (type: ${file.type || "unknown"})`);
+                continue;
+            }
+            // File-size check
+            if (file.size > MAX_SIZE_BYTES) {
+                const mb = (file.size / (1024 * 1024)).toFixed(1);
+                console.warn(`[typAudio] Rejected oversized file: ${file.name} (${mb} MB — limit 50 MB)`);
+                continue;
+            }
             const name = this._trackDisplayName(file.name);
             // Replace any existing track with the same display name
             const existing = this._userTracks.findIndex((t) => t.name === name);
@@ -225,6 +276,8 @@ class AudioManager {
                 this._userTracks.splice(existing, 1);
             }
             this._userTracks.push({ name, url: URL.createObjectURL(file) });
+            this._lastAddedIndex = this._userTracks.length - 1;
+            this._newTrackAdded = true;
             console.log(`[typAudio] User track added: ${name}`);
         }
         // Reset so the same file(s) can be re-selected if needed

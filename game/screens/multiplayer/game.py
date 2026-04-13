@@ -56,14 +56,20 @@ class MultiplayerGameScreen:
         self._mistake_sent  = False
         self._pending_score = None   # score queued to send after round_complete
 
+        self._paused = False
         self.font_hud  = pygame.font.Font(None, 32)
         self.font_opp  = pygame.font.Font(None, 28)
+        self.font_pause = pygame.font.Font(None, 96)
 
     # ------------------------------------------------------------------
 
     async def run(self):
         clock = pygame.time.Clock()
-        animation_utils.play_music("assets/Typ0__Main_Theme.ogg")
+        _INTRO = "assets/Typ0__Intro_Theme.ogg"
+        _MAIN  = "assets/Typ0__Main_Theme.ogg"
+        user_pick = animation_utils.get_user_music_selection()
+        if user_pick is None or user_pick == _INTRO:
+            animation_utils.play_music(_MAIN)
 
         while True:
             now = pygame.time.get_ticks()
@@ -75,7 +81,16 @@ class MultiplayerGameScreen:
                     return "quit"
 
                 if event.type == pygame.KEYDOWN:
-                    if (not self._mistake_sent
+                    if event.key == pygame.K_p:
+                        self._paused = not self._paused
+                        if self._paused:
+                            animation_utils.pause_music()
+                        else:
+                            animation_utils.unpause_music()
+                        continue
+
+                    if (not self._paused
+                            and not self._mistake_sent
                             and self.model.state == "input"):
                         for btn_name, key in self.keybinds.button_keys.items():
                             if event.key == key:
@@ -83,7 +98,8 @@ class MultiplayerGameScreen:
                                 break
 
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    if (not self._mistake_sent
+                    if (not self._paused
+                            and not self._mistake_sent
                             and self.model.state == "input"):
                         for btn_name, rect in self.view.button_rects.items():
                             if rect.collidepoint(event.pos):
@@ -127,8 +143,8 @@ class MultiplayerGameScreen:
                 self._mistake_sent = True
                 await self.client.send({"type": "mistake"})
 
-            # ── Model + timer update ─────────────────────────────────────
-            if not self._mistake_sent:
+            # ── Model + timer update (skip while paused) ─────────────────
+            if not self._paused and not self._mistake_sent:
                 entered_input = self.model.update(now)
                 if entered_input:
                     self.timer.start(now)
@@ -142,6 +158,9 @@ class MultiplayerGameScreen:
             # Waiting-for-server overlay after mistake sent
             if self._mistake_sent:
                 self._draw_waiting_overlay()
+
+            if self._paused:
+                self._draw_pause_overlay()
 
             self.screen.present()
             clock.tick(60)
@@ -180,6 +199,28 @@ class MultiplayerGameScreen:
             (W, 66),
             1,
         )
+
+    def _draw_pause_overlay(self):
+        """Semi-transparent PAUSED overlay — local only, game timer is frozen."""
+        W, H = self.screen.get_width(), self.screen.get_height()
+        cx, cy = W // 2, H // 2
+        overlay = pygame.Surface((W, H), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 160))
+        self.screen.blit(overlay, (0, 0))
+
+        panel_w, panel_h = 360, 180
+        panel_rect = pygame.Rect(cx - panel_w // 2, cy - panel_h // 2, panel_w, panel_h)
+        pygame.draw.rect(self.screen, (30, 30, 55), panel_rect, border_radius=14)
+        pygame.draw.rect(self.screen, (100, 100, 170), panel_rect, 2, border_radius=14)
+
+        shadow = self.font_pause.render("PAUSED", True, (20, 20, 40))
+        self.screen.blit(shadow, shadow.get_rect(center=(cx + 2, cy - 28)))
+        text = self.font_pause.render("PAUSED", True, (200, 200, 255))
+        self.screen.blit(text, text.get_rect(center=(cx, cy - 30)))
+
+        hint_font = pygame.font.Font(None, 30)
+        hint = hint_font.render("Press P to Resume", True, (160, 160, 210))
+        self.screen.blit(hint, hint.get_rect(center=(cx, cy + 38)))
 
     def _draw_waiting_overlay(self):
         """Semi-transparent overlay shown while awaiting server verdict."""

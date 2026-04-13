@@ -2,6 +2,7 @@ import pygame
 import asyncio
 from game.utils import animation_utils
 from game.utils.button import Button
+from assets.font_loader import FontManager
 
 
 DIFFICULTIES = ("Easy", "Normal", "Hard")
@@ -40,10 +41,11 @@ class ConfigScreen:
             difficulty_label = "Normal"
         self.difficulty = difficulty_label
 
-        self.font_title  = pygame.font.Font(None, 72)
-        self.font_label  = pygame.font.Font(None, 42)
-        self.font_btn    = pygame.font.Font(None, 36)
-        self.font_sub    = pygame.font.Font(None, 30)
+        self._fm = FontManager()
+        self.font_title  = self._fm.get_font(52)
+        self.font_label  = self._fm.get_font(34)
+        self.font_btn    = self._fm.get_font(28)
+        self.font_sub    = self._fm.get_font(22)
 
     # ------------------------------------------------------------------
     # Button factory helpers — called once on init and after each change

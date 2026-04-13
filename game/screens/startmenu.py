@@ -49,7 +49,9 @@ class StartMenu:
 
                 # Forward events to menu overlay when it's open
                 if self.menu_overlay.open or self.menu_overlay.active_submenu is not None:
-                    self.menu_overlay.handle_event(event)
+                    action = self.menu_overlay.handle_event(event)
+                    if action == "credits":
+                        return "credits"
                     continue
 
                 for btn, result in [

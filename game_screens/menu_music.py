@@ -49,6 +49,16 @@ class MusicMenu:
         # Keep current_index in bounds after a new track may have been added.
         self.current_index = max(0, min(self.current_index, len(self.songs) - 1))
 
+        # Auto-select and play the most recently uploaded track.
+        if animation_utils.has_new_user_track():
+            js_idx = animation_utils.get_last_added_track_index()
+            if js_idx >= 0:
+                song_idx = len(self._builtin_songs) + js_idx
+                if 0 <= song_idx < len(self.songs):
+                    self.current_index = song_idx
+                    self.play_music()
+            animation_utils.clear_new_track_flag()
+
     # ── Drawing ───────────────────────────────────────────────────────────────
 
     def draw(self, bg_rect):
@@ -138,4 +148,5 @@ class MusicMenu:
 
     def play_music(self):
         path = self.songs[self.current_index][1]
+        animation_utils.set_user_music_selection(path)
         animation_utils.play_music(path)
