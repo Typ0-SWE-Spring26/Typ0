@@ -61,6 +61,18 @@ class MultiplayerGameScreen:
         self.font_opp  = pygame.font.Font(None, 28)
         self.font_pause = pygame.font.Font(None, 96)
 
+    def _set_paused(self, paused: bool) -> None:
+        if paused == self._paused:
+            return
+        self._paused = paused
+        now_tick = pygame.time.get_ticks()
+        if self._paused:
+            self._bus.emit("game_paused", {"now": now_tick})
+            animation_utils.pause_music()
+        else:
+            self._bus.emit("game_resumed", {"now": now_tick})
+            animation_utils.unpause_music()
+
     # ------------------------------------------------------------------
 
     async def run(self):
@@ -82,11 +94,7 @@ class MultiplayerGameScreen:
 
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_p:
-                        self._paused = not self._paused
-                        if self._paused:
-                            animation_utils.pause_music()
-                        else:
-                            animation_utils.unpause_music()
+                        self._set_paused(not self._paused)
                         continue
 
                     if (not self._paused
