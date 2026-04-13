@@ -2,7 +2,7 @@ import pygame
 import asyncio
 from game.core.game_timer import GameTimer
 from game.utils import animation_utils
-from game.screens.credits import CreditsScreen
+from game.screens.credits import CreditsScreen  # noqa: F401 (used below)
 
 
 class GameController:
@@ -66,8 +66,15 @@ class GameController:
 
     async def run(self):
         self.model.reset()
-        animation_utils.stop_music()
-        animation_utils.play_music("assets/Typ0__Main_Theme.ogg")
+        # Only switch to the main theme if the user hasn't chosen something else
+        # during the start screen / menu.  If they picked Techno or a custom
+        # track, let it keep playing seamlessly into gameplay.
+        _INTRO = "assets/Typ0__Intro_Theme.ogg"
+        _MAIN  = "assets/Typ0__Main_Theme.ogg"
+        user_pick = animation_utils.get_user_music_selection()
+        if user_pick is None or user_pick == _INTRO:
+            animation_utils.stop_music()
+            animation_utils.play_music(_MAIN)
         clock = pygame.time.Clock()
 
         while True:
@@ -80,7 +87,7 @@ class GameController:
                 # Handle menu events
                 if self.menu_overlay:
                     was_active = self.menu_overlay.open or self.menu_overlay.active_submenu is not None
-                    self.menu_overlay.handle_event(event)
+                    menu_action = self.menu_overlay.handle_event(event)
                     is_active = self.menu_overlay.open or self.menu_overlay.active_submenu is not None
 
                     # Pause when menu opens, unpause when menu closes
@@ -90,6 +97,15 @@ class GameController:
                     elif was_active and not is_active:
                         self.paused = False
                         self._bus.emit('game_resumed', {'now': pygame.time.get_ticks()})
+
+                    if menu_action == "credits":
+                        self._set_paused(True)
+                        from game.screens.credits import CreditsScreen
+                        credits = CreditsScreen(self.screen)
+                        cr = await credits.run()
+                        if cr == "quit":
+                            return "quit"
+                        self._set_paused(False)
 
                 if event.type == pygame.KEYDOWN:
                     # P always toggles pause regardless of game state

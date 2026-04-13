@@ -255,7 +255,7 @@ class TestGameOverScreen:
 
         assert result == "retry"
 
-    def test_quit_on_q_key(self, pg_gameover):
+    def test_menu_on_q_key(self, pg_gameover):
         mock_pg, mock_screen, _ = pg_gameover
 
         ev = make_key_event(mock_pg, mock_pg.K_q)
@@ -264,9 +264,9 @@ class TestGameOverScreen:
         screen = GameOverScreen(mock_screen, score=5, reason="Wrong input!")
         result = run_async(screen.run())
 
-        assert result == "quit"
+        assert result == "menu"
 
-    def test_quit_on_escape_key(self, pg_gameover):
+    def test_menu_on_escape_key(self, pg_gameover):
         mock_pg, mock_screen, _ = pg_gameover
 
         ev = make_key_event(mock_pg, mock_pg.K_ESCAPE)
@@ -275,7 +275,7 @@ class TestGameOverScreen:
         screen = GameOverScreen(mock_screen, score=3, reason="Time's up!")
         result = run_async(screen.run())
 
-        assert result == "quit"
+        assert result == "menu"
 
     def test_stores_score_and_reason(self, pg_gameover):
         _, mock_screen, _ = pg_gameover

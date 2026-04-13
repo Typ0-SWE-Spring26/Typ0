@@ -31,6 +31,10 @@ export class AudioManager {
   private _uploadBtn: HTMLButtonElement | null = null;
   private _fileInput: HTMLInputElement | null = null;
 
+  // ── New-track notification (polled by Python) ─────────────────────────────
+  private _newTrackAdded: boolean = false;
+  private _lastAddedIndex: number = -1;
+
   constructor() {
     // On the first user gesture, unlock audio and replay anything that was
     // blocked by the browser's autoplay policy.
@@ -50,15 +54,31 @@ export class AudioManager {
   }
 
   /**
+   * Explicitly unlock audio — called from Python on the first pygame event
+   * so audio starts as soon as the user interacts with the game canvas,
+   * without requiring a separate DOM click.
+   */
+  tryUnlock(): void {
+    if (this._unlocked) return;
+    this._unlocked = true;
+    if (this._pendingFile !== null) {
+      const file = this._pendingFile;
+      const loops = this._pendingLoops;
+      this._pendingFile = null;
+      this._playNow(file, loops);
+    }
+  }
+
+  /**
    * Load and play background music.
    * loops: -1 = infinite loop, 0 = play once, n > 0 = loop n+1 times (pygame semantics)
    */
   playMusic(file: string, loops: number = -1): void {
     if (!this._unlocked) {
       // Autoplay not yet allowed — remember intent and play on first gesture
+      this.stopMusic(true);
       this._pendingFile = file;
       this._pendingLoops = loops;
-      this.stopMusic();
       return;
     }
     this._playNow(file, loops);
@@ -102,11 +122,18 @@ export class AudioManager {
     });
   }
 
-  stopMusic(): void {
+  stopMusic(clearPending: boolean = true): void {
     if (this.musicEl) {
       this.musicEl.pause();
-      this.musicEl.src = "";
+      this.musicEl.loop = false;
+      this.musicEl.currentTime = 0;
+      this.musicEl.removeAttribute("src");
+      this.musicEl.load();
       this.musicEl = null;
+    }
+    if (clearPending) {
+      // Clear any queued file so it doesn't fire unexpectedly after an unlock.
+      this._pendingFile = null;
     }
     this._paused = false;
   }
@@ -175,6 +202,26 @@ export class AudioManager {
     return this._userTracks[index]?.url ?? "";
   }
 
+  /** True if a new track was added since the last clearNewTrackFlag() call. */
+  hasNewTrack(): boolean {
+    return this._newTrackAdded;
+  }
+
+  /** Index of the most recently added user track (within _userTracks). */
+  getLastAddedTrackIndex(): number {
+    return this._lastAddedIndex;
+  }
+
+  /** Reset the new-track flag — call from Python after auto-selecting the track. */
+  clearNewTrackFlag(): void {
+    this._newTrackAdded = false;
+  }
+
+  /** True if music is currently playing (not stopped or paused). */
+  isPlaying(): boolean {
+    return this.musicEl !== null && !this._paused && !this.musicEl.paused && !this.musicEl.ended;
+  }
+
   // ── Private helpers ───────────────────────────────────────────────────────
 
   /**
@@ -198,21 +245,24 @@ export class AudioManager {
     Object.assign(this._uploadBtn.style, {
       display: "none",
       position: "fixed",
-      bottom: "24px",
+      bottom: "16px",
       left: "50%",
       transform: "translateX(-50%)",
-      padding: "10px 24px",
+      padding: "14px 36px",
       background: "#0d0d2b",
       color: "#ffffff",
       border: "2px solid #aaaaaa",
-      borderRadius: "8px",
+      borderRadius: "10px",
       fontFamily: "monospace, sans-serif",
-      fontSize: "13px",
+      fontSize: "16px",
       fontWeight: "bold",
-      letterSpacing: "2px",
+      letterSpacing: "3px",
       cursor: "pointer",
       zIndex: "9999",
       userSelect: "none",
+      minWidth: "240px",
+      textAlign: "center",
+      boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
     } as Partial<CSSStyleDeclaration>);
 
     this._uploadBtn.addEventListener("mouseenter", () => {
@@ -236,7 +286,26 @@ export class AudioManager {
     const input = this._fileInput;
     if (!input?.files?.length) return;
 
+    const MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
+    const ALLOWED_TYPES = /^audio\//;
+    const ALLOWED_EXTS  = /\.(mp3|ogg|wav|flac|aac|m4a|opus|webm)$/i;
+
     for (const file of Array.from(input.files)) {
+      // File-type check: MIME type OR extension (MIME can be empty on some OS)
+      const mimeOk = ALLOWED_TYPES.test(file.type);
+      const extOk  = ALLOWED_EXTS.test(file.name);
+      if (!mimeOk && !extOk) {
+        console.warn(`[typAudio] Rejected non-audio file: ${file.name} (type: ${file.type || "unknown"})`);
+        continue;
+      }
+
+      // File-size check
+      if (file.size > MAX_SIZE_BYTES) {
+        const mb = (file.size / (1024 * 1024)).toFixed(1);
+        console.warn(`[typAudio] Rejected oversized file: ${file.name} (${mb} MB — limit 50 MB)`);
+        continue;
+      }
+
       const name = this._trackDisplayName(file.name);
 
       // Replace any existing track with the same display name
@@ -247,6 +316,8 @@ export class AudioManager {
       }
 
       this._userTracks.push({ name, url: URL.createObjectURL(file) });
+      this._lastAddedIndex = this._userTracks.length - 1;
+      this._newTrackAdded  = true;
       console.log(`[typAudio] User track added: ${name}`);
     }
 

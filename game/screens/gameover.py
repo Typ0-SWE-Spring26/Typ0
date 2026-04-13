@@ -35,7 +35,7 @@ class GameOverScreen:
                     if event.key == pygame.K_c:
                         return "credits"
                     if event.key == pygame.K_q or event.key == pygame.K_ESCAPE:
-                        return "quit"
+                        return "menu"
 
             # Auto-switch to high scores after timeout
             elapsed = pygame.time.get_ticks() - self.start_time
@@ -71,7 +71,7 @@ class GameOverScreen:
             # Flashing prompt text
             animation_utils.flashing_text(
                 self.screen,
-                "Press R to Change Settings & Retry  |  Q to Quit",
+                "R  Retry   |   Q / ESC  Main Menu",
                 (self.screen.get_width() // 2, self.screen.get_height() - 80),
             )
 

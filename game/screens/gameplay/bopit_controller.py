@@ -50,8 +50,14 @@ class BopItController:
 
     async def run(self):
         self.model.reset()
-        animation_utils.stop_music()
-        animation_utils.play_music("assets/Typ0__Main_Theme.ogg")
+        # Preserve the user's music choice from the menu; only default to the
+        # main theme if no explicit selection was made (or they had the intro).
+        _INTRO = "assets/Typ0__Intro_Theme.ogg"
+        _MAIN  = "assets/Typ0__Main_Theme.ogg"
+        user_pick = animation_utils.get_user_music_selection()
+        if user_pick is None or user_pick == _INTRO:
+            animation_utils.stop_music()
+            animation_utils.play_music(_MAIN)
         clock = pygame.time.Clock()
 
         while True:

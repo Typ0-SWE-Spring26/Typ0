@@ -9,6 +9,24 @@ import platform as _p
 # <script> tag in index.html by the CI build process.
 _IS_WEB = sys.platform == "emscripten"
 
+# ── Music selection tracking ──────────────────────────────────────────────────
+# Tracks whether the user has explicitly chosen a music track from the in-game
+# music menu.  None means the user hasn't made a choice — gameplay will default
+# to the main theme.  A path means we should preserve that choice when
+# transitioning into gameplay.
+_user_selected_music: str | None = None
+
+
+def set_user_music_selection(path: str) -> None:
+    """Record an explicit user music choice (called from MusicMenu.play_music)."""
+    global _user_selected_music
+    _user_selected_music = path
+
+
+def get_user_music_selection() -> "str | None":
+    """Return the user's explicit track choice, or None if they haven't picked."""
+    return _user_selected_music
+
 
 def _web_audio(method, *args):
     """Call window.typAudio.<method>(*args) in the browser.
@@ -236,6 +254,48 @@ def get_user_track_url(index):
         return ""
     result = _web_audio("getUserTrackUrl", index)
     return str(result) if result is not None and result is not True else ""
+
+
+def try_unlock_audio():
+    """Explicitly unlock web audio — call on any pygame event so music starts
+    as soon as the user interacts with the game canvas."""
+    if _IS_WEB:
+        _web_audio("tryUnlock")
+
+
+def has_new_user_track():
+    """Return True if a track was uploaded since the last clear_new_track_flag()."""
+    if not _IS_WEB:
+        return False
+    result = _web_audio("hasNewTrack")
+    return bool(result) if result is not None else False
+
+
+def get_last_added_track_index():
+    """Return the _userTracks index of the most recently uploaded track."""
+    if not _IS_WEB:
+        return -1
+    result = _web_audio("getLastAddedTrackIndex")
+    try:
+        return int(result) if result is not None and result is not True else -1
+    except (TypeError, ValueError):
+        return -1
+
+
+def clear_new_track_flag():
+    """Reset the new-track flag after auto-selecting the uploaded track."""
+    if _IS_WEB:
+        _web_audio("clearNewTrackFlag")
+
+
+def is_music_playing() -> bool:
+    """Return True if music is currently playing (not stopped or paused)."""
+    if _IS_WEB:
+        result = _web_audio("isPlaying")
+        return bool(result) if result is not None else False
+    if not pygame.mixer.get_init():
+        return False
+    return bool(pygame.mixer.music.get_busy())
 
 
 def play_sound(file):

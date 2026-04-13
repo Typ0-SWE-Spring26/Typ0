@@ -44,6 +44,8 @@ def _setup_music_context(ctx, is_web=False, uploaded_tracks=None):
     ctx.mock_anim.show_upload_button = Mock()
     ctx.mock_anim.hide_upload_button = Mock()
     ctx.mock_anim.play_music = Mock()
+    ctx.mock_anim.has_new_user_track.return_value = False
+    ctx.mock_anim.get_last_added_track_index.return_value = -1
 
     ctx.screen = Mock()
     ctx.screen.blit = Mock()

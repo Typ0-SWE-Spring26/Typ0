@@ -18,6 +18,8 @@ class StartScreen:
 
         while self.running:
             for event in pygame.event.get():
+                # Any pygame event means the user has interacted — unlock web audio.
+                animation_utils.try_unlock_audio()
                 if event.type == pygame.QUIT:
                     return "quit"
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:

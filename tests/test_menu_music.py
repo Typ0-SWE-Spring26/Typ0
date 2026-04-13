@@ -242,6 +242,17 @@ class TestUploadButtonLifecycle:
         mock_show.assert_called_once()
         assert menu._upload_btn_visible is True
 
+    def test_draw_syncs_user_tracks_every_web_frame(self):
+        menu = _make_menu()
+        menu._upload_btn_visible = True
+        with patch.object(animation_utils, "_IS_WEB", True), \
+             patch.object(menu, "_sync_user_tracks") as mock_sync, \
+             patch.object(animation_utils, "show_upload_button"):
+            bg = Mock(); bg.centerx = 400; bg.centery = 300
+            bg.top = 100; bg.bottom = 500
+            menu.draw(bg)
+        mock_sync.assert_called_once()
+
     def test_draw_does_not_show_button_again_on_subsequent_frames(self):
         menu = _make_menu()
         menu._upload_btn_visible = True  # already shown

@@ -13,15 +13,15 @@ Feature: Game Over Flow
     When the player presses C
     Then the game over screen should return "credits"
 
-  Scenario: Game over screen returns quit on Q key
+  Scenario: Game over screen returns menu on Q key
     Given a game over screen with score 10
     When the player presses Q
-    Then the game over screen should return "quit"
+    Then the game over screen should return "menu"
 
-  Scenario: Game over screen returns quit on ESC key
+  Scenario: Game over screen returns menu on ESC key
     Given a game over screen with score 10
     When the player presses ESC
-    Then the game over screen should return "quit"
+    Then the game over screen should return "menu"
 
   Scenario: Game over auto-switches to high scores after 10 seconds
     Given a game over screen with score 10
@@ -36,7 +36,7 @@ Feature: Game Over Flow
     When the player presses R
     Then the high scores screen should return "retry"
 
-  Scenario: High scores screen returns quit on ESC key
+  Scenario: High scores screen returns menu on ESC key
     Given a high scores screen
     When the player presses ESC
-    Then the high scores screen should return "quit"
+    Then the high scores screen should return "menu"

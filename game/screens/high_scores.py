@@ -37,7 +37,7 @@ class HighScoresScreen:
                         event.key == pygame.K_ESCAPE
                         or event.key == pygame.K_q
                     ):
-                        return "quit"
+                        return "menu"
 
             animation_utils.draw_gradient(
                 self.screen, self.gradient_top, self.gradient_bottom
@@ -118,7 +118,7 @@ class HighScoresScreen:
             # Prompt
             animation_utils.flashing_text(
                 self.screen,
-                "Press R to Retry  |  ESC to Quit",
+                "R  Retry  |  ESC  Main Menu",
                 (cx, self.screen.get_height() - 50),
             )
 
