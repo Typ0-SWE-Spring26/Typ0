@@ -76,9 +76,9 @@ export class AudioManager {
   playMusic(file: string, loops: number = -1): void {
     if (!this._unlocked) {
       // Autoplay not yet allowed — remember intent and play on first gesture
+      this.stopMusic(true);
       this._pendingFile = file;
       this._pendingLoops = loops;
-      this.stopMusic();
       return;
     }
     this._playNow(file, loops);
@@ -122,14 +122,19 @@ export class AudioManager {
     });
   }
 
-  stopMusic(): void {
+  stopMusic(clearPending: boolean = true): void {
     if (this.musicEl) {
       this.musicEl.pause();
-      this.musicEl.src = "";
+      this.musicEl.loop = false;
+      this.musicEl.currentTime = 0;
+      this.musicEl.removeAttribute("src");
+      this.musicEl.load();
       this.musicEl = null;
     }
-    // Clear any queued file so it doesn't fire unexpectedly after an unlock.
-    this._pendingFile = null;
+    if (clearPending) {
+      // Clear any queued file so it doesn't fire unexpectedly after an unlock.
+      this._pendingFile = null;
+    }
     this._paused = false;
   }
 

@@ -66,6 +66,8 @@ class MusicMenu:
         if animation_utils._IS_WEB and not self._upload_btn_visible:
             self._upload_btn_visible = True
             animation_utils.show_upload_button()
+
+        if animation_utils._IS_WEB:
             self._sync_user_tracks()
 
         # Title

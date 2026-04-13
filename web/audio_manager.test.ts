@@ -12,8 +12,10 @@ function makeMockAudio() {
     currentTime: 0,
     play: vi.fn().mockResolvedValue(undefined),
     pause: vi.fn(),
+    load: vi.fn(),
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
+    removeAttribute: vi.fn(),
   };
 }
 
@@ -136,7 +138,22 @@ describe("playMusic", () => {
     const first = nthAudio(0);
     manager.playMusic("second.ogg");
     expect(first.pause).toHaveBeenCalledOnce();
-    expect(first.src).toBe("");
+    expect(first.removeAttribute).toHaveBeenCalledWith("src");
+    expect(first.load).toHaveBeenCalledOnce();
+  });
+
+  it("queues music when autoplay is still locked", () => {
+    (manager as any)._unlocked = false;
+
+    manager.playMusic("queued.ogg", 0);
+
+    expect((manager as any)._pendingFile).toBe("queued.ogg");
+    expect((manager as any)._pendingLoops).toBe(0);
+
+    // Keep the shared window listeners from replaying this queued track in
+    // later tests when the global click unlock fires again.
+    (manager as any)._pendingFile = null;
+    (manager as any)._unlocked = true;
   });
 });
 
@@ -148,7 +165,8 @@ describe("stopMusic", () => {
     const audio = nthAudio(0);
     manager.stopMusic();
     expect(audio.pause).toHaveBeenCalledOnce();
-    expect(audio.src).toBe("");
+    expect(audio.removeAttribute).toHaveBeenCalledWith("src");
+    expect(audio.load).toHaveBeenCalledOnce();
   });
 
   it("is safe to call with no active music", () => {
