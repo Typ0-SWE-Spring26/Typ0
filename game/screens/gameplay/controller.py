@@ -17,6 +17,7 @@ class GameController:
         self.pause_overlay = pause_overlay
         self.menu_overlay = menu_overlay
         self.paused = False
+        self._menu_forced_pause = False
 
         self.game_timer = GameTimer(self._bus)
         self._bus.subscribe('timer_expired', self.model.on_timer_expired)
@@ -92,11 +93,12 @@ class GameController:
 
                     # Pause when menu opens, unpause when menu closes
                     if is_active and not was_active:
-                        self.paused = True
-                        self._bus.emit('game_paused', {'now': pygame.time.get_ticks()})
+                        self._menu_forced_pause = True
+                        self._set_paused(True)
                     elif was_active and not is_active:
-                        self.paused = False
-                        self._bus.emit('game_resumed', {'now': pygame.time.get_ticks()})
+                        if self._menu_forced_pause:
+                            self._menu_forced_pause = False
+                            self._set_paused(False)
 
                     if menu_action == "credits":
                         self._set_paused(True)
@@ -133,9 +135,12 @@ class GameController:
 
             # Sync pause state with menu overlay
             if self._menu_is_open:
-                self._set_paused(True)
-            elif self.paused and self.menu_overlay and not self.menu_overlay.open and self.menu_overlay.active_submenu is None:
-                # Menu just closed — unpause
+                if not self._menu_forced_pause:
+                    self._menu_forced_pause = True
+                    self._set_paused(True)
+            elif self._menu_forced_pause:
+                # Menu-owned pause should clear when the overlay closes.
+                self._menu_forced_pause = False
                 self._set_paused(False)
 
             # After the wrong-input press-flash expires, hand off to game over

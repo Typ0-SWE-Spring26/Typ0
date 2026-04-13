@@ -17,6 +17,7 @@ class BopItController:
         self.pause_overlay = pause_overlay
         self.menu_overlay = menu_overlay
         self.paused = False
+        self._menu_forced_pause = False
 
         self.game_timer = GameTimer(self._bus)
         self._bus.subscribe('timer_expired', self.model.on_timer_expired)
@@ -68,7 +69,18 @@ class BopItController:
                     return "quit"
 
                 if self.menu_overlay:
+                    was_active = self.menu_overlay.open or self.menu_overlay.active_submenu is not None
                     menu_action = self.menu_overlay.handle_event(event)
+                    is_active = self.menu_overlay.open or self.menu_overlay.active_submenu is not None
+
+                    if is_active and not was_active:
+                        self._menu_forced_pause = True
+                        self._set_paused(True)
+                    elif was_active and not is_active:
+                        if self._menu_forced_pause:
+                            self._menu_forced_pause = False
+                            self._set_paused(False)
+
                     if menu_action == "credits":
                         self._set_paused(True)
                         credits = CreditsScreen(self.screen)
@@ -100,8 +112,11 @@ class BopItController:
 
             # Sync pause state with menu overlay
             if self._menu_is_open:
-                self._set_paused(True)
-            elif self.paused and self.menu_overlay and not self.menu_overlay.open and self.menu_overlay.active_submenu is None:
+                if not self._menu_forced_pause:
+                    self._menu_forced_pause = True
+                    self._set_paused(True)
+            elif self._menu_forced_pause:
+                self._menu_forced_pause = False
                 self._set_paused(False)
 
             if self.model.state == 'gameover' and now >= self.model.flash_end:

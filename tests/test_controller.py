@@ -435,6 +435,33 @@ class TestPause:
 
         overlay.draw.assert_called_once()
 
+    def test_p_pause_persists_with_closed_menu_overlay(self, pg, model, view, bus, keybinds):
+        screen = Mock()
+        screen.remap_event.side_effect = lambda event: event
+
+        menu_overlay = Mock()
+        menu_overlay.open = False
+        menu_overlay.active_submenu = None
+        menu_overlay.handle_event.return_value = None
+
+        controller = GameController(
+            screen,
+            model,
+            view,
+            bus,
+            keybinds,
+            menu_overlay=menu_overlay,
+        )
+
+        p_event = make_key_event(pg, pg.K_p)
+        quit_event = make_quit_event(pg)
+        pg.event.get.side_effect = [[p_event], [quit_event]]
+
+        result = asyncio.run(controller.run())
+
+        assert result == "quit"
+        assert controller.paused is True
+
 
 # ======================================================================
 # #37 — Gameplay Mechanics
