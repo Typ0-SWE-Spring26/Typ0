@@ -288,6 +288,16 @@ def clear_new_track_flag():
         _web_audio("clearNewTrackFlag")
 
 
+def is_music_playing() -> bool:
+    """Return True if music is currently playing (not stopped or paused)."""
+    if _IS_WEB:
+        result = _web_audio("isPlaying")
+        return bool(result) if result is not None else False
+    if not pygame.mixer.get_init():
+        return False
+    return bool(pygame.mixer.music.get_busy())
+
+
 def play_sound(file):
     """Play a one-shot sound effect."""
     if _IS_WEB:

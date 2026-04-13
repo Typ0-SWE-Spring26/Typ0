@@ -18,6 +18,9 @@ class StartMenu:
         self.font_btn = pygame.font.Font(None, 36)
 
     async def run(self):
+        # Restart the intro theme if music stopped (e.g. after the ending riff played on game over)
+        if not animation_utils.is_music_playing():
+            animation_utils.play_music("assets/Typ0__Intro_Theme.ogg")
         clock = pygame.time.Clock()
         W = self.screen.get_width()
         H = self.screen.get_height()

@@ -189,6 +189,10 @@ class AudioManager {
     clearNewTrackFlag() {
         this._newTrackAdded = false;
     }
+    /** True if music is currently playing (not stopped or paused). */
+    isPlaying() {
+        return this.musicEl !== null && !this._paused && !this.musicEl.paused && !this.musicEl.ended;
+    }
     // ── Private helpers ───────────────────────────────────────────────────────
     /**
      * Create the hidden file input and the visible upload button.
