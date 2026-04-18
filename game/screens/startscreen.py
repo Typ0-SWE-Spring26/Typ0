@@ -31,8 +31,15 @@ class StartScreen:
             animation_utils.draw_gradient(self.screen, self.gradient_top, self.gradient_bottom)
 
             # Draw the wave title text
-            animation_utils.wave_text(self.screen, "TYP0!", (self.screen.get_width() // 2, 200), font_size=128)
-
+            #animation_utils.wave_text(self.screen, "TYP0!", (self.screen.get_width() // 2, 200), font_size=128)
+            animation_utils.draw_gradient(self.screen, self.gradient_top, self.gradient_bottom)
+            logo = pygame.image.load('assets/typoLogo.png').convert_alpha()
+            oldw=logo.get_width()
+            oldh=logo.get_height()
+            logo=pygame.transform.smoothscale(logo,((oldw//1.3),(oldh//1.3)))
+            logo_rect=logo.get_rect()
+            logo_rect.center=(self.screen.get_width() // 2, 200)
+            self.screen.blit(logo, logo_rect)
             # Draw loading bar and check if complete
             loading_complete = animation_utils.loading_bar(
                 self.screen,
