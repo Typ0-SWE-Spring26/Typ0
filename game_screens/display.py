@@ -26,6 +26,7 @@ class GameScreen:
     }
 
     def __init__(self, screen):
+        
         self.screen = screen
         self.menu = MenuOverlay(screen) # menu
         # Load brick background
@@ -47,8 +48,8 @@ class GameScreen:
 
         # Button layout — d-pad cross centered slightly above mid, space below
         cx, cy = W // 2, H // 2 - 40
-        s = 90    # arrow button size
-        gap = 120  # center-to-center distance
+        s = 180    # arrow button size
+        gap = 200  # center-to-center distance
 
         self.button_rects = {
             'up':    pygame.Rect(cx - s // 2,       cy - gap - s // 2, s, s),
@@ -78,6 +79,7 @@ class GameScreen:
     # ------------------------------------------------------------------
 
     async def run(self):
+        
         clock = pygame.time.Clock()
 
         while True:

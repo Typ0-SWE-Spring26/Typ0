@@ -13,7 +13,7 @@ class GameScreen:
       keybinds   — a KeybindManager supplying button_keys and key_labels.
       difficulty — 'easy', 'normal', or 'hard' (default 'normal').
     """
-
+    
     def __init__(self, screen, keybinds, pause_overlay=None, difficulty: str = 'normal'):
         self._bus = EventBus()
         self.model = GameModel(self._bus, difficulty=difficulty)
