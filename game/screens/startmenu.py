@@ -55,6 +55,8 @@ class StartMenu:
                     action = self.menu_overlay.handle_event(event)
                     if action == "credits":
                         return "credits"
+                    if action == "how_to_play":
+                        return "how_to_play"
                     continue
 
                 for btn, result in [
@@ -85,6 +87,15 @@ class StartMenu:
             self.btn_bopit.draw(self.screen)
             self.btn_multi.draw(self.screen)
             self.btn_settings.draw(self.screen)
+
+            # Hint that high-score leaderboards exist — shown after every game.
+            hint_font = pygame.font.Font(None, 24)
+            hint_surf = hint_font.render(
+                "",
+                True,
+                (220, 200, 110),
+            )
+            self.screen.blit(hint_surf, hint_surf.get_rect(center=(cx, H - 30)))
 
             # Draw menu overlay on top if open
             if self.menu_overlay.open or self.menu_overlay.active_submenu is not None:

@@ -151,4 +151,8 @@ class MusicMenu:
     def play_music(self):
         path = self.songs[self.current_index][1]
         animation_utils.set_user_music_selection(path)
+        # Don't start a new track while the music menu is locked (e.g. the
+        # game-over riff must be allowed to play through uninterrupted).
+        if animation_utils.is_music_menu_locked():
+            return
         animation_utils.play_music(path)

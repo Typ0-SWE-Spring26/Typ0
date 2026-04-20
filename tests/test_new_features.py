@@ -10,6 +10,7 @@ Covers:
   - Gameover returns "menu" on Q/ESC (regression guard)
   - Credits screen: Back button and ESC both return "back"
   - Startmenu forwards "credits" from menu overlay
+    - Startmenu forwards "how_to_play" from menu overlay
 """
 import sys
 import asyncio
@@ -566,3 +567,43 @@ class TestStartmenuCreditsForwarding:
             result = run_async(menu.run())
 
         assert result == "credits"
+
+    def test_handle_event_how_to_play_is_forwarded(self):
+        """menu_overlay.handle_event returning 'how_to_play' should route
+        StartMenu.run() to the dedicated How To Play screen."""
+        import game.screens.startmenu as startmenu_mod
+
+        mock_pg = MagicMock()
+        mock_pg.QUIT = 256
+        mock_pg.KEYDOWN = 768
+        mock_pg.MOUSEBUTTONDOWN = 1025
+        mock_pg.K_w = 119
+        mock_pg.time.Clock.return_value = Mock()
+        mock_pg.key.get_pressed.return_value = {mock_pg.K_w: False}
+
+        mock_screen = Mock()
+        mock_screen.get_width.return_value = 800
+        mock_screen.get_height.return_value = 600
+
+        click_ev = Mock()
+        click_ev.type = mock_pg.MOUSEBUTTONDOWN
+        click_ev.button = 1
+        click_ev.pos = (400, 300)
+
+        mock_anim = MagicMock()
+        mock_menu_overlay = MagicMock()
+        mock_menu_overlay.open = True
+        mock_menu_overlay.active_submenu = None
+        mock_menu_overlay.handle_event.return_value = "how_to_play"
+
+        from game.screens.startmenu import StartMenu
+
+        with patch.object(startmenu_mod, "pygame", mock_pg), \
+             patch.object(startmenu_mod, "animation_utils", mock_anim), \
+             patch.object(startmenu_mod, "MenuOverlay", return_value=mock_menu_overlay), \
+             patch.object(startmenu_mod, "Button", return_value=MagicMock(handle_event=Mock(return_value=False))):
+            mock_pg.event.get.return_value = [click_ev]
+            menu = StartMenu(mock_screen)
+            result = run_async(menu.run())
+
+        assert result == "how_to_play"

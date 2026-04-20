@@ -12,7 +12,6 @@ def menu_overlay():
     with patch("game.screens.menu.pygame") as mock_pg, \
          patch("game_screens.menu_volume.pygame") as mock_vol_pg, \
          patch("game_screens.menu_music.pygame") as mock_music_pg, \
-         patch("game_screens.menu_about.pygame") as mock_about_pg, \
          patch("assets.font_loader.pygame") as mock_font_pg:
         
         screen = Mock()
@@ -24,7 +23,7 @@ def menu_overlay():
         mock_font.render.return_value = Mock(get_rect=Mock(return_value=Mock()))
         
         # Setup font mocking for all modules
-        for pg_mock in [mock_pg, mock_vol_pg, mock_music_pg, mock_about_pg, mock_font_pg]:
+        for pg_mock in [mock_pg, mock_vol_pg, mock_music_pg, mock_font_pg]:
             pg_mock.font.SysFont.return_value = mock_font
             pg_mock.font.Font.return_value = mock_font
 
@@ -51,7 +50,7 @@ def menu_overlay():
                 collidepoint=Mock(return_value=False),
             )
         
-        for pg_mock in [mock_pg, mock_vol_pg, mock_music_pg, mock_about_pg]:
+        for pg_mock in [mock_pg, mock_vol_pg, mock_music_pg]:
             pg_mock.Rect.side_effect = make_rect
             pg_mock.MOUSEBUTTONDOWN = 1
             pg_mock.MOUSEBUTTONUP = 2
@@ -133,14 +132,16 @@ def test_click_music_opens_submenu_when_open(menu_overlay):
     assert overlay.open is False
 
 
-def test_click_about_returns_label_when_open(menu_overlay):
+def test_click_about_routes_to_how_to_play_when_open(menu_overlay):
     overlay, mock_pg, _ = menu_overlay
     overlay.open = True
     overlay.about_rect.collidepoint.return_value = True
 
     result = overlay.handle_event(_mouse_event(mock_pg, overlay.about_rect.center))
 
-    assert result == "credits"
+    assert result == "how_to_play"
+    assert overlay.active_submenu is None
+    assert overlay.open is False
 
 
 def test_click_option_when_closed_returns_none(menu_overlay):
