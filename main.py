@@ -132,6 +132,7 @@ async def _run_single_player_post_game(screen, game_mode, score, reason, hs_name
 
 
 async def _run_single_player(screen, keybinds, game_mode):
+    
     """Run config -> gameplay -> post-game loop for one single-player mode."""
     pause_overlay = PauseOverlay(screen)
 

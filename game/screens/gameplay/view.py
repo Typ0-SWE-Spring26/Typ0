@@ -16,6 +16,7 @@ class GameView:
     }
 
     def __init__(self, screen, key_labels):
+
         self.screen = screen
         self.key_labels = key_labels
         W, H = screen.get_width(), screen.get_height()
@@ -33,15 +34,14 @@ class GameView:
 
         # Button layout — tight d-pad cross centered slightly above mid, space below
         cx, cy = W // 2, H // 2 - 40
-        s = 90    # arrow button size
-        gap = 100  # center-to-center distance
-
+        spah = 210; #height of space bar
+        spaw = 305; #width of space bar
         self.button_rects = {
-            'up':    pygame.Rect(cx - s // 2,       cy - gap - s // 2, s, s),
-            'down':  pygame.Rect(cx - s // 2,       cy + gap - s // 2, s, s),
-            'left':  pygame.Rect(cx - gap - s // 2, cy - s // 2,       s, s),
-            'right': pygame.Rect(cx + gap - s // 2, cy - s // 2,       s, s),
-            'space': pygame.Rect(cx - 110,          cy + gap + 60,     220, 55),
+            'up':    pygame.Rect(0, H//8, W, cy-(spah//2)+20),
+            'down':  pygame.Rect(0, cy +spah-10, W, cy-(spah//2)+20),
+            'left':  pygame.Rect(0,H//8, cx-155, H-40),
+            'right': pygame.Rect(cx+(spaw//2)-2, H//8, cx-155, H-40),
+            'space': pygame.Rect(cx - 155, cy-10, spaw, spah),
         }
 
         # Pre-scale every state to its rect size once
@@ -54,7 +54,7 @@ class GameView:
             }
 
         self.font_small = pygame.font.SysFont(None, 32)
-        self.font_label = pygame.font.SysFont(None, 26)
+        self.font_label = pygame.font.SysFont(None, 50)
 
     def draw(self, model, timer_fraction):
         """Render one frame based on current model state."""

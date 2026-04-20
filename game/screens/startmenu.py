@@ -73,8 +73,13 @@ class StartMenu:
 
             # Draw gradient background
             animation_utils.draw_gradient(self.screen, self.gradient_top, self.gradient_bottom)
-            menu_text = self.font_large.render("Welcome to TYP0!", True, (255, 255, 255))
-            self.screen.blit(menu_text, menu_text.get_rect(center=(cx, H // 4)))
+            logo = pygame.image.load('assets/typoLogo.png').convert_alpha()
+            oldw=logo.get_width()
+            oldh=logo.get_height()
+            logo=pygame.transform.smoothscale(logo,((oldw//2),(oldh//2)))
+            logo_rect=logo.get_rect()
+            logo_rect.center=(cx, H//5)
+            self.screen.blit(logo, logo_rect)
 
             self.btn_simon.draw(self.screen)
             self.btn_bopit.draw(self.screen)
