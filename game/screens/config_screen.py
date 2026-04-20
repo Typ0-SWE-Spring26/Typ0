@@ -20,7 +20,14 @@ class ConfigScreen:
     GRADIENT_TOP    = (25, 25, 112)
     GRADIENT_BOTTOM = (48, 25, 52)
 
-    # Highlighted difficulty button colours
+    # Per-difficulty button colours (shown when a level is selected)
+    DIFFICULTY_COLORS = {
+        "Easy":   ((60, 140,  90), (80, 170, 115)),
+        "Normal": ((80, 120, 200), (100, 145, 225)),
+        "Hard":   ((180, 70,  70), (210, 95,  95)),
+    }
+
+    # Fallback used for the inverted-controls toggle when selected
     SEL_COLOR       = (80, 120, 200)
     SEL_HOVER_COLOR = (100, 145, 225)
 
@@ -61,9 +68,11 @@ class ConfigScreen:
 
         diff_btns = {}
         for label, rect in diff_rects.items():
-            is_sel      = (label == self.difficulty)
-            color       = self.SEL_COLOR       if is_sel else None
-            hover_color = self.SEL_HOVER_COLOR if is_sel else None
+            is_sel = (label == self.difficulty)
+            if is_sel:
+                color, hover_color = self.DIFFICULTY_COLORS[label]
+            else:
+                color, hover_color = None, None
             diff_btns[label] = Button(rect, label, self.font_btn,
                                       color=color, hover_color=hover_color)
 
@@ -105,11 +114,19 @@ class ConfigScreen:
             invert_rect, diff_rects, back_rect, start_rect
         )
 
-        hints = {
-            "Easy":   "Slower pacing — great for beginners",
-            "Normal": "Balanced speed and challenge",
-            "Hard":   "Fast pace — for experienced players",
-        }
+        if self.game_mode == "simon":
+            hints = {
+                "Easy":   "12s per round  -  slow flashes  -  for beginners",
+                "Normal": "8s per round  -  balanced pacing",
+                "Hard":   "4s per round  -  lightning flashes",
+            }
+        else:
+            hints = {
+                "Easy":   "Up to 7s per command  -  gentle speedup",
+                "Normal": "Up to 5s per command  -  steady speedup",
+                "Hard":   "Up to 3.5s per command  -  rapid speedup",
+            }
+        challenge_stars = {"Easy": "*", "Normal": "* *", "Hard": "* * *"}
         mode_label = "Simon Mode" if self.game_mode == "simon" else "Bop It Mode"
 
         while True:
@@ -163,8 +180,12 @@ class ConfigScreen:
             for btn in diff_btns.values():
                 btn.draw(self.screen)
 
-            hint_surf = self.font_sub.render(hints[self.difficulty], True, (160, 160, 200))
-            self.screen.blit(hint_surf, hint_surf.get_rect(center=(cx, diff_y + 80)))
+            star_color = self.DIFFICULTY_COLORS[self.difficulty][1]
+            stars_surf = self.font_label.render(challenge_stars[self.difficulty], True, star_color)
+            self.screen.blit(stars_surf, stars_surf.get_rect(center=(cx, diff_y + 80)))
+
+            hint_surf = self.font_sub.render(hints[self.difficulty], True, (180, 180, 220))
+            self.screen.blit(hint_surf, hint_surf.get_rect(center=(cx, diff_y + 108)))
 
             btn_back.draw(self.screen)
             btn_start.draw(self.screen)

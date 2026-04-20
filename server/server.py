@@ -266,6 +266,37 @@ async def handle_get_scores(request: web.Request) -> web.Response:
     )
 
 
+async def handle_close_connections(request: web.Request) -> web.Response:
+    """Administratively close WebSocket connections.
+
+    POST /admin/close                -> close every active connection
+    POST /admin/close/{name}         -> close a single player by name
+    """
+    target = request.match_info.get("name")
+    closed = []
+
+    # Snapshot first so mutations from the finally block in handler() don't
+    # invalidate the iteration.
+    if target:
+        ws = _players.get(target)
+        candidates = [(target, ws)] if ws else []
+    else:
+        candidates = list(_players.items())
+
+    for name, ws in candidates:
+        try:
+            await ws.close(code=1001, reason="Server requested close")
+            closed.append(name)
+        except Exception:
+            pass
+
+    return web.Response(
+        text=json.dumps({"closed": closed}),
+        content_type="application/json",
+        headers=CORS_HEADERS,
+    )
+
+
 async def handle_post_score(request: web.Request) -> web.Response:
     game_type = request.match_info["game_type"]
     if game_type not in VALID_GAME_TYPES:
@@ -302,6 +333,10 @@ def _build_http_app() -> web.Application:
     app.router.add_route("OPTIONS", "/scores/{game_type}", handle_options)
     app.router.add_get("/scores/{game_type}", handle_get_scores)
     app.router.add_post("/scores/{game_type}", handle_post_score)
+    app.router.add_route("OPTIONS", "/admin/close", handle_options)
+    app.router.add_route("OPTIONS", "/admin/close/{name}", handle_options)
+    app.router.add_post("/admin/close", handle_close_connections)
+    app.router.add_post("/admin/close/{name}", handle_close_connections)
     return app
 
 

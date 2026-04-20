@@ -133,14 +133,18 @@ def test_click_music_opens_submenu_when_open(menu_overlay):
     assert overlay.open is False
 
 
-def test_click_about_returns_label_when_open(menu_overlay):
+def test_click_about_opens_submenu_when_open(menu_overlay):
     overlay, mock_pg, _ = menu_overlay
     overlay.open = True
     overlay.about_rect.collidepoint.return_value = True
 
     result = overlay.handle_event(_mouse_event(mock_pg, overlay.about_rect.center))
 
-    assert result == "credits"
+    # ABOUT now opens its own submenu (controls/info) rather than jumping
+    # straight to credits — the credits screen is reachable via the submenu.
+    assert result is None
+    assert overlay.active_submenu == "about"
+    assert overlay.open is False
 
 
 def test_click_option_when_closed_returns_none(menu_overlay):

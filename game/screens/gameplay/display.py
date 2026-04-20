@@ -19,8 +19,8 @@ class GameScreen:
         self.model = GameModel(self._bus, difficulty=difficulty)
         self.keybinds = keybinds
 
-        # Create menu overlay
-        menu_overlay = MenuOverlay(screen)
+        # Create menu overlay (gameplay menu: include Switch Mode button)
+        menu_overlay = MenuOverlay(screen, game_mode="simon")
 
         self.view = GameView(screen, keybinds.key_labels)
         self.controller = GameController(

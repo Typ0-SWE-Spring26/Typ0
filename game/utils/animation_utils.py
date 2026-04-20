@@ -28,6 +28,21 @@ def get_user_music_selection() -> "str | None":
     return _user_selected_music
 
 
+# ── Music override lock ──────────────────────────────────────────────────────
+# When True, the in-game music menu must not start a new track (used on the
+# game-over screen so the ending riff isn't clobbered by a user track pick).
+_music_menu_locked: bool = False
+
+
+def set_music_menu_locked(locked: bool) -> None:
+    global _music_menu_locked
+    _music_menu_locked = bool(locked)
+
+
+def is_music_menu_locked() -> bool:
+    return _music_menu_locked
+
+
 def _web_audio(method, *args):
     """Call window.typAudio.<method>(*args) in the browser.
 
