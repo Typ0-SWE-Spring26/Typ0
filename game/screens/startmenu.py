@@ -55,6 +55,8 @@ class StartMenu:
                     action = self.menu_overlay.handle_event(event)
                     if action == "credits":
                         return "credits"
+                    if action == "how_to_play":
+                        return "how_to_play"
                     continue
 
                 for btn, result in [

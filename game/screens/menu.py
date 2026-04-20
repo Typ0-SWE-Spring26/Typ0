@@ -2,7 +2,6 @@ import pygame
 import os 
 from game_screens.menu_volume import VolumeMenu
 from game_screens.menu_music import MusicMenu
-from game_screens.menu_about import AboutMenu
 from assets.font_loader import FontManager
 
 class MenuOverlay:
@@ -85,7 +84,6 @@ class MenuOverlay:
         # Initialize submenus
         self.volume_menu = VolumeMenu(screen, self.font_manager)
         self.music_menu = MusicMenu(screen, self.font_manager)
-        self.about_menu = AboutMenu(screen, self.font_manager)
         self.active_submenu = None
 
     def draw(self):
@@ -116,13 +114,11 @@ class MenuOverlay:
             self.volume_menu.draw(self.bg_rect)
         elif self.active_submenu == "music":
             self.music_menu.draw(self.bg_rect)
-        elif self.active_submenu == "about":
-            self.about_menu.draw(self.bg_rect)
         elif self.open:
             items = [
                 (self.volume_rect, "VOLUME"),
                 (self.music_rect,  "MUSIC"),
-                (self.about_rect,  "ABOUT"),
+                (self.about_rect,  "HOW TO PLAY"),
             ]
             if self.switch_rect is not None and self._switch_label:
                 items.append((self.switch_rect, self._switch_label))
@@ -165,17 +161,6 @@ class MenuOverlay:
                 self.open = True
             return None
 
-        if self.active_submenu == "about":
-            result = self.about_menu.handle_event(event)
-            if result == "Back":
-                self.active_submenu = None
-                self.open = True
-            elif result == "credits":
-                self.active_submenu = None
-                self.open = False
-                return "credits"
-            return None
-
         # Main menu clicks
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.button_rect.collidepoint(event.pos):
@@ -192,9 +177,8 @@ class MenuOverlay:
                     self.open = False
                     return None
                 if self.about_rect.collidepoint(event.pos):
-                    self.active_submenu = "about"
                     self.open = False
-                    return None
+                    return "how_to_play"
                 if self.switch_rect is not None and self.switch_rect.collidepoint(event.pos):
                     self.open = False
                     return "switch_mode"

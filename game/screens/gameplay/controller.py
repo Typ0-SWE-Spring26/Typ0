@@ -3,6 +3,7 @@ import asyncio
 from game.core.game_timer import GameTimer
 from game.utils import animation_utils
 from game.screens.credits import CreditsScreen  # noqa: F401 (used below)
+from game.screens.how_to_play import HowToPlayScreen
 
 
 class GameController:
@@ -126,6 +127,19 @@ class GameController:
                         cr = await credits.run()
                         if cr == "quit":
                             return "quit"
+                        self._exit_overlay_screen()
+
+                    if menu_action == "how_to_play":
+                        self._set_paused(True)
+                        how_to_play = HowToPlayScreen(self.screen)
+                        how_result = await how_to_play.run()
+                        if how_result == "quit":
+                            return "quit"
+                        if how_result == "credits":
+                            credits = CreditsScreen(self.screen)
+                            cr = await credits.run()
+                            if cr == "quit":
+                                return "quit"
                         self._exit_overlay_screen()
 
                     if menu_action == "switch_mode":

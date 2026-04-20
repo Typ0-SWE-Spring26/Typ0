@@ -16,6 +16,7 @@ from game.screens.gameplay.display import GameScreen
 from game.screens.gameplay.bopit_display import BopItScreen
 from game.screens.gameover import GameOverScreen
 from game.screens.credits import CreditsScreen
+from game.screens.how_to_play import HowToPlayScreen
 from game.screens.name_entry import NameEntryScreen
 from game.screens.high_scores import HighScoresScreen
 from game.core.keybinds import KeybindManager
@@ -237,6 +238,19 @@ async def main():
                     if cr == "quit":
                         result = "quit"
                         break
+                    continue  # back to menu
+                if result == "how_to_play":
+                    how_to_play = HowToPlayScreen(screen)
+                    about_result = await how_to_play.run()
+                    if about_result == "quit":
+                        result = "quit"
+                        break
+                    if about_result == "credits":
+                        credits = CreditsScreen(screen)
+                        cr = await credits.run()
+                        if cr == "quit":
+                            result = "quit"
+                            break
                     continue  # back to menu
                 break  # "start_simon", "start_bopit", "multiplayer", or "quit"
 
