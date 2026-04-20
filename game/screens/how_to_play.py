@@ -103,6 +103,44 @@ class HowToPlayScreen:
         pygame.draw.circle(glow, (92, 220, 180, 28), (int(w * 0.82), int(h * 0.78)), int(min(w, h) * 0.28))
         self.screen.blit(glow, (0, 0))
 
+    def _wrap_text(self, text, size, max_width):
+        words = text.split()
+        if not words:
+            return []
+
+        lines = []
+        current = words[0]
+
+        for word in words[1:]:
+            candidate = f"{current} {word}"
+            if self._fm.render_text(candidate, self._TEXT_MAIN, size).get_width() <= max_width:
+                current = candidate
+            else:
+                lines.append(current)
+                current = word
+
+        lines.append(current)
+        return lines
+
+    def _draw_wrapped_text(self, text, x, y, max_width, size, color, line_gap=2):
+        lines = self._wrap_text(text, size, max_width)
+        if not lines:
+            return y
+
+        for line in lines:
+            surf = self._fm.render_text(line, color, size)
+            self.screen.blit(surf, surf.get_rect(topleft=(x, y)))
+            y += surf.get_height() + line_gap
+        return y
+
+    def _draw_shortcut_row(self, chip_label, text, x, y, max_right):
+        y_center = y + 14
+        chip_right = self._draw_key_chip(chip_label, x, y_center, h=30)
+        text_x = chip_right + 10
+        text_w = max(40, max_right - text_x)
+        y = self._draw_wrapped_text(text, text_x, y + 4, text_w, 17, self._TEXT_MAIN, line_gap=2)
+        return y + 4
+
     def _draw_left_column(self, rect):
         pygame.draw.rect(self.screen, self._SECTION_BG, rect, border_radius=16)
         pygame.draw.rect(self.screen, self._SECTION_BORDER, rect, width=2, border_radius=16)
@@ -150,6 +188,7 @@ class HowToPlayScreen:
         pygame.draw.rect(self.screen, self._SECTION_BORDER, rect, width=2, border_radius=16)
 
         x = rect.x + 14
+        max_right = rect.right - 14
         y = rect.y + 14
 
         guide_title = self._fm.render_text("QUICK GUIDE", self._TEXT_ACCENT, 25)
@@ -165,34 +204,36 @@ class HowToPlayScreen:
             label_surf = self._fm.render_text(label, self._TEXT_GOOD, 20)
             self.screen.blit(label_surf, label_surf.get_rect(topleft=(x, y)))
             y += 22
-            desc_surf = self._fm.render_text(desc, self._TEXT_MAIN, 18)
-            self.screen.blit(desc_surf, desc_surf.get_rect(topleft=(x + 10, y)))
-            y += 30
+            y = self._draw_wrapped_text(
+                desc,
+                x + 10,
+                y,
+                max_right - (x + 10),
+                17,
+                self._TEXT_MAIN,
+                line_gap=2,
+            )
+            y += 8
 
-        y += 8
+        y += 4
         short_title = self._fm.render_text("SHORTCUTS", self._TEXT_ACCENT, 23)
         self.screen.blit(short_title, short_title.get_rect(topleft=(x, y)))
-        y += 32
+        y += 30
 
-        y_center = y + 14
-        chip_right = self._draw_key_chip("P", x, y_center, h=30)
-        pause_text = self._fm.render_text("Pause / Resume", self._TEXT_MAIN, 18)
-        self.screen.blit(pause_text, pause_text.get_rect(midleft=(chip_right + 10, y_center)))
+        y = self._draw_shortcut_row("P", "Pause / Resume", x, y, max_right)
+        y = self._draw_shortcut_row("ESC", "Close menus / Back", x, y, max_right)
+        y = self._draw_shortcut_row("MOUSE", "Click on-screen prompts", x, y, max_right)
 
-        y += 36
-        y_center = y + 14
-        chip_right = self._draw_key_chip("ESC", x, y_center, h=30)
-        esc_text = self._fm.render_text("Close menus / Back", self._TEXT_MAIN, 18)
-        self.screen.blit(esc_text, esc_text.get_rect(midleft=(chip_right + 10, y_center)))
-
-        y += 36
-        y_center = y + 14
-        chip_right = self._draw_key_chip("MOUSE", x, y_center, h=30)
-        mouse_text = self._fm.render_text("Click on-screen prompts", self._TEXT_MAIN, 18)
-        self.screen.blit(mouse_text, mouse_text.get_rect(midleft=(chip_right + 10, y_center)))
-
-        tip = self._fm.render_text("Tip: switch mode from MENU anytime.", self._TEXT_MUTED, 16)
-        self.screen.blit(tip, tip.get_rect(midleft=(x, rect.bottom - 24)))
+        tip_y = min(rect.bottom - 24, y + 6)
+        self._draw_wrapped_text(
+            "Tip: switch mode from MENU anytime.",
+            x,
+            tip_y,
+            max_right - x,
+            15,
+            self._TEXT_MUTED,
+            line_gap=1,
+        )
 
     def _draw(self):
         w = self.screen.get_width()
@@ -220,7 +261,7 @@ class HowToPlayScreen:
 
         content_top = panel.y + 94
         content_h = panel.height - 108
-        left_w = int(panel.width * 0.64)
+        left_w = int(panel.width * 0.60)
         left_rect = pygame.Rect(panel.x + 14, content_top, left_w, content_h)
         right_rect = pygame.Rect(
             left_rect.right + 14,
@@ -232,7 +273,7 @@ class HowToPlayScreen:
         self._draw_left_column(left_rect)
         self._draw_right_column(right_rect)
 
-        button_y = h - 78
+        button_y = h - 90
         button_w = 200
         button_h = 50
         gap = 20
@@ -252,8 +293,11 @@ class HowToPlayScreen:
             text = self._fm.render_text(label, self._TEXT_MAIN, 26)
             self.screen.blit(text, text.get_rect(center=rect.center))
 
-        hint = self._fm.render_text("ESC / Q to go back", self._TEXT_MUTED, 16)
-        self.screen.blit(hint, hint.get_rect(center=(panel.centerx, h - 24)))
+        hint = self._fm.render_text("ESC / Q to go back", self._TEXT_MUTED, 15)
+        self.screen.blit(
+            hint,
+            hint.get_rect(center=(panel.centerx, button_y + button_h + 17)),
+        )
 
     # ------------------------------------------------------------------
     # Public async entry point
