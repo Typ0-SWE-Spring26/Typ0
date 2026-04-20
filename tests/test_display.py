@@ -29,9 +29,16 @@ def mock_pygame():
         mock_image.convert_alpha.return_value = Mock()
         mock_view_pg.image.load.return_value = mock_image
 
-        # Mock font
+        # Mock font — render result's get_rect returns numeric attrs so view
+        # code that does arithmetic on rect.left/top/width/height works.
         mock_font = Mock()
-        mock_font.render.return_value = Mock()
+        rendered_surf = Mock()
+        rendered_surf.get_rect.return_value = Mock(
+            left=0, top=0, right=100, bottom=30,
+            width=100, height=30, centerx=50, centery=15,
+            size=(100, 30), center=(50, 15),
+        )
+        mock_font.render.return_value = rendered_surf
         mock_view_pg.font.SysFont.return_value = mock_font
 
         # Mock key names (needed for display.py facade)
@@ -380,7 +387,7 @@ class TestGameViewDraw:
         view.draw(model, 1.0)
 
         calls = [str(c) for c in view.font_small.render.call_args_list]
-        assert any('Score: 42' in c for c in calls)
+        assert any('SCORE' in c and '42' in c for c in calls)
 
     def test_draw_renders_round_number(self, game_screen):
         view = game_screen.view
@@ -389,7 +396,7 @@ class TestGameViewDraw:
         view.draw(model, 1.0)
 
         calls = [str(c) for c in view.font_small.render.call_args_list]
-        assert any('Round 3' in c for c in calls)
+        assert any('ROUND' in c and '3' in c for c in calls)
 
     def test_draw_showing_state_status(self, game_screen):
         view = game_screen.view

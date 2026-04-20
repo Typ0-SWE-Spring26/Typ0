@@ -56,34 +56,78 @@ class GameView:
         self.font_small = pygame.font.SysFont(None, 32)
         self.font_label = pygame.font.SysFont(None, 26)
 
+    def _draw_hud_panel(self):
+        """Shared top HUD strip background — subclasses blit labels on top."""
+        W = self.screen.get_width()
+        hud_h = 50
+        panel = pygame.Surface((W, hud_h), pygame.SRCALPHA)
+        panel.fill((30, 30, 50, 190))
+        self.screen.blit(panel, (0, 0))
+        pygame.draw.line(self.screen, (80, 80, 120), (0, hud_h), (W, hud_h), 2)
+        return hud_h
+
+    def _draw_status_pill(self, text, color, y):
+        """Rounded pill behind the status text — keeps it legible over the buttons."""
+        W = self.screen.get_width()
+        surf = self.font_small.render(text, True, color)
+        rect = surf.get_rect(center=(W // 2, y))
+        pad_x, pad_y = 18, 6
+        pill = pygame.Rect(
+            rect.left - pad_x, rect.top - pad_y,
+            rect.width + pad_x * 2, rect.height + pad_y * 2,
+        )
+        pill_surf = pygame.Surface(pill.size, pygame.SRCALPHA)
+        pygame.draw.rect(pill_surf, (30, 30, 50, 200),
+                         pill_surf.get_rect(), border_radius=pill.height // 2)
+        pygame.draw.rect(pill_surf, (90, 90, 130),
+                         pill_surf.get_rect(), width=1, border_radius=pill.height // 2)
+        self.screen.blit(pill_surf, pill)
+        self.screen.blit(surf, rect)
+
+    def _draw_timer_bar(self, fraction, gradient=True):
+        """Prominent rounded timer bar, placed above the MENU button."""
+        W = self.screen.get_width()
+        H = self.screen.get_height()
+        bar_x, bar_h = 20, 14
+        bar_y = H - 95
+        bar_w = W - 40
+        track = pygame.Rect(bar_x, bar_y, bar_w, bar_h)
+        pygame.draw.rect(self.screen, (35, 35, 55), track, border_radius=bar_h // 2)
+
+        fill_w = max(0, int(fraction * bar_w))
+        if fill_w > 0:
+            if gradient:
+                r = int(240 * (1 - fraction)) + 40
+                g = int(200 * fraction) + 55
+                color = (r, g, 90)
+            else:
+                color = (240, 90, 90)
+            pygame.draw.rect(self.screen, color,
+                             pygame.Rect(bar_x, bar_y, fill_w, bar_h),
+                             border_radius=bar_h // 2)
+        pygame.draw.rect(self.screen, (80, 80, 110), track, width=1,
+                         border_radius=bar_h // 2)
+
     def draw(self, model, timer_fraction):
         """Render one frame based on current model state."""
         self.screen.fill((15, 15, 25))
-
         W = self.screen.get_width()
 
-        # HUD
-        score_surf = self.font_small.render(f"Score: {model.score}", True, (200, 200, 200))
-        self.screen.blit(score_surf, (20, 20))
+        hud_h = self._draw_hud_panel()
+        score_surf = self.font_small.render(f"SCORE  {model.score}", True, (235, 235, 245))
+        self.screen.blit(score_surf, score_surf.get_rect(midleft=(24, hud_h // 2)))
 
-        round_surf = self.font_small.render(f"Round {len(model.sequence)}", True, (150, 150, 150))
-        self.screen.blit(round_surf, round_surf.get_rect(topright=(W - 20, 20)))
+        round_surf = self.font_small.render(
+            f"ROUND  {len(model.sequence)}", True, (185, 205, 255))
+        self.screen.blit(round_surf, round_surf.get_rect(midright=(W - 24, hud_h // 2)))
 
-        # Status message
+        # Status message pill
         if model.state == 'showing':
-            status_text  = "Watch carefully..."
-            status_color = (160, 160, 255)
+            self._draw_status_pill("Watch carefully...", (170, 170, 255), hud_h + 26)
         elif model.state == 'input':
-            remaining    = len(model.sequence) - model.player_index
-            status_text  = f"Your turn!  ({remaining} left)"
-            status_color = (160, 255, 160)
-        else:
-            status_text  = ""
-            status_color = (200, 200, 200)
-
-        if status_text:
-            s = self.font_small.render(status_text, True, status_color)
-            self.screen.blit(s, s.get_rect(center=(W // 2, 55)))
+            remaining = len(model.sequence) - model.player_index
+            self._draw_status_pill(
+                f"Your turn  -  {remaining} left", (170, 255, 170), hud_h + 26)
 
         # Draw buttons
         for name, rect in self.button_rects.items():
@@ -100,8 +144,5 @@ class GameView:
                 self.screen, self.font_label, self.key_labels[name], rect.center
             )
 
-        # Timer bar (only during player's turn)
         if model.state == 'input':
-            H = self.screen.get_height()
-            bar_width = int(timer_fraction * (W - 40))
-            pygame.draw.rect(self.screen, (255, 100, 100), (20, H - 20, bar_width, 10))
+            self._draw_timer_bar(timer_fraction, gradient=True)
