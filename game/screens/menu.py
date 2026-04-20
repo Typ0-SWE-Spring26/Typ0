@@ -21,8 +21,9 @@ class MenuOverlay:
 
         W = screen.get_width()
         H = screen.get_height()
-        # MENU button stays bottom-left
-        self.button_rect = pygame.Rect(20, H - 70, 150, 60)
+        # MENU button stays bottom-left — kept compact so it doesn't crowd the
+        # left-wall (A) button in gameplay views.
+        self.button_rect = pygame.Rect(18, H - 52, 100, 38)
         
         # LOAD BACKGROUND IMAGE - Add error handling
         bg_path = os.path.join("assets", "menu_bg.png")
@@ -96,7 +97,7 @@ class MenuOverlay:
         pygame.draw.rect(self.screen, button_color, self.button_rect, border_radius=10)
         pygame.draw.rect(self.screen, (200, 200, 200), self.button_rect, 3, border_radius=10)
         
-        menu_text = self.font_manager.render_text("MENU", (255, 255, 255), 32)
+        menu_text = self.font_manager.render_text("MENU", (255, 255, 255), 22)
         text_rect = menu_text.get_rect(center=self.button_rect.center)
         self.screen.blit(menu_text, text_rect)
         

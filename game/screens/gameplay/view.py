@@ -66,23 +66,11 @@ class GameView:
         pygame.draw.line(self.screen, (80, 80, 120), (0, hud_h), (W, hud_h), 2)
         return hud_h
 
-    def _draw_status_pill(self, text, color, y):
-        """Rounded pill behind the status text — keeps it legible over the buttons."""
+    def _draw_status_centered(self, text, color, y):
+        """Draw status text centered at y — sits inside the HUD bar."""
         W = self.screen.get_width()
         surf = self.font_small.render(text, True, color)
-        rect = surf.get_rect(center=(W // 2, y))
-        pad_x, pad_y = 18, 6
-        pill = pygame.Rect(
-            rect.left - pad_x, rect.top - pad_y,
-            rect.width + pad_x * 2, rect.height + pad_y * 2,
-        )
-        pill_surf = pygame.Surface(pill.size, pygame.SRCALPHA)
-        pygame.draw.rect(pill_surf, (30, 30, 50, 200),
-                         pill_surf.get_rect(), border_radius=pill.height // 2)
-        pygame.draw.rect(pill_surf, (90, 90, 130),
-                         pill_surf.get_rect(), width=1, border_radius=pill.height // 2)
-        self.screen.blit(pill_surf, pill)
-        self.screen.blit(surf, rect)
+        self.screen.blit(surf, surf.get_rect(center=(W // 2, y)))
 
     def _draw_timer_bar(self, fraction, gradient=True):
         """Prominent rounded timer bar, placed above the MENU button."""
@@ -121,13 +109,13 @@ class GameView:
             f"ROUND  {len(model.sequence)}", True, (185, 205, 255))
         self.screen.blit(round_surf, round_surf.get_rect(midright=(W - 24, hud_h // 2)))
 
-        # Status message pill
+        # Status message — centered inside the HUD bar, between SCORE and ROUND
         if model.state == 'showing':
-            self._draw_status_pill("Watch carefully...", (170, 170, 255), hud_h + 26)
+            self._draw_status_centered("Watch carefully...", (170, 170, 255), hud_h // 2)
         elif model.state == 'input':
             remaining = len(model.sequence) - model.player_index
-            self._draw_status_pill(
-                f"Your turn  -  {remaining} left", (170, 255, 170), hud_h + 26)
+            self._draw_status_centered(
+                f"Your turn  -  {remaining} left", (170, 255, 170), hud_h // 2)
 
         # Draw buttons
         for name, rect in self.button_rects.items():

@@ -84,7 +84,7 @@ class StartMenu:
             # Hint that high-score leaderboards exist — shown after every game.
             hint_font = pygame.font.Font(None, 24)
             hint_surf = hint_font.render(
-                "* Top scores are tracked for every mode - see them after a game *",
+                "",
                 True,
                 (220, 200, 110),
             )
