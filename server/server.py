@@ -72,7 +72,16 @@ async def _safe_send(name: str, data: dict) -> None:
 async def ws_handler(request: web.Request) -> web.WebSocketResponse:
     ws = web.WebSocketResponse()
     await ws.prepare(request)
+    await _ws_session(ws)
+    return ws
 
+
+async def _ws_session(ws) -> None:
+    """Run a single WebSocket session.
+
+    Extracted from ws_handler so unit tests can pass a fake ws without
+    needing a real aiohttp request to call .prepare() on.
+    """
     name: str | None = None
     try:
         async for aio_msg in ws:
@@ -248,8 +257,6 @@ async def ws_handler(request: web.Request) -> web.WebSocketResponse:
                         await _safe_send(opponent, {"type": "opponent_disconnected"})
 
             await _broadcast_lobby()
-
-    return ws
 
 
 # ── HTTP Score API ───────────────────────────────────────────────────────────
