@@ -8,13 +8,23 @@ import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from aiohttp import WSMsgType
+
 
 # ---------------------------------------------------------------------------
-# Async iterator helper — lets `async for raw in websocket` work in tests
+# Async iterator helper — yields aiohttp-style WSMessage objects
 # ---------------------------------------------------------------------------
+
+class _FakeWSMessage:
+    """Mimics the bits of aiohttp.WSMessage that _ws_session inspects."""
+    def __init__(self, data, msg_type=WSMsgType.TEXT):
+        self.type = msg_type
+        self.data = data
+
 
 class _AsyncMessages:
-    """Async-iterable wrapper around a plain list of raw JSON strings."""
+    """Async-iterable wrapper around a list of raw JSON strings, yielded
+    as aiohttp-shaped WSMessage objects."""
     def __init__(self, messages):
         self._it = iter(messages)
 
@@ -23,7 +33,7 @@ class _AsyncMessages:
 
     async def __anext__(self):
         try:
-            return next(self._it)
+            return _FakeWSMessage(next(self._it))
         except StopIteration:
             raise StopAsyncIteration
 
@@ -46,7 +56,7 @@ def _fake_ws():
     """Websocket that accepts sends but yields no incoming messages."""
     ws = MagicMock()
     ws.__aiter__ = lambda self_=None: _AsyncMessages([])
-    ws.send = AsyncMock()
+    ws.send_str = AsyncMock()
     return ws
 
 
@@ -54,7 +64,7 @@ def _ws_with_messages(messages):
     """Websocket that yields the given list of raw JSON strings."""
     ws = MagicMock()
     ws.__aiter__ = lambda self_=None: _AsyncMessages(messages)
-    ws.send = AsyncMock()
+    ws.send_str = AsyncMock()
     return ws
 
 
@@ -80,8 +90,8 @@ class TestBroadcastLobby:
         run(srv._broadcast_lobby())
 
         for ws in (ws_a, ws_b):
-            ws.send.assert_called_once()
-            msg = json.loads(ws.send.call_args[0][0])
+            ws.send_str.assert_called_once()
+            msg = json.loads(ws.send_str.call_args[0][0])
             assert msg['type'] == 'player_list'
             assert set(msg['players']) == {'Alice', 'Bob'}
 
@@ -94,7 +104,7 @@ class TestBroadcastLobby:
 
         run(srv._broadcast_lobby())
 
-        msg = json.loads(ws_b.send.call_args[0][0])
+        msg = json.loads(ws_b.send_str.call_args[0][0])
         assert 'Alice' not in msg['players']
         assert 'Bob' in msg['players']
 
@@ -105,7 +115,7 @@ class TestBroadcastLobby:
 
         run(srv._broadcast_lobby())
 
-        msg = json.loads(ws_a.send.call_args[0][0])
+        msg = json.loads(ws_a.send_str.call_args[0][0])
         assert msg['players'] == ['Alice']
 
 
@@ -121,8 +131,8 @@ class TestSafeSend:
 
         run(srv._safe_send('Alice', {'type': 'ping'}))
 
-        ws.send.assert_called_once()
-        assert json.loads(ws.send.call_args[0][0]) == {'type': 'ping'}
+        ws.send_str.assert_called_once()
+        assert json.loads(ws.send_str.call_args[0][0]) == {'type': 'ping'}
 
     def test_silent_on_unknown_player(self):
         srv = _fresh_server()
@@ -132,7 +142,7 @@ class TestSafeSend:
     def test_silent_on_send_error(self):
         srv = _fresh_server()
         ws = _fake_ws()
-        ws.send.side_effect = Exception("connection lost")
+        ws.send_str.side_effect = Exception("connection lost")
         srv._players['Alice'] = ws
 
         # Should not raise
@@ -148,12 +158,12 @@ class TestHandlerJoin:
         srv = _fresh_server()
         ws = _ws_with_messages([json.dumps({'type': 'join', 'name': 'Alice'})])
 
-        run(srv.handler(ws))
+        run(srv._ws_session(ws))
 
         # Player should have been registered (and then removed on disconnect)
         # Since handler cleans up in finally, player is gone after the coro ends.
         # We verify the "joined" message was sent.
-        sent = [json.loads(c[0][0]) for c in ws.send.call_args_list]
+        sent = [json.loads(c[0][0]) for c in ws.send_str.call_args_list]
         assert any(m['type'] == 'joined' and m['name'] == 'Alice' for m in sent)
 
     def test_join_rejects_duplicate_name(self):
@@ -162,18 +172,18 @@ class TestHandlerJoin:
         srv._players['Alice'] = existing_ws
 
         ws = _ws_with_messages([json.dumps({'type': 'join', 'name': 'Alice'})])
-        run(srv.handler(ws))
+        run(srv._ws_session(ws))
 
-        sent = [json.loads(c[0][0]) for c in ws.send.call_args_list]
+        sent = [json.loads(c[0][0]) for c in ws.send_str.call_args_list]
         assert any(m['type'] == 'error' for m in sent)
 
     def test_join_rejects_empty_name(self):
         srv = _fresh_server()
         ws = _ws_with_messages([json.dumps({'type': 'join', 'name': '   '})])
 
-        run(srv.handler(ws))
+        run(srv._ws_session(ws))
 
-        sent = [json.loads(c[0][0]) for c in ws.send.call_args_list]
+        sent = [json.loads(c[0][0]) for c in ws.send_str.call_args_list]
         assert any(m['type'] == 'error' for m in sent)
 
 
@@ -190,8 +200,8 @@ class TestHandlerChallenge:
             srv._players['Alice'] = ws_a
             srv._players['Bob']   = ws_b
             await asyncio.gather(
-                srv.handler(ws_a),
-                srv.handler(ws_b),
+                srv._ws_session(ws_a),
+                srv._ws_session(ws_b),
             )
 
         run(_both())
@@ -206,9 +216,9 @@ class TestHandlerChallenge:
         ws_b = _fake_ws()
         srv._players['Bob'] = ws_b
 
-        run(srv.handler(ws_a))
+        run(srv._ws_session(ws_a))
 
-        sent_to_bob = [json.loads(c[0][0]) for c in ws_b.send.call_args_list]
+        sent_to_bob = [json.loads(c[0][0]) for c in ws_b.send_str.call_args_list]
         assert any(m['type'] == 'challenge_received' and m['from'] == 'Alice'
                    for m in sent_to_bob)
 
@@ -221,9 +231,9 @@ class TestHandlerChallenge:
         ws_b = _fake_ws()
         srv._players['Bob'] = ws_b
 
-        run(srv.handler(ws_a))
+        run(srv._ws_session(ws_a))
 
-        sent_to_bob = [json.loads(c[0][0]) for c in ws_b.send.call_args_list]
+        sent_to_bob = [json.loads(c[0][0]) for c in ws_b.send_str.call_args_list]
         challenge_msg = next(m for m in sent_to_bob if m['type'] == 'challenge_received')
         assert challenge_msg['settings'] == 0xFF  # clamped
 
@@ -245,7 +255,7 @@ class TestHandlerMistake:
         }
         srv._active_games['Alice'] = session_id
         srv._active_games['Bob']   = session_id
-        run(srv.handler(ws_a))
+        run(srv._ws_session(ws_a))
 
     def test_mistake_sends_you_lose_to_loser(self):
         srv = _fresh_server()
@@ -256,7 +266,7 @@ class TestHandlerMistake:
         ])
         self._run_mistake(srv, ws_a, ws_b, 'Alice:Bob')
 
-        sent_to_alice = [json.loads(c[0][0]) for c in ws_a.send.call_args_list]
+        sent_to_alice = [json.loads(c[0][0]) for c in ws_a.send_str.call_args_list]
         assert any(m['type'] == 'you_lose' for m in sent_to_alice)
 
     def test_mistake_sends_you_win_to_opponent(self):
@@ -268,7 +278,7 @@ class TestHandlerMistake:
         ])
         self._run_mistake(srv, ws_a, ws_b, 'Alice:Bob')
 
-        sent_to_bob = [json.loads(c[0][0]) for c in ws_b.send.call_args_list]
+        sent_to_bob = [json.loads(c[0][0]) for c in ws_b.send_str.call_args_list]
         assert any(m['type'] == 'you_win' for m in sent_to_bob)
 
     def test_second_mistake_ignored_after_game_finished(self):
@@ -289,10 +299,10 @@ class TestHandlerMistake:
         }
         srv._active_games['Alice'] = session_id
         srv._active_games['Bob']   = session_id
-        run(srv.handler(ws_a))
+        run(srv._ws_session(ws_a))
 
         # No you_win/you_lose should have been sent
-        sent_to_bob = [json.loads(c[0][0]) for c in ws_b.send.call_args_list]
+        sent_to_bob = [json.loads(c[0][0]) for c in ws_b.send_str.call_args_list]
         assert not any(m['type'] in ('you_win', 'you_lose') for m in sent_to_bob)
 
     def test_mistake_cleans_up_session(self):
@@ -314,7 +324,7 @@ class TestHandlerMistake:
         srv._active_games['Alice'] = session_id
         srv._active_games['Bob']   = session_id
 
-        run(srv.handler(ws_a))
+        run(srv._ws_session(ws_a))
 
         assert session_id not in srv._sessions
         assert 'Alice' not in srv._active_games

@@ -10,26 +10,28 @@ Works in two environments automatically:
   Python polls that buffer each frame with eval() — this avoids the fragile
   Python-function-as-JS-callback proxy that pygbag doesn't reliably support.
 
-No code changes are needed between local dev and production.
+In production the WebSocket is served same-origin at ``/ws`` so it goes through
+the existing nginx HTTPS termination — no separate port. For native dev set
+``TYP0_WS_URL`` to point at your local server (default ws://localhost:15090/ws).
 """
 
 import asyncio
 import json
+import os
 import sys
 
-WS_PORT = 14023
-NATIVE_SERVER_URL = f"ws://localhost:{WS_PORT}"
+NATIVE_SERVER_URL = os.environ.get("TYP0_WS_URL", "ws://localhost:15090/ws")
 
 _IN_BROWSER: bool = sys.platform == "emscripten"
 
 
 def _browser_server_url() -> str:
-    """Derive the WS server URL from the current page location."""
+    """Derive the WS server URL from the current page location (same origin, /ws)."""
     import platform
     loc = platform.window.location
     scheme = "wss" if loc.protocol == "https:" else "ws"
-    host   = str(loc.hostname)
-    return f"{scheme}://{host}:{WS_PORT}"
+    host = str(loc.host)  # includes port if non-standard
+    return f"{scheme}://{host}/ws"
 
 
 class WebSocketClient:
