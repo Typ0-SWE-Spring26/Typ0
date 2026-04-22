@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+    pull_request:
+      branches:
+        - main
   workflow_dispatch:
   
 
@@ -114,51 +117,59 @@ jobs:
           screen -S typ0-ws -X quit 2>/dev/null || true
           sleep 1
 
-          # Game HTTP server on port 15090
+          # Unified server on port 15090 — serves the pygbag build,
+          # the multiplayer WebSocket (/ws), and the score API (/scores/*).
+          # nginx already terminates HTTPS in front of this port.
           screen -dmS typ0 bash -c \
-            'cd /home/typo/deploy && python3 -m http.server 15090 >> /home/typo/logs/http.log 2>&1'
+            'cd /home/typo/server && \
+              SCORES_DIR=/home/typo/scores \
+              STATIC_DIR=/home/typo/deploy \
+              PORT=15090 \
+              python3 server.py >> /home/typo/logs/server.log 2>&1'
 
-          # Multiplayer WebSocket server (14023) + Score API (14024)
-          screen -dmS typ0-ws bash -c \
-            'cd /home/typo/server && SCORES_DIR=/home/typo/scores python3 server.py >> /home/typo/logs/ws.log 2>&1'
-
-          echo "Servers started."
+          echo "Server started."
           EOF
 
       - name: Health check
         run: |
-          echo "Waiting for servers to come up..."
+          echo "Waiting for server to come up..."
           sleep 6
 
           FAILED=0
+          BASE="http://${{ secrets.SSH_HOST }}:15090"
 
-          # Game HTTP server
+          # Static game files
           HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            --max-time 10 \
-            "http://${{ secrets.SSH_HOST }}:15090/index.html")
+            --max-time 10 "$BASE/index.html")
           if [ "$HTTP_STATUS" = "200" ]; then
-            echo "✓ Game server       :15090  →  HTTP $HTTP_STATUS"
+            echo "✓ Static game       /index.html      →  HTTP $HTTP_STATUS"
           else
-            echo "✗ Game server       :15090  →  HTTP $HTTP_STATUS (expected 200)"
+            echo "✗ Static game       /index.html      →  HTTP $HTTP_STATUS (expected 200)"
             FAILED=1
           fi
 
-          # WebSocket server (TCP port check)
-          if timeout 10 bash -c "</dev/tcp/${{ secrets.SSH_HOST }}/14023" 2>/dev/null; then
-            echo "✓ WebSocket server  :14023  →  port open"
-          else
-            echo "✗ WebSocket server  :14023  →  port not reachable"
-            FAILED=1
-          fi
-
-          # Score API (HTTP check)
+          # Score API
           SCORE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            --max-time 10 \
-            "http://${{ secrets.SSH_HOST }}:14024/scores/simon")
+            --max-time 10 "$BASE/scores/simon")
           if [ "$SCORE_STATUS" = "200" ]; then
-            echo "✓ Score API         :14024  →  HTTP $SCORE_STATUS"
+            echo "✓ Score API         /scores/simon    →  HTTP $SCORE_STATUS"
           else
-            echo "✗ Score API         :14024  →  HTTP $SCORE_STATUS (expected 200)"
+            echo "✗ Score API         /scores/simon    →  HTTP $SCORE_STATUS (expected 200)"
+            FAILED=1
+          fi
+
+          # WebSocket handshake — expect HTTP 101 Switching Protocols
+          WS_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 10 \
+            -H "Connection: Upgrade" \
+            -H "Upgrade: websocket" \
+            -H "Sec-WebSocket-Version: 13" \
+            -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \
+            "$BASE/ws")
+          if [ "$WS_STATUS" = "101" ]; then
+            echo "✓ WebSocket         /ws              →  HTTP $WS_STATUS (upgraded)"
+          else
+            echo "✗ WebSocket         /ws              →  HTTP $WS_STATUS (expected 101)"
             FAILED=1
           fi
 
