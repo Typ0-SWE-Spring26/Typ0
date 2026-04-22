@@ -32,10 +32,10 @@ class HowToPlayScreen:
     }
 
     _INPUT_ROWS = [
-        ("up", ("W", "UP"), "Match UP prompts"),
-        ("down", ("S", "DOWN"), "Match DOWN prompts"),
-        ("left", ("A", "LEFT"), "Match LEFT prompts"),
-        ("right", ("D", "RIGHT"), "Match RIGHT prompts"),
+        ("up", ("W",), "Match UP prompts"),
+        ("down", ("S",), "Match DOWN prompts"),
+        ("left", ("A",), "Match LEFT prompts"),
+        ("right", ("D",), "Match RIGHT prompts"),
         ("space", ("SPACE",), "Match CENTER prompts"),
     ]
 
@@ -150,7 +150,7 @@ class HowToPlayScreen:
 
         row_area_top = rect.y + 44
         row_area_h = rect.height - 54
-        row_h = max(48, min(62, row_area_h // len(self._INPUT_ROWS)))
+        row_h = max(44, min(56, row_area_h // len(self._INPUT_ROWS)))
 
         for idx, (icon_name, key_labels, action_text) in enumerate(self._INPUT_ROWS):
             row_y = row_area_top + idx * row_h
@@ -159,7 +159,7 @@ class HowToPlayScreen:
             shade = (26, 32, 66) if idx % 2 == 0 else (24, 29, 60)
             pygame.draw.rect(self.screen, shade, row_rect, border_radius=10)
 
-            icon_box = pygame.Rect(row_rect.x + 8, row_rect.y + 5, 82, row_rect.height - 10)
+            icon_box = pygame.Rect(row_rect.x + 8, row_rect.y + 4, 64, row_rect.height - 8)
             icon = self._get_scaled_icon(icon_name, icon_box.size)
             if icon is not None:
                 icon_rect = icon.get_rect(center=icon_box.center)
@@ -169,13 +169,9 @@ class HowToPlayScreen:
                 fallback = self._fm.render_text(icon_name.upper(), self._TEXT_MUTED, 16)
                 self.screen.blit(fallback, fallback.get_rect(center=icon_box.center))
 
-            x = icon_box.right + 14
-            for i, label in enumerate(key_labels):
+            x = icon_box.right + 12
+            for label in key_labels:
                 x = self._draw_key_chip(label, x, row_rect.centery)
-                if i < len(key_labels) - 1:
-                    join = self._fm.render_text("/", self._TEXT_MUTED, 18)
-                    self.screen.blit(join, join.get_rect(center=(x + 10, row_rect.centery)))
-                    x += 20
 
             action = self._fm.render_text(action_text, self._TEXT_MAIN, 19)
             action_rect = action.get_rect(midleft=(x + 14, row_rect.centery))

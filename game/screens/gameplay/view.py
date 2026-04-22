@@ -73,11 +73,10 @@ class GameView:
         self.screen.blit(surf, surf.get_rect(center=(W // 2, y)))
 
     def _draw_timer_bar(self, fraction, gradient=True):
-        """Prominent rounded timer bar, placed above the MENU button."""
+        """Slim rounded timer bar tucked between the HUD header and the buttons."""
         W = self.screen.get_width()
-        H = self.screen.get_height()
-        bar_x, bar_h = 20, 14
-        bar_y = H - 95
+        bar_x, bar_h = 20, 10
+        bar_y = 56
         bar_w = W - 40
         track = pygame.Rect(bar_x, bar_y, bar_w, bar_h)
         pygame.draw.rect(self.screen, (35, 35, 55), track, border_radius=bar_h // 2)
@@ -85,8 +84,10 @@ class GameView:
         fill_w = max(0, int(fraction * bar_w))
         if fill_w > 0:
             if gradient:
-                r = int(240 * (1 - fraction)) + 40
-                g = int(200 * fraction) + 55
+                # Clamp so a near-empty bar doesn't push channels above 255 and
+                # raise a pygame ValueError that would break the async loop.
+                r = min(255, max(0, int(240 * (1 - fraction)) + 40))
+                g = min(255, max(0, int(200 * fraction) + 55))
                 color = (r, g, 90)
             else:
                 color = (240, 90, 90)
@@ -102,20 +103,19 @@ class GameView:
         W = self.screen.get_width()
 
         hud_h = self._draw_hud_panel()
+        # SCORE shifts right to leave room for the MENU button now living in the header.
         score_surf = self.font_small.render(f"SCORE  {model.score}", True, (235, 235, 245))
-        self.screen.blit(score_surf, score_surf.get_rect(midleft=(24, hud_h // 2)))
+        self.screen.blit(score_surf, score_surf.get_rect(midleft=(100, hud_h // 2)))
 
         round_surf = self.font_small.render(
             f"ROUND  {len(model.sequence)}", True, (185, 205, 255))
         self.screen.blit(round_surf, round_surf.get_rect(midright=(W - 24, hud_h // 2)))
 
-        # Status message — centered inside the HUD bar, between SCORE and ROUND
-        if model.state == 'showing':
-            self._draw_status_centered("Watch carefully...", (170, 170, 255), hud_h // 2)
-        elif model.state == 'input':
+        # Only the remaining-input counter survives — no instructional alerts.
+        if model.state == 'input':
             remaining = len(model.sequence) - model.player_index
             self._draw_status_centered(
-                f"Your turn  -  {remaining} left", (170, 255, 170), hud_h // 2)
+                f"{remaining} left", (170, 255, 170), hud_h // 2)
 
         # Draw buttons
         for name, rect in self.button_rects.items():

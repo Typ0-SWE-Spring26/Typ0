@@ -124,14 +124,21 @@ class MusicMenu:
             self.font_manager.render_text("BACK", (255, 255, 255), 28).get_rect(center=self.back_rect.center),
         )
 
+    # ── Lifecycle ─────────────────────────────────────────────────────────────
+
+    def on_close(self):
+        """Called by the parent menu when the music submenu is being dismissed
+        (e.g. ESC) so it can tear down DOM-side overlays it owns."""
+        if self._upload_btn_visible:
+            self._upload_btn_visible = False
+            animation_utils.hide_upload_button()
+
     # ── Input ─────────────────────────────────────────────────────────────────
 
     def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.back_rect.collidepoint(event.pos):
-                if self._upload_btn_visible:
-                    self._upload_btn_visible = False
-                    animation_utils.hide_upload_button()
+                self.on_close()
                 return "Back"
 
             if self.left_rect.collidepoint(event.pos):

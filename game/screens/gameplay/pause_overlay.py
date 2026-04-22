@@ -12,6 +12,10 @@ class PauseOverlay:
 
     def subscribe(self, event_bus) -> None:
         """Attach to an EventBus so visibility is driven by game_paused/game_resumed events."""
+        # Re-subscribing means a new game (new EventBus) — clear any leftover
+        # visibility from the previous game so the overlay doesn't render on top
+        # of fresh gameplay.
+        self.visible = False
         event_bus.subscribe('game_paused',  self._on_paused)
         event_bus.subscribe('game_resumed', self._on_resumed)
 

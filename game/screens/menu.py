@@ -20,9 +20,8 @@ class MenuOverlay:
 
         W = screen.get_width()
         H = screen.get_height()
-        # MENU button stays bottom-left — kept compact so it doesn't crowd the
-        # left-wall (A) button in gameplay views.
-        self.button_rect = pygame.Rect(18, H - 52, 100, 38)
+        # MENU button sits in the top-left of the HUD header.
+        self.button_rect = pygame.Rect(8, 7, 80, 36)
         
         # LOAD BACKGROUND IMAGE - Add error handling
         bg_path = os.path.join("assets", "menu_bg.png")
@@ -92,10 +91,10 @@ class MenuOverlay:
         if self.button_rect.collidepoint(pygame.mouse.get_pos()):
             button_color = (120, 120, 120)
         
-        pygame.draw.rect(self.screen, button_color, self.button_rect, border_radius=10)
-        pygame.draw.rect(self.screen, (200, 200, 200), self.button_rect, 3, border_radius=10)
-        
-        menu_text = self.font_manager.render_text("MENU", (255, 255, 255), 22)
+        pygame.draw.rect(self.screen, button_color, self.button_rect, border_radius=8)
+        pygame.draw.rect(self.screen, (200, 200, 200), self.button_rect, 2, border_radius=8)
+
+        menu_text = self.font_manager.render_text("MENU", (255, 255, 255), 18)
         text_rect = menu_text.get_rect(center=self.button_rect.center)
         self.screen.blit(menu_text, text_rect)
         
@@ -137,6 +136,10 @@ class MenuOverlay:
                 self.screen.blit(text_surf, text_rect)
 
     def _close(self):
+        # Tell the music submenu to tear down any web overlays it owns
+        # (e.g. the HTML upload button) so they don't linger after ESC.
+        if self.active_submenu == "music":
+            self.music_menu.on_close()
         self.open = False
         self.active_submenu = None
 
