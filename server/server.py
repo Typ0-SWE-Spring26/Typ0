@@ -326,10 +326,18 @@ def build_app() -> web.Application:
     app.router.add_get("/scores/{game_type}", handle_get_scores)
     app.router.add_post("/scores/{game_type}", handle_post_score)
 
-    # Pygbag build (game). show_index=True so "/" serves index.html.
+    # Pygbag build (game). aiohttp's add_static doesn't serve index.html
+    # automatically, so wire up a root handler that returns it explicitly.
+    # show_index stays False — we don't want directory listings exposed.
     static_path = Path(STATIC_DIR)
     if static_path.is_dir():
-        app.router.add_static("/", path=str(static_path), show_index=True)
+        index_file = static_path / "index.html"
+
+        async def serve_index(_request: web.Request) -> web.FileResponse:
+            return web.FileResponse(index_file)
+
+        app.router.add_get("/", serve_index)
+        app.router.add_static("/", path=str(static_path), show_index=False)
     else:
         print(f"[warn] STATIC_DIR {static_path} not found — static serving disabled")
 
