@@ -158,14 +158,16 @@ jobs:
             FAILED=1
           fi
 
-          # WebSocket handshake — expect HTTP 101 Switching Protocols
+          # WebSocket handshake — expect HTTP 101 Switching Protocols.
+          # `|| true` because after a successful upgrade curl waits for WS
+          # frames and exits 28 (timeout); the status code is still captured.
           WS_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            --max-time 10 \
+            --max-time 5 \
             -H "Connection: Upgrade" \
             -H "Upgrade: websocket" \
             -H "Sec-WebSocket-Version: 13" \
             -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \
-            "$BASE/ws")
+            "$BASE/ws" || true)
           if [ "$WS_STATUS" = "101" ]; then
             echo "✓ WebSocket         /ws              →  HTTP $WS_STATUS (upgraded)"
           else
