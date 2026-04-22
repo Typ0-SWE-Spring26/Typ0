@@ -261,6 +261,37 @@ async def handle_get_scores(request: web.Request) -> web.Response:
     return web.json_response(load_scores(game_type))
 
 
+async def handle_close_connections(request: web.Request) -> web.Response:
+    """Administratively close WebSocket connections.
+
+    POST /admin/close                -> close every active connection
+    POST /admin/close/{name}         -> close a single player by name
+    """
+    target = request.match_info.get("name")
+    closed = []
+
+    # Snapshot first so mutations from the finally block in handler() don't
+    # invalidate the iteration.
+    if target:
+        ws = _players.get(target)
+        candidates = [(target, ws)] if ws else []
+    else:
+        candidates = list(_players.items())
+
+    for name, ws in candidates:
+        try:
+            await ws.close(code=1001, reason="Server requested close")
+            closed.append(name)
+        except Exception:
+            pass
+
+    return web.Response(
+        text=json.dumps({"closed": closed}),
+        content_type="application/json",
+        headers=CORS_HEADERS,
+    )
+
+
 async def handle_post_score(request: web.Request) -> web.Response:
     game_type = request.match_info["game_type"]
     if game_type not in VALID_GAME_TYPES:

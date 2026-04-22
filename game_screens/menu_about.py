@@ -18,66 +18,73 @@ class AboutMenu:
         # Back button
         self.back_button_width = 140
         self.back_button_height = 45
+
+        # Credits button (opens the credits screen from within About)
+        self.credits_button_width = 140
+        self.credits_button_height = 45
+        self.credits_button_rect = None
         
         # Game info - make sure all text is safe to render
         self.game_info = [
             "TYP0: LET'S PLAY",
             "",
-            "A classic memory and reflex game where you must",
-            "repeat the sequence of button presses!",
+            "A memory and reflex game. Match the prompts as",
+            "they appear — don't miss a beat!",
             "",
-            "══════════════════════════════════════════════",
+            "==============================================",
             "",
             "GAME MODES:",
             "",
             "> SIMON SAYS MODE",
             "  Watch the sequence of lit buttons and repeat",
-            "  them in the exact order. Each correct round",
-            "  adds a new button to the sequence.",
+            "  them in the exact order. Each round adds one",
+            "  more button to the sequence.",
             "",
-            "> BOP IT MODE (Coming Soon!)",
-            "  A fast-paced mode where you'll need to react",
-            "  quickly to voice commands.",
+            "> BOP IT MODE",
+            "  One command at a time. Press the right button",
+            "  before the timer runs out. Speeds up as you go.",
             "",
-            "══════════════════════════════════════════════",
+            "> MULTIPLAYER",
+            "  Challenge another player to a head-to-head",
+            "  Simon match on the same seed.",
             "",
-            "HOW TO PLAY:",
-            "",
-            "1. Watch the sequence of buttons light up",
-            "2. Memorize the order carefully",
-            "3. Repeat the sequence by clicking the buttons",
-            "   or pressing the corresponding keys",
-            "4. Each correct round adds one more button",
-            "5. One wrong move ends the game!",
-            "",
-            "══════════════════════════════════════════════",
+            "==============================================",
             "",
             "CONTROLS:",
             "",
-            "MOUSE:",
-            "  • Click directly on the on-screen buttons",
-            "",
             "KEYBOARD:",
-            "  • W / UP      - Top button",
-            "  • S / DOWN    - Bottom button", 
-            "  • A / LEFT    - Left button",
-            "  • D / RIGHT   - Right button",
-            "  • SPACEBAR    - Space button",
+            "  - W / UP-arrow      - Up button",
+            "  - S / DOWN-arrow    - Down button",
+            "  - A / LEFT-arrow    - Left button",
+            "  - D / RIGHT-arrow   - Right button",
+            "  - SPACEBAR          - Space button",
+            "  - P                 - Pause / Resume",
+            "  - ESC               - Close menus / Back",
             "",
-            "  • ESC         - Close all menus",
+            "MOUSE:",
+            "  - Click the on-screen buttons",
             "",
-            "══════════════════════════════════════════════",
+            "==============================================",
+            "",
+            "IN-GAME MENU:",
+            "",
+            "  - VOLUME    adjust music volume",
+            "  - MUSIC     pick a track or upload your own",
+            "  - ABOUT     this screen",
+            "  - SWITCH    jump to the other game mode",
+            "",
+            "==============================================",
             "",
             "TIPS:",
             "",
-            "  • Take your time!",
-            "  • Say the sequence out loud",
-            "  • Practice makes perfect!",
+            "  - Try Inverted Controls for a twist",
+            "  - Pick a harder difficulty for faster rounds",
+            "  - High scores are tracked per mode",
             "",
-            "══════════════════════════════════════════════",
+            "==============================================",
             "",
             "Have fun and challenge your friends!",
-            ""
+            "",
         ]
         
         # Add fallback attributes to avoid AttributeError
@@ -112,7 +119,7 @@ class AboutMenu:
             if line == "":
                 line_heights.append(12)
             else:
-                if line.startswith("═══"):
+                if line.startswith("==="):
                     line_heights.append(16)
                 elif line.startswith(">"):
                     line_heights.append(22)
@@ -137,7 +144,7 @@ class AboutMenu:
                 continue
             
             try:
-                if line.startswith("═══"):
+                if line.startswith("==="):
                     text_surf = self.font_manager.render_text(line, (100, 100, 100), 14)
                 elif line.startswith(">"):
                     text_surf = self.font_manager.render_text(line, (255, 255, 255), 18)
@@ -165,29 +172,40 @@ class AboutMenu:
                 self.screen.blit(scroll_surface, content_rect, 
                                area=pygame.Rect(0, self.scroll_offset, content_rect.width, visible_height))
         
-        # Back button
+        # Back + Credits buttons side-by-side
+        gap = 12
+        row_w = self.back_button_width + self.credits_button_width + gap
+        row_left = bg_rect.centerx - row_w // 2
         back_button_rect = pygame.Rect(
-            bg_rect.centerx - self.back_button_width // 2,
+            row_left,
             bg_rect.bottom - 55,
             self.back_button_width,
-            self.back_button_height
+            self.back_button_height,
         )
-        
+        credits_button_rect = pygame.Rect(
+            row_left + self.back_button_width + gap,
+            bg_rect.bottom - 55,
+            self.credits_button_width,
+            self.credits_button_height,
+        )
+
         mouse_pos = pygame.mouse.get_pos()
-        button_color = (120, 120, 120) if back_button_rect.collidepoint(mouse_pos) else (80, 80, 80)
-        pygame.draw.rect(self.screen, button_color, back_button_rect, border_radius=10)
-        pygame.draw.rect(self.screen, (200, 200, 200), back_button_rect, 2, border_radius=10)
-        
-        try:
-            back_text = self.font_manager.render_text("BACK", (255, 255, 255), 22)
-            self.screen.blit(back_text, back_text.get_rect(center=back_button_rect.center))
-        except Exception:
-            # Fallback: draw simple text using pygame font
-            font = pygame.font.Font(None, 22)
-            back_text = font.render("BACK", True, (255, 255, 255))
-            self.screen.blit(back_text, back_text.get_rect(center=back_button_rect.center))
-        
+        for rect, label in (
+            (back_button_rect,    "BACK"),
+            (credits_button_rect, "CREDITS"),
+        ):
+            hover = rect.collidepoint(mouse_pos)
+            color = (120, 120, 120) if hover else (80, 80, 80)
+            pygame.draw.rect(self.screen, color, rect, border_radius=10)
+            pygame.draw.rect(self.screen, (200, 200, 200), rect, 2, border_radius=10)
+            try:
+                text_surf = self.font_manager.render_text(label, (255, 255, 255), 22)
+            except Exception:
+                text_surf = pygame.font.Font(None, 22).render(label, True, (255, 255, 255))
+            self.screen.blit(text_surf, text_surf.get_rect(center=rect.center))
+
         self.back_button_rect = back_button_rect
+        self.credits_button_rect = credits_button_rect
         self.content_rect = content_rect
     
     def handle_event(self, event):
@@ -202,6 +220,8 @@ class AboutMenu:
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if hasattr(self, 'back_button_rect') and self.back_button_rect and self.back_button_rect.collidepoint(event.pos):
                 return "Back"
+            if self.credits_button_rect and self.credits_button_rect.collidepoint(event.pos):
+                return "credits"
             if hasattr(self, 'content_rect') and self.content_rect and self.content_rect.collidepoint(event.pos):
                 self.scrolling = True
                 self.last_mouse_y = event.pos[1]

@@ -13,7 +13,7 @@ class BopItScreen:
         self.model = BopItModel(self._bus, difficulty=difficulty)
         self.keybinds = keybinds
 
-        menu_overlay = MenuOverlay(screen)
+        menu_overlay = MenuOverlay(screen, game_mode="bopit")
 
         self.view = BopItView(screen, keybinds.key_labels)
         self.controller = BopItController(

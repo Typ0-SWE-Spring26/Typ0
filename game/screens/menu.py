@@ -2,20 +2,27 @@ import pygame
 import os 
 from game_screens.menu_volume import VolumeMenu
 from game_screens.menu_music import MusicMenu
-from game_screens.menu_about import AboutMenu
 from assets.font_loader import FontManager
 
 class MenuOverlay:
-    
-    def __init__(self, screen):
+
+    def __init__(self, screen, game_mode: str | None = None):
+        """
+        game_mode:
+          - None        -> no "Switch Mode" button (start menu)
+          - "simon"     -> show button to switch to Bop It
+          - "bopit"     -> show button to switch to Simon
+        """
         self.screen = screen
         self.font_manager = FontManager()
         self.open = False
+        self.game_mode = game_mode
 
         W = screen.get_width()
         H = screen.get_height()
-        # MENU button stays bottom-left
-        self.button_rect = pygame.Rect(20, H - 70, 150, 60)
+        # MENU button stays bottom-left — kept compact so it doesn't crowd the
+        # left-wall (A) button in gameplay views.
+        self.button_rect = pygame.Rect(18, H - 52, 100, 38)
         
         # LOAD BACKGROUND IMAGE - Add error handling
         bg_path = os.path.join("assets", "menu_bg.png")
@@ -44,36 +51,39 @@ class MenuOverlay:
         # CENTERED MENU OPTIONS
         button_width = 250
         button_height = 50
-        spacing = 70
 
         popup_center_x = self.bg_rect.centerx
         popup_center_y = self.bg_rect.centery
 
-        self.volume_rect = pygame.Rect(
-            popup_center_x - button_width // 2,
-            popup_center_y - spacing,
-            button_width,
-            button_height
-        )
+        # Layout: evenly distribute N buttons around the popup centre.
+        show_switch = self.game_mode in ("simon", "bopit")
+        button_count = 4 if show_switch else 3
+        spacing = 60
+        total_h = button_count * button_height + (button_count - 1) * (spacing - button_height)
+        first_y = popup_center_y - total_h // 2
 
-        self.music_rect = pygame.Rect(
-            popup_center_x - button_width // 2,
-            popup_center_y,
-            button_width,
-            button_height
-        )
+        def _rect_at(index):
+            return pygame.Rect(
+                popup_center_x - button_width // 2,
+                first_y + index * spacing,
+                button_width,
+                button_height,
+            )
 
-        self.about_rect = pygame.Rect(
-            popup_center_x - button_width // 2,
-            popup_center_y + spacing,
-            button_width,
-            button_height
+        self.volume_rect = _rect_at(0)
+        self.music_rect  = _rect_at(1)
+        self.about_rect  = _rect_at(2)
+        self.switch_rect = _rect_at(3) if show_switch else None
+
+        self._switch_label = (
+            "SWITCH TO BOP IT" if self.game_mode == "simon"
+            else "SWITCH TO SIMON" if self.game_mode == "bopit"
+            else None
         )
         
         # Initialize submenus
         self.volume_menu = VolumeMenu(screen, self.font_manager)
         self.music_menu = MusicMenu(screen, self.font_manager)
-        self.about_menu = AboutMenu(screen, self.font_manager)
         self.active_submenu = None
 
     def draw(self):
@@ -85,7 +95,7 @@ class MenuOverlay:
         pygame.draw.rect(self.screen, button_color, self.button_rect, border_radius=10)
         pygame.draw.rect(self.screen, (200, 200, 200), self.button_rect, 3, border_radius=10)
         
-        menu_text = self.font_manager.render_text("MENU", (255, 255, 255), 32)
+        menu_text = self.font_manager.render_text("MENU", (255, 255, 255), 22)
         text_rect = menu_text.get_rect(center=self.button_rect.center)
         self.screen.blit(menu_text, text_rect)
         
@@ -105,19 +115,24 @@ class MenuOverlay:
         elif self.active_submenu == "music":
             self.music_menu.draw(self.bg_rect)
         elif self.open:
-            # Draw menu buttons
-            for rect, label in [
+            items = [
                 (self.volume_rect, "VOLUME"),
-                (self.music_rect, "MUSIC"),
-                (self.about_rect, "ABOUT")
-            ]:
+                (self.music_rect,  "MUSIC"),
+                (self.about_rect,  "HOW TO PLAY"),
+            ]
+            if self.switch_rect is not None and self._switch_label:
+                items.append((self.switch_rect, self._switch_label))
+
+            for rect, label in items:
                 hover = rect.collidepoint(pygame.mouse.get_pos())
                 button_color = (120, 120, 120) if hover else (80, 80, 80)
-                
+
                 pygame.draw.rect(self.screen, button_color, rect, border_radius=12)
                 pygame.draw.rect(self.screen, (200, 200, 200), rect, 3, border_radius=12)
-                
-                text_surf = self.font_manager.render_text(label, (255, 255, 255), 28)
+
+                # Slightly smaller font for the longer Switch Mode label
+                size = 22 if label and label.startswith("SWITCH") else 28
+                text_surf = self.font_manager.render_text(label, (255, 255, 255), size)
                 text_rect = text_surf.get_rect(center=rect.center)
                 self.screen.blit(text_surf, text_rect)
 
@@ -145,7 +160,7 @@ class MenuOverlay:
                 self.active_submenu = None
                 self.open = True
             return None
-        
+
         # Main menu clicks
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.button_rect.collidepoint(event.pos):
@@ -163,6 +178,9 @@ class MenuOverlay:
                     return None
                 if self.about_rect.collidepoint(event.pos):
                     self.open = False
-                    return "credits"
+                    return "how_to_play"
+                if self.switch_rect is not None and self.switch_rect.collidepoint(event.pos):
+                    self.open = False
+                    return "switch_mode"
 
         return None

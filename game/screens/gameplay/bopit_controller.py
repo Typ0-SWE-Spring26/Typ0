@@ -3,6 +3,7 @@ import asyncio
 from game.core.game_timer import GameTimer
 from game.utils import animation_utils
 from game.screens.credits import CreditsScreen
+from game.screens.how_to_play import HowToPlayScreen
 
 
 class BopItController:
@@ -36,6 +37,19 @@ class BopItController:
         else:
             self._bus.emit('game_resumed', {'now': now_tick})
             animation_utils.unpause_music()
+
+    def _exit_overlay_screen(self) -> None:
+        """Restore gameplay state after a full-screen overlay (e.g. credits)."""
+        if self.menu_overlay:
+            self.menu_overlay.open = False
+            self.menu_overlay.active_submenu = None
+        self._menu_forced_pause = False
+        self._set_paused(False)
+        if not animation_utils.is_music_playing():
+            user_pick = animation_utils.get_user_music_selection()
+            track = user_pick if user_pick and user_pick != "assets/Typ0__Intro_Theme.ogg" \
+                    else "assets/Typ0__Main_Theme.ogg"
+            animation_utils.play_music(track)
 
     @property
     def _menu_is_open(self) -> bool:
@@ -87,7 +101,24 @@ class BopItController:
                         cr = await credits.run()
                         if cr == "quit":
                             return "quit"
-                        self._set_paused(False)
+                        self._exit_overlay_screen()
+
+                    if menu_action == "how_to_play":
+                        self._set_paused(True)
+                        how_to_play = HowToPlayScreen(self.screen)
+                        how_result = await how_to_play.run()
+                        if how_result == "quit":
+                            return "quit"
+                        if how_result == "credits":
+                            credits = CreditsScreen(self.screen)
+                            cr = await credits.run()
+                            if cr == "quit":
+                                return "quit"
+                        self._exit_overlay_screen()
+
+                    if menu_action == "switch_mode":
+                        animation_utils.stop_music()
+                        return ("switch_mode",)
 
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_p:

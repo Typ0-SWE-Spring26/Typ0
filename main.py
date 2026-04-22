@@ -16,6 +16,7 @@ from game.screens.gameplay.display import GameScreen
 from game.screens.gameplay.bopit_display import BopItScreen
 from game.screens.gameover import GameOverScreen
 from game.screens.credits import CreditsScreen
+from game.screens.how_to_play import HowToPlayScreen
 from game.screens.name_entry import NameEntryScreen
 from game.screens.high_scores import HighScoresScreen
 from game.core.keybinds import KeybindManager
@@ -179,6 +180,12 @@ async def _run_single_player(screen, keybinds, game_mode):
         if game_result == "quit":
             return "quit"
 
+        # Player used the in-game menu to switch modes — bubble up so the
+        # outer loop can restart in the other mode.
+        if isinstance(game_result, tuple) and game_result and game_result[0] == "switch_mode":
+            other = "bopit" if game_mode == "simon" else "simon"
+            return f"start_{other}"
+
         # game_result is ("gameover", score, reason)
         _, score, reason = game_result
 
@@ -232,6 +239,19 @@ async def main():
                     if cr == "quit":
                         result = "quit"
                         break
+                    continue  # back to menu
+                if result == "how_to_play":
+                    how_to_play = HowToPlayScreen(screen)
+                    about_result = await how_to_play.run()
+                    if about_result == "quit":
+                        result = "quit"
+                        break
+                    if about_result == "credits":
+                        credits = CreditsScreen(screen)
+                        cr = await credits.run()
+                        if cr == "quit":
+                            result = "quit"
+                            break
                     continue  # back to menu
                 break  # "start_simon", "start_bopit", "multiplayer", or "quit"
 
