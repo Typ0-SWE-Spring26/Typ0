@@ -107,13 +107,6 @@ class MusicMenu:
         label = self.font_manager.render_text(sub_text, sub_color, 20)
         self.screen.blit(label, label.get_rect(center=(bg_rect.centerx, bg_rect.centery + 55)))
 
-        # Web hint: nudge users toward the upload button
-        if animation_utils._IS_WEB:
-            hint = self.font_manager.render_text(
-                "USE THE BUTTON BELOW TO UPLOAD YOUR OWN", (120, 120, 120), 14
-            )
-            self.screen.blit(hint, hint.get_rect(center=(bg_rect.centerx, bg_rect.bottom - 95)))
-
         # Back button
         self.back_rect = pygame.Rect(bg_rect.centerx - 100, bg_rect.bottom - 75, 200, 55)
         hover_back = self.back_rect.collidepoint(pygame.mouse.get_pos())
