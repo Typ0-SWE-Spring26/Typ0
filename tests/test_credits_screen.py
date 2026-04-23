@@ -254,7 +254,7 @@ class TestPalette:
             cs._KEY_BASE, cs._KEY_BASE_HOVER,
             cs._KEY_OUTLINE, cs._KEY_TEXT,
             cs._ACCENT, cs._HINT_TEXT, cs._DIVIDER,
-            cs._SUBTLE_TEXT, cs._GRAD_TOP, cs._GRAD_BOTTOM,
+            cs._GRAD_TOP, cs._GRAD_BOTTOM,
         ]
         for color in palette:
             assert isinstance(color, tuple)

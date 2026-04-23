@@ -29,7 +29,6 @@ class CreditsScreen:
 
     # Non-keycap colors
     _ACCENT           = (255, 215, 0)
-    _SUBTLE_TEXT      = (180, 180, 220)
     _HINT_TEXT        = (110, 110, 160)
     _DIVIDER          = (80, 80, 120)
 
