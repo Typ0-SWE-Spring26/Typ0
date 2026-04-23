@@ -56,15 +56,18 @@ class GameView:
         self.font_small = pygame.font.SysFont(None, 32)
         self.font_label = pygame.font.SysFont(None, 50)
 
+        # Cache the static HUD background — recreating an SRCALPHA surface every
+        # frame leaks memory in pygbag/WASM and can stall the browser tab.
+        self._hud_h = 50
+        self._hud_panel = pygame.Surface((W, self._hud_h), pygame.SRCALPHA)
+        self._hud_panel.fill((30, 30, 50, 190))
+
     def _draw_hud_panel(self):
         """Shared top HUD strip background — subclasses blit labels on top."""
         W = self.screen.get_width()
-        hud_h = 50
-        panel = pygame.Surface((W, hud_h), pygame.SRCALPHA)
-        panel.fill((30, 30, 50, 190))
-        self.screen.blit(panel, (0, 0))
-        pygame.draw.line(self.screen, (80, 80, 120), (0, hud_h), (W, hud_h), 2)
-        return hud_h
+        self.screen.blit(self._hud_panel, (0, 0))
+        pygame.draw.line(self.screen, (80, 80, 120), (0, self._hud_h), (W, self._hud_h), 2)
+        return self._hud_h
 
     def _draw_status_centered(self, text, color, y):
         """Draw status text centered at y — sits inside the HUD bar."""
@@ -78,24 +81,31 @@ class GameView:
         bar_x, bar_h = 20, 10
         bar_y = 56
         bar_w = W - 40
+        # Clamp incoming fraction defensively — out-of-range values from a
+        # rogue timer state would otherwise push the fill rect or color
+        # channels into invalid territory.
+        f = max(0.0, min(1.0, float(fraction)))
+        track_radius = bar_h // 2
         track = pygame.Rect(bar_x, bar_y, bar_w, bar_h)
-        pygame.draw.rect(self.screen, (35, 35, 55), track, border_radius=bar_h // 2)
+        pygame.draw.rect(self.screen, (35, 35, 55), track, border_radius=track_radius)
 
-        fill_w = max(0, int(fraction * bar_w))
+        fill_w = max(0, int(f * bar_w))
         if fill_w > 0:
             if gradient:
-                # Clamp so a near-empty bar doesn't push channels above 255 and
-                # raise a pygame ValueError that would break the async loop.
-                r = min(255, max(0, int(240 * (1 - fraction)) + 40))
-                g = min(255, max(0, int(200 * fraction) + 55))
+                # Clamp so a near-empty bar doesn't push channels above 255.
+                r = min(255, max(0, int(240 * (1 - f)) + 40))
+                g = min(255, max(0, int(200 * f) + 55))
                 color = (r, g, 90)
             else:
                 color = (240, 90, 90)
+            # pygame's rounded-rect renderer in pygbag can hang/crash when
+            # border_radius >= min(width, height)/2. Drop the radius to fit.
+            fill_radius = min(track_radius, fill_w // 2)
             pygame.draw.rect(self.screen, color,
                              pygame.Rect(bar_x, bar_y, fill_w, bar_h),
-                             border_radius=bar_h // 2)
+                             border_radius=fill_radius)
         pygame.draw.rect(self.screen, (80, 80, 110), track, width=1,
-                         border_radius=bar_h // 2)
+                         border_radius=track_radius)
 
     def draw(self, model, timer_fraction):
         """Render one frame based on current model state."""

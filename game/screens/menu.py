@@ -85,6 +85,12 @@ class MenuOverlay:
         self.music_menu = MusicMenu(screen, self.font_manager)
         self.active_submenu = None
 
+        # Cache the dim overlay used behind the popup. Allocating a fresh
+        # SRCALPHA surface every frame leaks several MB/sec in pygbag and
+        # can lock the browser tab after the menu has been open a while.
+        self._dim_overlay = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
+        self._dim_overlay.fill((0, 0, 0, 150))
+
     def draw(self):
         # Draw MENU button
         button_color = (80, 80, 80)
@@ -101,10 +107,8 @@ class MenuOverlay:
         # Draw dark overlay and background if menu is open
         if self.open or self.active_submenu is not None:
             # Dark transparent overlay behind popup (only behind, not on brick)
-            overlay = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 150))
-            self.screen.blit(overlay, (0, 0))
-            
+            self.screen.blit(self._dim_overlay, (0, 0))
+
             # Draw DARKENED brick background (only the brick area is darkened)
             self.screen.blit(self.bg_image_dark, self.bg_rect)
 
