@@ -107,13 +107,6 @@ class MusicMenu:
         label = self.font_manager.render_text(sub_text, sub_color, 20)
         self.screen.blit(label, label.get_rect(center=(bg_rect.centerx, bg_rect.centery + 55)))
 
-        # Web hint: nudge users toward the upload button
-        if animation_utils._IS_WEB:
-            hint = self.font_manager.render_text(
-                "USE THE BUTTON BELOW TO UPLOAD YOUR OWN", (120, 120, 120), 14
-            )
-            self.screen.blit(hint, hint.get_rect(center=(bg_rect.centerx, bg_rect.bottom - 95)))
-
         # Back button
         self.back_rect = pygame.Rect(bg_rect.centerx - 100, bg_rect.bottom - 75, 200, 55)
         hover_back = self.back_rect.collidepoint(pygame.mouse.get_pos())
@@ -124,14 +117,21 @@ class MusicMenu:
             self.font_manager.render_text("BACK", (255, 255, 255), 28).get_rect(center=self.back_rect.center),
         )
 
+    # ── Lifecycle ─────────────────────────────────────────────────────────────
+
+    def on_close(self):
+        """Called by the parent menu when the music submenu is being dismissed
+        (e.g. ESC) so it can tear down DOM-side overlays it owns."""
+        if self._upload_btn_visible:
+            self._upload_btn_visible = False
+            animation_utils.hide_upload_button()
+
     # ── Input ─────────────────────────────────────────────────────────────────
 
     def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.back_rect.collidepoint(event.pos):
-                if self._upload_btn_visible:
-                    self._upload_btn_visible = False
-                    animation_utils.hide_upload_button()
+                self.on_close()
                 return "Back"
 
             if self.left_rect.collidepoint(event.pos):

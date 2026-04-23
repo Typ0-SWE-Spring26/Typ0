@@ -398,14 +398,17 @@ class TestGameViewDraw:
         calls = [str(c) for c in view.font_small.render.call_args_list]
         assert any('ROUND' in c and '3' in c for c in calls)
 
-    def test_draw_showing_state_status(self, game_screen):
+    def test_draw_showing_state_has_no_alert_text(self, game_screen):
         view = game_screen.view
         model = game_screen.model
         model.state = 'showing'
+        model.sequence = ['left', 'right']
         view.draw(model, 1.0)
 
+        # All instructional alert text was removed — only score/round/labels
+        # should still be rendered, no "Watch carefully…" prompt.
         calls = [str(c) for c in view.font_small.render.call_args_list]
-        assert any('Watch carefully' in c for c in calls)
+        assert not any('Watch carefully' in c for c in calls)
 
     def test_draw_input_state_status(self, game_screen):
         view = game_screen.view
@@ -415,8 +418,9 @@ class TestGameViewDraw:
         model.player_index = 0
         view.draw(model, 1.0)
 
+        # The "X left" remaining counter survives as the only status text.
         calls = [str(c) for c in view.font_small.render.call_args_list]
-        assert any('Your turn' in c for c in calls)
+        assert any('left' in c for c in calls)
 
     def test_draw_blits_buttons(self, game_screen):
         view = game_screen.view
