@@ -24,6 +24,7 @@ class AudioManager {
         this._userTracks = [];
         this._uploadBtn = null;
         this._fileInput = null;
+        this._resizeHandler = null;
         // ── New-track notification (polled by Python) ─────────────────────────────
         this._newTrackAdded = false;
         this._lastAddedIndex = -1;
@@ -155,13 +156,51 @@ class AudioManager {
     showUploadButton() {
         if (!this._uploadBtn)
             this._initUploadElements();
-        if (this._uploadBtn)
+        if (this._uploadBtn) {
             this._uploadBtn.style.display = "block";
+            this._positionOverMenu();
+            if (!this._resizeHandler) {
+                this._resizeHandler = () => this._positionOverMenu();
+                window.addEventListener("resize", this._resizeHandler);
+            }
+        }
     }
     /** Hide the HTML upload button overlay. */
     hideUploadButton() {
         if (this._uploadBtn)
             this._uploadBtn.style.display = "none";
+        if (this._resizeHandler) {
+            window.removeEventListener("resize", this._resizeHandler);
+            this._resizeHandler = null;
+        }
+    }
+    /**
+     * Place the upload button on top of the pygame menu's brick popup.
+     * The pygame canvas is letterboxed inside a 100%×100% element, so we
+     * re-derive the letterbox offsets from the canvas rect and map virtual
+     * coordinates (800×600 game space) to viewport pixels.
+     */
+    _positionOverMenu() {
+        if (!this._uploadBtn)
+            return;
+        const canvas = document.querySelector("canvas.emscripten");
+        if (!canvas)
+            return;
+        const r = canvas.getBoundingClientRect();
+        if (!r.width || !r.height)
+            return;
+        const VW = 800, VH = 600;
+        const scale = Math.min(r.width / VW, r.height / VH);
+        const offX = r.left + (r.width - VW * scale) / 2;
+        const offY = r.top + (r.height - VH * scale) / 2;
+        // Menu brick popup is 500×400 virtual, centered at (400, 300).
+        // Sit just above the BACK button (which runs y≈425–480 virtual).
+        const vx = 400, vy = 395;
+        const btn = this._uploadBtn;
+        btn.style.right = "auto";
+        btn.style.transform = "none";
+        btn.style.left = (offX + vx * scale - btn.offsetWidth / 2) + "px";
+        btn.style.top = (offY + vy * scale - btn.offsetHeight / 2) + "px";
     }
     /** Number of tracks the user has uploaded this session. */
     getUserTrackCount() {
@@ -214,22 +253,20 @@ class AudioManager {
         Object.assign(this._uploadBtn.style, {
             display: "none",
             position: "fixed",
-            bottom: "16px",
-            left: "50%",
-            transform: "translateX(-50%)",
-            padding: "14px 36px",
+            top: "16px",
+            right: "16px",
+            padding: "10px 22px",
             background: "#0d0d2b",
             color: "#ffffff",
             border: "2px solid #aaaaaa",
             borderRadius: "10px",
             fontFamily: "monospace, sans-serif",
-            fontSize: "16px",
+            fontSize: "14px",
             fontWeight: "bold",
-            letterSpacing: "3px",
+            letterSpacing: "2px",
             cursor: "pointer",
             zIndex: "9999",
             userSelect: "none",
-            minWidth: "240px",
             textAlign: "center",
             boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
         });
