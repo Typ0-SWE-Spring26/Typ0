@@ -73,6 +73,9 @@ class GameController:
 
         Returns True so callers can ``break`` after a matched input.
         """
+        animation_utils.set_music_menu_locked(False)
+        animation_utils.play_sound("assets/TypoPressSFX.ogg")
+        animation_utils.set_music_menu_locked(True)
         result = self.model.handle_input(name, now)
         if result in ('wrong', 'round_complete'):
             self.game_timer.stop()
