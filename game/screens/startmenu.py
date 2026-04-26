@@ -28,21 +28,23 @@ class StartMenu:
         btn_w, btn_h = 400, 75
         btn_x = cx - btn_w // 2
 
-        # Distribute 4 buttons evenly in the space below the title
+        # Distribute 5 buttons evenly in the space below the title
         btn_gap   = 16
-        block_h   = 4 * btn_h + 3 * btn_gap
+        block_h   = 5 * btn_h + 4 * btn_gap
         title_clearance = H // 4 + 60          # first pixel available below title
         btn_start = title_clearance + (H - 20 - title_clearance - block_h) // 2
         stride    = btn_h + btn_gap
 
-        self.simon_rect    = pygame.Rect(btn_x, btn_start,              btn_w, btn_h)
-        self.bopit_rect    = pygame.Rect(btn_x, btn_start + stride,     btn_w, btn_h)
-        self.multi_rect    = pygame.Rect(btn_x, btn_start + stride * 2, btn_w, btn_h)
-        self.settings_rect = pygame.Rect(btn_x, btn_start + stride * 3, btn_w, btn_h)
-        self.btn_simon      = Button(self.simon_rect,    "Simon Mode",   self.font_btn)
-        self.btn_bopit      = Button(self.bopit_rect,    "Bop It Mode",  self.font_btn)
-        self.btn_multi      = Button(self.multi_rect,    "Multiplayer",  self.font_btn)
-        self.btn_settings   = Button(self.settings_rect, "Settings",     self.font_btn)
+        self.simon_rect      = pygame.Rect(btn_x, btn_start,              btn_w, btn_h)
+        self.bopit_rect      = pygame.Rect(btn_x, btn_start + stride,     btn_w, btn_h)
+        self.keys_ninja_rect = pygame.Rect(btn_x, btn_start + stride * 2, btn_w, btn_h)
+        self.multi_rect      = pygame.Rect(btn_x, btn_start + stride * 3, btn_w, btn_h)
+        self.settings_rect   = pygame.Rect(btn_x, btn_start + stride * 4, btn_w, btn_h)
+        self.btn_simon       = Button(self.simon_rect,      "Simon Mode",      self.font_btn)
+        self.btn_bopit       = Button(self.bopit_rect,      "Bop It Mode",     self.font_btn)
+        self.btn_keys_ninja  = Button(self.keys_ninja_rect, "Keys Ninja Mode", self.font_btn)
+        self.btn_multi       = Button(self.multi_rect,      "Multiplayer",     self.font_btn)
+        self.btn_settings    = Button(self.settings_rect,   "Settings",        self.font_btn)
 
         while self.running:
 
@@ -60,10 +62,11 @@ class StartMenu:
                     continue
 
                 for btn, result in [
-                    (self.btn_simon,    "start_simon"),
-                    (self.btn_bopit,    "start_bopit"),
-                    (self.btn_multi,    "multiplayer"),
-                    (self.btn_settings, None),
+                    (self.btn_simon,      "start_simon"),
+                    (self.btn_bopit,      "start_bopit"),
+                    (self.btn_keys_ninja, "start_keys_ninja"),
+                    (self.btn_multi,      "multiplayer"),
+                    (self.btn_settings,   None),
                 ]:
                     if btn.handle_event(event):
                         if result:
@@ -85,6 +88,7 @@ class StartMenu:
 
             self.btn_simon.draw(self.screen)
             self.btn_bopit.draw(self.screen)
+            self.btn_keys_ninja.draw(self.screen)
             self.btn_multi.draw(self.screen)
             self.btn_settings.draw(self.screen)
 

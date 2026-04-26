@@ -176,6 +176,12 @@ class ConfigScreen:
                 "Normal": "8s per round  -  balanced pacing",
                 "Hard":   "4s per round  -  lightning flashes",
             }
+        elif self.game_mode == "keys_ninja":
+            hints = {
+                "Easy":   "Slow spawn rate  -  gentle falling speed",
+                "Normal": "Balanced spawn rate  -  moderate speed",
+                "Hard":   "Fast spawn rate  -  rapid falling keys",
+            }
         else:
             hints = {
                 "Easy":   "Up to 7s per command  -  gentle speedup",
@@ -183,7 +189,12 @@ class ConfigScreen:
                 "Hard":   "Up to 3.5s per command  -  rapid speedup",
             }
         challenge_stars = {"Easy": "*", "Normal": "* *", "Hard": "* * *"}
-        mode_label = "Simon Mode" if self.game_mode == "simon" else "Bop It Mode"
+        if self.game_mode == "simon":
+            mode_label = "Simon Mode"
+        elif self.game_mode == "bopit":
+            mode_label = "Bop It Mode"
+        else:
+            mode_label = "Keys Ninja Mode"
 
         while True:
             changed = False

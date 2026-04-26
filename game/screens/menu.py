@@ -9,9 +9,10 @@ class MenuOverlay:
     def __init__(self, screen, game_mode: str | None = None):
         """
         game_mode:
-          - None        -> no "Switch Mode" button (start menu)
-          - "simon"     -> show button to switch to Bop It
-          - "bopit"     -> show button to switch to Simon
+          - None          -> no "Switch Mode" button (start menu)
+          - "simon"       -> show button to switch to Bop It
+          - "bopit"       -> show button to switch to Simon
+          - "keys_ninja"  -> show button to switch to Simon
         """
         self.screen = screen
         self.font_manager = FontManager()
@@ -56,7 +57,7 @@ class MenuOverlay:
         popup_center_y = self.bg_rect.centery
 
         # Layout: evenly distribute N buttons around the popup centre.
-        show_switch = self.game_mode in ("simon", "bopit")
+        show_switch = self.game_mode in ("simon", "bopit", "keys_ninja")
         button_count = 4 if show_switch else 3
         spacing = 60
         total_h = button_count * button_height + (button_count - 1) * (spacing - button_height)
@@ -78,6 +79,7 @@ class MenuOverlay:
         self._switch_label = (
             "SWITCH TO BOP IT" if self.game_mode == "simon"
             else "SWITCH TO SIMON" if self.game_mode == "bopit"
+            else "SWITCH TO SIMON" if self.game_mode == "keys_ninja"
             else None
         )
         
