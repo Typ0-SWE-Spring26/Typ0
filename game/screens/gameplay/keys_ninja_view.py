@@ -116,9 +116,9 @@ class KeysNinjaView(GameView):
         # Draw HUD
         hud_h = self._draw_hud_panel()
         
-        # Score (left side)
+        # Score (left side, moved right to avoid menu button)
         score_surf = self.font_small.render(f"SCORE  {model.score}", True, (235, 235, 245))
-        self.screen.blit(score_surf, score_surf.get_rect(midleft=(24, hud_h // 2)))
+        self.screen.blit(score_surf, score_surf.get_rect(midleft=(140, hud_h // 2)))  # Moved from 24 to 140
         
         # Lives (right side) - draw X symbols
         lives_x = W - 24

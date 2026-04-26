@@ -25,14 +25,14 @@ class StartMenu:
         W = self.screen.get_width()
         H = self.screen.get_height()
         cx = W // 2
-        btn_w, btn_h = 400, 75
+        btn_w, btn_h = 380, 65  # Reduced from 400x75 to fit better
         btn_x = cx - btn_w // 2
 
         # Distribute 5 buttons evenly in the space below the title
-        btn_gap   = 16
+        btn_gap   = 10  # Reduced from 12 for even tighter spacing
         block_h   = 5 * btn_h + 4 * btn_gap
-        title_clearance = H // 4 + 60          # first pixel available below title
-        btn_start = title_clearance + (H - 20 - title_clearance - block_h) // 2
+        title_clearance = H // 4 + 70  # Adjusted for better spacing
+        btn_start = title_clearance + (H - 40 - title_clearance - block_h) // 2  # Changed from H-20
         stride    = btn_h + btn_gap
 
         self.simon_rect      = pygame.Rect(btn_x, btn_start,              btn_w, btn_h)
@@ -83,7 +83,7 @@ class StartMenu:
             oldh=logo.get_height()
             logo=pygame.transform.smoothscale(logo,((oldw//2),(oldh//2)))
             logo_rect=logo.get_rect()
-            logo_rect.center=(cx, H//5)
+            logo_rect.center=(cx, H//6)  # Moved up from H//5 to H//6
             self.screen.blit(logo, logo_rect)
 
             self.btn_simon.draw(self.screen)

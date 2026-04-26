@@ -17,7 +17,7 @@ import time
 import pytest
 
 GAME_URL       = "http://localhost:8000"
-WS_PORT        = 14023
+WS_PORT        = 15090
 LOAD_WAIT_MS   = 12_000   # time for WASM runtime to initialise
 RENDER_BUDGET_S = 30      # max wait for a non-blank frame
 

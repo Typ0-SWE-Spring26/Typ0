@@ -62,7 +62,7 @@ class KeysNinjaModel:
         if self.score < 100:
             return 0.0  # No bombs early game
         else:
-            return 0.08  # 8% chance later
+            return 0.15  # 15% chance after 100 points
     
     def reset(self):
         self.score = 0
@@ -223,20 +223,11 @@ class KeysNinjaModel:
         
         if hit_key:
             if hit_key.is_bomb:
-                # Hit a bomb - lose a life
-                self.lives -= 1
-                self.combo = 0  # Reset combo
-                hit_key.state = 'hit'
-                hit_key.hit_time = now
-                hit_key.scale = 1.0
-                
-                if self.lives <= 0:
-                    # Out of lives - game over
-                    self.state = 'gameover'
-                    self.gameover_reason = "Out of lives!"
-                    self._bus.emit('input_result', {'result': 'wrong', 'name': char})
-                    return 'wrong'
-                
+                # Hit a bomb - instant game over!
+                self.lives = 0
+                self.state = 'gameover'
+                self.gameover_reason = "Hit a bomb!"
+                self._bus.emit('input_result', {'result': 'wrong', 'name': char})
                 return 'wrong'
             else:
                 # Correct key!

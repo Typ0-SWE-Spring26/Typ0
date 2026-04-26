@@ -119,6 +119,10 @@ class BopItController:
                     if menu_action == "switch_mode":
                         animation_utils.stop_music()
                         return ("switch_mode",)
+                    
+                    if menu_action == "main_menu":
+                        animation_utils.stop_music()
+                        return ("main_menu",)
 
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_p:

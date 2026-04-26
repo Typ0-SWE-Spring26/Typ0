@@ -1,41 +1,42 @@
 #!/usr/bin/env python3
-"""TYP0 Multiplayer WebSocket Server + Score API
+"""TYP0 unified server — game static files, multiplayer WebSocket, and Score API
+all served from a single aiohttp app on one port.
 
 Run with:
-    pip install websockets aiohttp
-    python server/server.py
+    pip install -r server/requirements.txt
+    STATIC_DIR=build/web python server/server.py
 
-WebSocket multiplayer:  ws://host:14023
-Score HTTP API:         http://host:14024
-  GET  /scores/{game_type}          -> JSON array of top 10
-  POST /scores/{game_type}          -> body {"name":"..","score":0}, returns updated top 10
-  Valid game_type values: simon, bopit, multiplayer
+Routes:
+    GET  /ws                   -> multiplayer WebSocket
+    GET  /scores/{game_type}   -> JSON array of top 10
+    POST /scores/{game_type}   -> body {"name":"..","score":0}, returns top 10
+    GET  /*                    -> pygbag build (STATIC_DIR)
+
+Valid game_type values: simon, bopit, multiplayer
 """
 
 import asyncio
 import json
+import os
 import random
-import websockets
-from websockets.exceptions import ConnectionClosed
-from aiohttp import web
+from pathlib import Path
+
+from aiohttp import WSMsgType, web
 
 try:
     from scores import load_scores, add_score, is_high_score, VALID_GAME_TYPES
 except ImportError:
     from server.scores import load_scores, add_score, is_high_score, VALID_GAME_TYPES
 
-HOST = "0.0.0.0"
-WS_PORT = 14023
-HTTP_PORT = 14024
-
-CORS_HEADERS = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-}
+HOST = os.environ.get("HOST", "0.0.0.0")
+PORT = int(os.environ.get("PORT", "15090"))
+STATIC_DIR = os.environ.get(
+    "STATIC_DIR",
+    str(Path(__file__).resolve().parent.parent / "build" / "web"),
+)
 
 # name -> websocket connection
-_players: dict[str, websockets.ServerConnection] = {}
+_players: dict[str, web.WebSocketResponse] = {}
 
 # challenger_name -> (target_name, settings_bitmask)
 _pending_challenges: dict[str, tuple[str, int]] = {}
@@ -53,7 +54,7 @@ async def _broadcast_lobby() -> None:
     msg = json.dumps({"type": "player_list", "players": available})
     for ws in list(_players.values()):
         try:
-            await ws.send(msg)
+            await ws.send_str(msg)
         except Exception:
             pass
 
@@ -63,17 +64,31 @@ async def _safe_send(name: str, data: dict) -> None:
     ws = _players.get(name)
     if ws:
         try:
-            await ws.send(json.dumps(data))
+            await ws.send_str(json.dumps(data))
         except Exception:
             pass
 
 
-async def handler(websocket) -> None:
+async def ws_handler(request: web.Request) -> web.WebSocketResponse:
+    ws = web.WebSocketResponse()
+    await ws.prepare(request)
+    await _ws_session(ws)
+    return ws
+
+
+async def _ws_session(ws) -> None:
+    """Run a single WebSocket session.
+
+    Extracted from ws_handler so unit tests can pass a fake ws without
+    needing a real aiohttp request to call .prepare() on.
+    """
     name: str | None = None
     try:
-        async for raw in websocket:
+        async for aio_msg in ws:
+            if aio_msg.type != WSMsgType.TEXT:
+                continue
             try:
-                msg = json.loads(raw)
+                msg = json.loads(aio_msg.data)
             except (json.JSONDecodeError, ValueError):
                 continue
 
@@ -83,18 +98,18 @@ async def handler(websocket) -> None:
             if t == "join":
                 requested = str(msg.get("name", "")).strip()[:20]
                 if not requested:
-                    await websocket.send(json.dumps(
+                    await ws.send_str(json.dumps(
                         {"type": "error", "message": "Name cannot be empty"}
                     ))
                     continue
                 if requested in _players:
-                    await websocket.send(json.dumps(
+                    await ws.send_str(json.dumps(
                         {"type": "error", "message": "Name already taken"}
                     ))
                     continue
                 name = requested
-                _players[name] = websocket
-                await websocket.send(json.dumps({"type": "joined", "name": name}))
+                _players[name] = ws
+                await ws.send_str(json.dumps({"type": "joined", "name": name}))
                 print(f"[+] {name} joined  ({len(_players)} online)")
                 await _broadcast_lobby()
 
@@ -107,12 +122,12 @@ async def handler(websocket) -> None:
                 if target == name:
                     continue
                 if target not in _players:
-                    await websocket.send(json.dumps(
+                    await ws.send_str(json.dumps(
                         {"type": "error", "message": "Player not found"}
                     ))
                     continue
                 if target in _active_games:
-                    await websocket.send(json.dumps(
+                    await ws.send_str(json.dumps(
                         {"type": "error", "message": f"{target} is already in a game"}
                     ))
                     continue
@@ -218,8 +233,6 @@ async def handler(websocket) -> None:
                 _sessions.pop(session_id, None)
                 await _broadcast_lobby()
 
-    except ConnectionClosed:
-        pass
     finally:
         if name:
             print(f"[-] {name} disconnected")
@@ -248,22 +261,11 @@ async def handler(websocket) -> None:
 
 # ── HTTP Score API ───────────────────────────────────────────────────────────
 
-async def handle_options(request: web.Request) -> web.Response:
-    """Handle CORS preflight requests."""
-    return web.Response(headers=CORS_HEADERS)
-
-
 async def handle_get_scores(request: web.Request) -> web.Response:
     game_type = request.match_info["game_type"]
     if game_type not in VALID_GAME_TYPES:
-        return web.Response(status=404, text="Unknown game type",
-                            headers=CORS_HEADERS)
-    scores = load_scores(game_type)
-    return web.Response(
-        text=json.dumps(scores),
-        content_type="application/json",
-        headers=CORS_HEADERS,
-    )
+        return web.Response(status=404, text="Unknown game type")
+    return web.json_response(load_scores(game_type))
 
 
 async def handle_close_connections(request: web.Request) -> web.Response:
@@ -300,61 +302,55 @@ async def handle_close_connections(request: web.Request) -> web.Response:
 async def handle_post_score(request: web.Request) -> web.Response:
     game_type = request.match_info["game_type"]
     if game_type not in VALID_GAME_TYPES:
-        return web.Response(status=404, text="Unknown game type",
-                            headers=CORS_HEADERS)
+        return web.Response(status=404, text="Unknown game type")
     try:
         body = await request.json()
         name = str(body["name"]).strip()[:20]
         score = int(body["score"])
     except Exception:
-        return web.Response(status=400, text="Invalid body",
-                            headers=CORS_HEADERS)
+        return web.Response(status=400, text="Invalid body")
     if not name:
-        return web.Response(status=400, text="Name required",
-                            headers=CORS_HEADERS)
+        return web.Response(status=400, text="Name required")
     if not is_high_score(score, game_type):
-        scores = load_scores(game_type)
-        return web.Response(
-            text=json.dumps(scores),
-            content_type="application/json",
-            headers=CORS_HEADERS,
-        )
+        return web.json_response(load_scores(game_type))
     updated = add_score(name, score, game_type)
     print(f"[score] {game_type}  {name}={score}")
-    return web.Response(
-        text=json.dumps(updated),
-        content_type="application/json",
-        headers=CORS_HEADERS,
-    )
+    return web.json_response(updated)
 
 
-def _build_http_app() -> web.Application:
+def build_app() -> web.Application:
     app = web.Application()
-    app.router.add_route("OPTIONS", "/scores/{game_type}", handle_options)
+
+    # Dynamic routes first so they win over the static catch-all.
+    app.router.add_get("/ws", ws_handler)
     app.router.add_get("/scores/{game_type}", handle_get_scores)
     app.router.add_post("/scores/{game_type}", handle_post_score)
-    app.router.add_route("OPTIONS", "/admin/close", handle_options)
-    app.router.add_route("OPTIONS", "/admin/close/{name}", handle_options)
-    app.router.add_post("/admin/close", handle_close_connections)
-    app.router.add_post("/admin/close/{name}", handle_close_connections)
+
+    # Pygbag build (game). aiohttp's add_static doesn't serve index.html
+    # automatically, so wire up a root handler that returns it explicitly.
+    # show_index stays False — we don't want directory listings exposed.
+    static_path = Path(STATIC_DIR)
+    if static_path.is_dir():
+        index_file = static_path / "index.html"
+
+        async def serve_index(_request: web.Request) -> web.FileResponse:
+            return web.FileResponse(index_file)
+
+        app.router.add_get("/", serve_index)
+        app.router.add_static("/", path=str(static_path), show_index=False)
+    else:
+        print(f"[warn] STATIC_DIR {static_path} not found — static serving disabled")
+
     return app
 
 
-async def main() -> None:
-    print(f"TYP0 multiplayer server  ws://{HOST}:{WS_PORT}")
-    print(f"TYP0 score API           http://{HOST}:{HTTP_PORT}")
-
-    # HTTP score API
-    app = _build_http_app()
-    runner = web.AppRunner(app)
-    await runner.setup()
-    http_site = web.TCPSite(runner, HOST, HTTP_PORT)
-    await http_site.start()
-
-    # WebSocket multiplayer
-    async with websockets.serve(handler, HOST, WS_PORT):
-        await asyncio.Future()  # run forever
+def main() -> None:
+    print(f"TYP0 unified server  http://{HOST}:{PORT}")
+    print(f"  static dir : {STATIC_DIR}")
+    print(f"  websocket  : /ws")
+    print(f"  score api  : /scores/{{game_type}}")
+    web.run_app(build_app(), host=HOST, port=PORT, print=None)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
