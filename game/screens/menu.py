@@ -9,9 +9,10 @@ class MenuOverlay:
     def __init__(self, screen, game_mode: str | None = None):
         """
         game_mode:
-          - None        -> no "Switch Mode" button (start menu)
-          - "simon"     -> show button to switch to Bop It
-          - "bopit"     -> show button to switch to Simon
+          - None          -> no "Switch Mode" button (start menu)
+          - "simon"       -> show button to switch to Bop It
+          - "bopit"       -> show button to switch to Simon
+          - "keys_ninja"  -> show button to switch to Simon
         """
         self.screen = screen
         self.font_manager = FontManager()
@@ -55,8 +56,11 @@ class MenuOverlay:
         popup_center_y = self.bg_rect.centery
 
         # Layout: evenly distribute N buttons around the popup centre.
-        show_switch = self.game_mode in ("simon", "bopit")
-        button_count = 4 if show_switch else 3
+        # The "Main Menu" button only makes sense when a game is in progress —
+        # the start menu IS the main menu, so don't show it there.
+        show_switch    = self.game_mode in ("simon", "bopit", "keys_ninja")
+        show_main_menu = self.game_mode is not None
+        button_count = 3 + (1 if show_switch else 0) + (1 if show_main_menu else 0)
         spacing = 60
         total_h = button_count * button_height + (button_count - 1) * (spacing - button_height)
         first_y = popup_center_y - total_h // 2
@@ -73,12 +77,15 @@ class MenuOverlay:
         self.music_rect  = _rect_at(1)
         self.about_rect  = _rect_at(2)
         self.switch_rect = _rect_at(3) if show_switch else None
+        self.main_menu_rect = _rect_at(4 if show_switch else 3) if show_main_menu else None
 
-        self._switch_label = (
-            "SWITCH TO BOP IT" if self.game_mode == "simon"
-            else "SWITCH TO SIMON" if self.game_mode == "bopit"
-            else None
-        )
+        # Switch-mode label must mirror the cycle in main.py:
+        # simon -> bopit -> keys_ninja -> simon
+        self._switch_label = {
+            "simon":      "SWITCH TO BOP IT",
+            "bopit":      "SWITCH TO KEYS NINJA",
+            "keys_ninja": "SWITCH TO SIMON",
+        }.get(self.game_mode)
         
         # Initialize submenus
         self.volume_menu = VolumeMenu(screen, self.font_manager)
@@ -125,6 +132,9 @@ class MenuOverlay:
             ]
             if self.switch_rect is not None and self._switch_label:
                 items.append((self.switch_rect, self._switch_label))
+
+            if self.main_menu_rect is not None:
+                items.append((self.main_menu_rect, "MAIN MENU"))
 
             for rect, label in items:
                 hover = rect.collidepoint(pygame.mouse.get_pos())
@@ -189,5 +199,8 @@ class MenuOverlay:
                 if self.switch_rect is not None and self.switch_rect.collidepoint(event.pos):
                     self.open = False
                     return "switch_mode"
+                if self.main_menu_rect is not None and self.main_menu_rect.collidepoint(event.pos):
+                    self.open = False
+                    return "main_menu"
 
         return None
