@@ -59,6 +59,7 @@ class BopItController:
 
     def _process_input_result(self, name: str, now: int) -> bool:
         result = self.model.handle_input(name, now)
+        animation_utils.play_sound("assets/TypoPressSFX.ogg")
         if result in ('wrong', 'round_complete'):
             self.game_timer.stop()
         return True
@@ -119,6 +120,10 @@ class BopItController:
                     if menu_action == "switch_mode":
                         animation_utils.stop_music()
                         return ("switch_mode",)
+                    
+                    if menu_action == "main_menu":
+                        animation_utils.stop_music()
+                        return ("main_menu",)
 
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_p:

@@ -63,6 +63,11 @@ def _web_audio(method, *args):
 # Cache for pre-rendered gradient surfaces, keyed by (size, top_color, bottom_color)
 _gradient_cache = {}
 
+# Cache for loaded pygame.mixer.Sound objects, keyed by filename. Avoids
+# reconstructing a Sound on every play_sound() call in hot paths like the
+# Keys Ninja keypress handler.
+_sound_cache = {}
+
 
 def draw_gradient(screen, gradient_top=(25, 25, 112), gradient_bottom=(0, 0, 0)):
     """Draw a vertical gradient from top to bottom.
@@ -319,7 +324,10 @@ def play_sound(file):
         _web_audio("playSound", file)
         return
     try:
-        sound = pygame.mixer.Sound(file)
+        sound = _sound_cache.get(file)
+        if sound is None:
+            sound = pygame.mixer.Sound(file)
+            _sound_cache[file] = sound
         sound.play()
     except pygame.error as exc:
         print(f"Warning: failed to play sound {file}: {exc}")

@@ -138,6 +138,7 @@ def test_stop_music_calls_mixer_stop():
 
 
 def test_play_sound_success_plays_once():
+    animation_utils._sound_cache.clear()
     with patch("game.utils.animation_utils.pygame") as mock_pg:
         sound = Mock()
         mock_pg.mixer.Sound.return_value = sound
@@ -148,7 +149,22 @@ def test_play_sound_success_plays_once():
     sound.play.assert_called_once()
 
 
+def test_play_sound_reuses_cached_sound_on_repeat_calls():
+    animation_utils._sound_cache.clear()
+    with patch("game.utils.animation_utils.pygame") as mock_pg:
+        sound = Mock()
+        mock_pg.mixer.Sound.return_value = sound
+
+        animation_utils.play_sound("assets/click.wav")
+        animation_utils.play_sound("assets/click.wav")
+        animation_utils.play_sound("assets/click.wav")
+
+    mock_pg.mixer.Sound.assert_called_once_with("assets/click.wav")
+    assert sound.play.call_count == 3
+
+
 def test_play_sound_failure_is_swallowed():
+    animation_utils._sound_cache.clear()
     with patch("game.utils.animation_utils.pygame") as mock_pg:
         mock_pg.error = RuntimeError
         mock_pg.mixer.Sound.side_effect = RuntimeError("cannot load")
@@ -157,3 +173,5 @@ def test_play_sound_failure_is_swallowed():
 
     # Explicitly document expected behavior: failures are swallowed.
     assert True
+    # Failed loads must not be cached, so subsequent calls retry.
+    assert "missing.wav" not in animation_utils._sound_cache
