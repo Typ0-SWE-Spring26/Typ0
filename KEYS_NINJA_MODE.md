@@ -6,10 +6,10 @@ Keys Ninja is a fast-paced typing game mode inspired by Fruit Ninja. Keys pop up
 ## Gameplay
 
 ### Core Mechanics
-- Keys spawn from the bottom of the screen
-- They rise upward, slow down, then fall back down
+- Keys spawn from the bottom of the screen with a Fruit-Ninja-style arc trajectory
+- They rise upward, slow down under gravity, then fall back down
 - Press the matching keyboard key (A-Z) before it falls off-screen
-- Missing a key = Game Over
+- Missing a key costs one life — you start with 3 lives
 - Keys slowly rotate/spin as they move
 
 ### Visual Design
@@ -19,64 +19,46 @@ Keys Ninja is a fast-paced typing game mode inspired by Fruit Ninja. Keys pop up
 - **Grid Background**: Subtle grid pattern for visual interest
 
 ### Scoring System
-- **Base Score**: 10 points per key
-- **Combo System**: Consecutive hits build a combo multiplier
-  - Combo bonus: +2 points per combo level
-  - Missing a key resets the combo
+- **Base Score**: 10 points per key (flat — no combo bonus)
+- **Combo Tracking**: Consecutive hits build a combo counter
+  - Wrong/missed key resets the combo to 0
 - **Max Combo**: Tracks your best combo streak
 
 ### Special Keys
-- **Bomb Keys (Red X)**: 
-  - Appear after score > 5
+- **Bomb Keys (Red)**:
+  - Start appearing once your score reaches 100
   - Must NOT be pressed
-  - Pressing a bomb = Game Over
+  - Pressing a bomb = instant Game Over
   - Letting bombs fall off-screen is safe
 
-### Difficulty Levels
+### Difficulty
 
-Keys Ninja features **auto-scaling difficulty** - no need to select a difficulty level! The game starts easy and progressively gets harder as you score more points.
+Keys Ninja runs at a single fixed pacing — there is no difficulty selection. Spawn cadence and key counts are tuned by score:
 
-#### Progression System
+**Spawn Rate:** constant 2500ms between spawn waves (`_get_spawn_interval`).
 
-**Spawn Rate:**
-- Starts at 2000ms between keys (slower, more forgiving)
-- Decreases by 15ms per point scored
-- Minimum: 800ms
+**Simultaneous Spawns:** governed by `_get_keys_per_spawn()`:
+- Score < 60: always 1 key
+- Score 60–199: 60% one key / 40% two keys
+- Score 200+: random mix of 1, 2, or 3 keys
 
-**Simultaneous Keys:**
-- Starts with max 2 keys on screen
-- +1 key every 15 points
-- Maximum: 6 keys
+**Max Keys On Screen:** capped at `_MAX_KEYS_ON_SCREEN = 8`.
 
-**Rise/Fall Speed:**
-- Rise speed: 7.0 → 9.0 (increases 0.03 per point, keys go higher!)
-- Fall speed: 3.5 → 5.5 (increases 0.03 per point)
+**Movement:** keys launch upward at `_BASE_RISE_SPEED = 11.0` with a small horizontal velocity for arc, and gravity (`+0.15` per frame to vertical velocity) brings them back down.
 
-**Bomb Keys:**
-- No bombs for first 10 points
-- After 10 points: 0.8% chance per point scored
-- Maximum: 12% chance
-
-**Level Indicators:**
-- Score 0-14: Beginner (Green)
-- Score 15-29: Intermediate (Yellow)
-- Score 30-49: Advanced (Orange)
-- Score 50+: MASTER (Red)
+**Bomb Chance:** 0% before score 100, then 15% per spawn (`_get_bomb_chance`).
 
 ## Controls
-- **A-Z Keys**: Press the matching key on screen
-- **P**: Pause game
+- **A-Z Keys**: Press the matching key on screen (the letter `P` is reserved and never spawns)
 - **ESC**: Open menu
 - **Ctrl+E**: Debug shortcut to end game
 
 ## Integration
-Keys Ninja is fully integrated with the existing game infrastructure:
-- **No difficulty selection** - jumps straight to gameplay with auto-scaling difficulty
+Keys Ninja is integrated with the existing game infrastructure:
+- **No difficulty selection** — jumps straight to gameplay (config screen is skipped)
 - High scores tracking (separate leaderboard)
 - Menu system with mode switching
-- Pause overlay support
 - Music and sound effects
-- Progressive difficulty that increases with each correct key press
 
 ## Files Created
 - `game/core/keys_ninja_model.py` - Game logic

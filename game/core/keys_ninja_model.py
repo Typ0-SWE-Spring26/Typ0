@@ -92,8 +92,13 @@ class KeysNinjaModel:
     
     def _spawn_key_at_position(self, now: int, screen_width: int, screen_height: int, position: str):
         """Spawn a key at a specific position to avoid overlap."""
-        # Random character (A-Z, excluding P)
-        available_chars = [c for c in string.ascii_uppercase if c != 'P']
+        # Random character (A-Z, excluding P, excluding letters already on screen
+        # so handle_input always has an unambiguous match).
+        active_letters = {k.char for k in self.keys}
+        available_chars = [c for c in string.ascii_uppercase
+                           if c != 'P' and c not in active_letters]
+        if not available_chars:
+            return
         char = random.choice(available_chars)
         
         # Position-based x coordinate with more spacing
@@ -186,7 +191,6 @@ class KeysNinjaModel:
                         # Out of lives - game over
                         self.state = 'gameover'
                         self.gameover_reason = "Out of lives!"
-                        self._bus.emit('input_result', {'result': 'wrong', 'name': key.char})
                         return False
                 else:
                     # Bomb fell off - that's good!
