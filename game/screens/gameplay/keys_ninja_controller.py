@@ -130,6 +130,7 @@ class KeysNinjaController:
                     if not self.paused and self.model.state == 'playing':
                         if pygame.K_a <= event.key <= pygame.K_z:
                             char = chr(event.key).upper()
+                            animation_utils.play_sound("assets/TypoPressSFX.ogg")
                             self.model.handle_input(char, now)
             
             # Sync pause state with menu
