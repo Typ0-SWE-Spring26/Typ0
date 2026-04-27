@@ -88,7 +88,7 @@ class ConfigScreen:
         initial_difficulty: str = "normal",
     ):
         self.screen    = screen
-        self.game_mode = game_mode   # "simon" or "bopit"
+        self.game_mode = game_mode   # "simon" or "bopit" (keys_ninja skips this screen)
 
         self.inverted = bool(initial_inverted)
 
@@ -176,14 +176,17 @@ class ConfigScreen:
                 "Normal": "8s per round  -  balanced pacing",
                 "Hard":   "4s per round  -  lightning flashes",
             }
-        else:
+            mode_label = "Simon Mode"
+        elif self.game_mode == "bopit":
             hints = {
                 "Easy":   "Up to 7s per command  -  gentle speedup",
                 "Normal": "Up to 5s per command  -  steady speedup",
                 "Hard":   "Up to 3.5s per command  -  rapid speedup",
             }
+            mode_label = "Bop It Mode"
+        else:
+            raise ValueError(f"ConfigScreen does not support game_mode={self.game_mode!r}")
         challenge_stars = {"Easy": "*", "Normal": "* *", "Hard": "* * *"}
-        mode_label = "Simon Mode" if self.game_mode == "simon" else "Bop It Mode"
 
         while True:
             changed = False
