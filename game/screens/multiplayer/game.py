@@ -190,9 +190,7 @@ class MultiplayerGameScreen:
 
     def _handle_input(self, name: str, now: int) -> None:
         result = self.model.handle_input(name, now)
-        animation_utils.set_music_menu_locked(False)
         animation_utils.play_sound("assets/TypoPressSFX.ogg")
-        animation_utils.set_music_menu_locked(True)
         if result in ("wrong", "round_complete"):
             self.timer.stop()
 
