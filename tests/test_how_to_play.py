@@ -69,7 +69,7 @@ def test_escape_returns_back(htp_ctx):
     assert run_async(screen.run()) == "back"
 
 
-def test_click_credits_returns_credits(htp_ctx):
+def test_click_back_returns_back(htp_ctx):
     htp_mod, mock_pg, mock_screen = htp_ctx
 
     ev = Mock()
@@ -79,10 +79,9 @@ def test_click_credits_returns_credits(htp_ctx):
     mock_pg.event.get.return_value = [ev]
 
     screen = htp_mod.HowToPlayScreen(mock_screen)
-    screen._back_rect = _RectHit(hit=False)
-    screen._credits_rect = _RectHit(hit=True)
+    screen._back_rect = _RectHit(hit=True)
 
-    assert run_async(screen.run()) == "credits"
+    assert run_async(screen.run()) == "back"
 
 
 def test_quit_returns_quit(htp_ctx):
