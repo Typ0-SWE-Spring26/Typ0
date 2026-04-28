@@ -28,6 +28,19 @@ import game_screens.menu_music as menu_music_mod
 menu_music_mod.pygame.MOUSEBUTTONDOWN = 1
 
 
+class _Rect:
+    def __init__(self, x, y, w, h):
+        self.x = x
+        self.y = y
+        self.width = w
+        self.height = h
+        self.right = x + w
+        self.bottom = y + h
+
+    def collidepoint(self, _pos):
+        return False
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def run_async(coro):
@@ -612,6 +625,66 @@ class TestMenuOverlayCloseButton:
             overlay.handle_event(click_ev)
 
         assert overlay.open is False
+
+
+class TestMenuOverlaySwitchTargets:
+    def _build_overlay(self, game_mode):
+        import game.screens.menu as menu_mod
+
+        mock_pg = MagicMock()
+        mock_pg.MOUSEBUTTONDOWN = 1025
+        mock_pg.K_ESCAPE = 27
+        mock_pg.Rect.side_effect = _Rect
+        mock_pg.mouse.get_pos.return_value = (0, 0)
+
+        mock_screen = Mock()
+        mock_screen.get_width.return_value = 800
+        mock_screen.get_height.return_value = 600
+
+        mock_font_manager = Mock()
+        mock_font_manager.render_text.return_value = Mock(get_rect=Mock(return_value=Mock()))
+
+        with patch.object(menu_mod, "pygame", mock_pg), \
+             patch.object(menu_mod, "FontManager", return_value=mock_font_manager):
+            overlay = menu_mod.MenuOverlay(mock_screen, game_mode=game_mode)
+        return overlay
+
+    def test_switch_targets_present_for_simon(self):
+        overlay = self._build_overlay("simon")
+
+        targets = [target for target, _ in overlay._switch_targets]
+        assert set(targets) == {"bopit", "keys_ninja"}
+
+    def test_switch_targets_present_for_bopit(self):
+        overlay = self._build_overlay("bopit")
+
+        targets = [target for target, _ in overlay._switch_targets]
+        assert set(targets) == {"simon", "keys_ninja"}
+
+    def test_switch_targets_present_for_keys_ninja(self):
+        overlay = self._build_overlay("keys_ninja")
+
+        targets = [target for target, _ in overlay._switch_targets]
+        assert set(targets) == {"simon", "bopit"}
+
+    def test_clicking_switch_returns_target_tuple(self):
+        overlay = self._build_overlay("simon")
+
+        overlay.open = True
+        overlay.switch_rects = [Mock(collidepoint=Mock(return_value=True))]
+        overlay._switch_targets = [("bopit", "SWITCH TO BOP IT")]
+        overlay.close_rect = Mock(collidepoint=Mock(return_value=False))
+        overlay.volume_rect = Mock(collidepoint=Mock(return_value=False))
+        overlay.music_rect = Mock(collidepoint=Mock(return_value=False))
+        overlay.about_rect = Mock(collidepoint=Mock(return_value=False))
+        overlay.main_menu_rect = None
+
+        ev = Mock()
+        ev.type = 1025
+        ev.button = 1
+        ev.pos = (0, 0)
+
+        assert overlay.handle_event(ev) == ("switch_mode", "bopit")
 
     def test_handle_event_how_to_play_is_forwarded(self):
         """menu_overlay.handle_event returning 'how_to_play' should route

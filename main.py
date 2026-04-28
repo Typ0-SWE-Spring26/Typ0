@@ -158,7 +158,8 @@ async def _run_single_player(screen, keybinds, game_mode):
 
             # Player used the in-game menu to switch modes
             if isinstance(game_result, tuple) and game_result and game_result[0] == "switch_mode":
-                return "start_simon"
+                target = game_result[1] if len(game_result) > 1 else "simon"
+                return f"start_{target}"
 
             # game_result is ("gameover", score, reason)
             _, score, reason = game_result
@@ -229,6 +230,8 @@ async def _run_single_player(screen, keybinds, game_mode):
         # Player used the in-game menu to switch modes — bubble up so the
         # outer loop can restart in the other mode.
         if isinstance(game_result, tuple) and game_result and game_result[0] == "switch_mode":
+            if len(game_result) > 1:
+                return f"start_{game_result[1]}"
             if game_mode == "simon":
                 other = "bopit"
             elif game_mode == "bopit":

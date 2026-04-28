@@ -120,6 +120,14 @@ class BopItController:
                     if menu_action == "switch_mode":
                         animation_utils.stop_music()
                         return ("switch_mode",)
+
+                    if (
+                        isinstance(menu_action, tuple)
+                        and menu_action
+                        and menu_action[0] == "switch_mode"
+                    ):
+                        animation_utils.stop_music()
+                        return menu_action
                     
                     if menu_action == "main_menu":
                         animation_utils.stop_music()
