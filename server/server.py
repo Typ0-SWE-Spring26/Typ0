@@ -12,7 +12,7 @@ Routes:
     POST /scores/{game_type}   -> body {"name":"..","score":0}, returns top 10
     GET  /*                    -> pygbag build (STATIC_DIR)
 
-Valid game_type values: simon, bopit, multiplayer
+Valid game_type values: simon, bopit, keys_ninja, multiplayer
 """
 
 import asyncio
