@@ -10,7 +10,6 @@ import random
 import time
 import pygame
 from game.utils.scaled_screen import ScaledScreen
-from game.screens.startscreen import StartScreen
 from game.screens.startmenu import StartMenu
 from game.screens.gameplay.display import GameScreen
 from game.screens.gameplay.bopit_display import BopItScreen
@@ -267,13 +266,8 @@ async def main():
 
     keybinds = KeybindManager()
 
-    # Show start screen (once)
-    start_screen = StartScreen(screen)
-    result = await start_screen.run()
-
-    if result == "quit":
-        pygame.quit()
-        return
+    # Start on the main menu.
+    result = "menu"
 
     # ------------------------------------------------------------------ #
     # Main navigation loop — allows returning to the menu from anywhere.  #

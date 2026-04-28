@@ -47,6 +47,7 @@ class MenuOverlay:
 
         # Center it
         self.bg_rect = self.bg_image.get_rect(center=(W // 2, H // 2))
+        self.close_rect = pygame.Rect(0, 0, 0, 0)
 
         # CENTERED MENU OPTIONS
         button_width = 250
@@ -119,6 +120,22 @@ class MenuOverlay:
             # Draw DARKENED brick background (only the brick area is darkened)
             self.screen.blit(self.bg_image_dark, self.bg_rect)
 
+            # Draw close button (top-right of popup)
+            close_size = 34
+            self.close_rect = pygame.Rect(
+                self.bg_rect.right - close_size - 10,
+                self.bg_rect.top + 10,
+                close_size,
+                close_size,
+            )
+            hovered = self.close_rect.collidepoint(pygame.mouse.get_pos())
+            close_color = (140, 70, 80) if hovered else (110, 55, 65)
+            pygame.draw.rect(self.screen, (10, 10, 20), self.close_rect.move(0, 2), border_radius=8)
+            pygame.draw.rect(self.screen, close_color, self.close_rect, border_radius=8)
+            pygame.draw.rect(self.screen, (200, 170, 180), self.close_rect, width=2, border_radius=8)
+            x_font = self.font_manager.render_text("X", (255, 235, 235), 20)
+            self.screen.blit(x_font, x_font.get_rect(center=self.close_rect.center))
+
         # Draw submenus
         if self.active_submenu == "volume":
             self.volume_menu.draw(self.bg_rect)
@@ -185,6 +202,9 @@ class MenuOverlay:
                 return None
 
             if self.open:
+                if self.close_rect.collidepoint(event.pos):
+                    self._close()
+                    return None
                 if self.volume_rect.collidepoint(event.pos):
                     self.active_submenu = "volume"
                     self.open = False
@@ -202,5 +222,9 @@ class MenuOverlay:
                 if self.main_menu_rect is not None and self.main_menu_rect.collidepoint(event.pos):
                     self.open = False
                     return "main_menu"
+
+            if self.active_submenu is not None and self.close_rect.collidepoint(event.pos):
+                self._close()
+                return None
 
         return None

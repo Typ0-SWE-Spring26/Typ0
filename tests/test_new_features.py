@@ -8,9 +8,10 @@ Covers:
   - MusicMenu.play_music records user selection
   - Music preservation in GameController and BopItController
   - Gameover returns "menu" on Q/ESC (regression guard)
-  - Credits screen: Back button and ESC both return "back"
-  - Startmenu forwards "credits" from menu overlay
+    - Credits screen: Back button and ESC both return "back"
+    - Startmenu credits button returns "credits"
     - Startmenu forwards "how_to_play" from menu overlay
+    - Menu overlay close button closes the overlay
 """
 import sys
 import asyncio
@@ -520,20 +521,19 @@ class TestCreditsScreenExit:
         assert result == "back"
 
 
-# ── Startmenu forwards "credits" from menu overlay ───────────────────────────
+# ── Startmenu credits button ─────────────────────────────────────────────────
 
-class TestStartmenuCreditsForwarding:
-    """Clicking About in the menu overlay must return 'credits' to the caller."""
+class TestStartmenuCreditsButton:
+    """Clicking the Credits button should return 'credits'."""
 
-    def test_handle_event_credits_is_forwarded(self):
-        """menu_overlay.handle_event returning 'credits' causes StartMenu.run()
-        to return 'credits' so main.py can open the CreditsScreen."""
+    def test_clicking_credits_button_returns_credits(self):
         import game.screens.startmenu as startmenu_mod
 
         mock_pg = MagicMock()
         mock_pg.QUIT = 256
         mock_pg.KEYDOWN = 768
         mock_pg.MOUSEBUTTONDOWN = 1025
+        mock_pg.MOUSEBUTTONUP = 1026
         mock_pg.K_w = 119
         mock_pg.time.Clock.return_value = Mock()
         mock_pg.key.get_pressed.return_value = {mock_pg.K_w: False}
@@ -542,31 +542,76 @@ class TestStartmenuCreditsForwarding:
         mock_screen.get_width.return_value = 800
         mock_screen.get_height.return_value = 600
 
-        # A single click event that the menu overlay will "handle"
         click_ev = Mock()
         click_ev.type = mock_pg.MOUSEBUTTONDOWN
         click_ev.button = 1
-        click_ev.pos = (400, 300)
+        click_ev.pos = (500, 540)
 
         mock_anim = MagicMock()
         mock_menu_overlay = MagicMock()
-        # Overlay is "open" so events are forwarded to it
-        mock_menu_overlay.open = True
+        mock_menu_overlay.open = False
         mock_menu_overlay.active_submenu = None
-        # Clicking About returns "credits"
-        mock_menu_overlay.handle_event.return_value = "credits"
+
+        def _mk_btn(clicked=False):
+            btn = MagicMock()
+            btn.handle_event.return_value = clicked
+            return btn
+
+        buttons = [
+            _mk_btn(),  # simon
+            _mk_btn(),  # bopit
+            _mk_btn(),  # keys ninja
+            _mk_btn(),  # multiplayer
+            _mk_btn(),  # settings
+            _mk_btn(True),  # credits
+        ]
 
         from game.screens.startmenu import StartMenu
 
         with patch.object(startmenu_mod, "pygame", mock_pg), \
              patch.object(startmenu_mod, "animation_utils", mock_anim), \
              patch.object(startmenu_mod, "MenuOverlay", return_value=mock_menu_overlay), \
-             patch.object(startmenu_mod, "Button", return_value=MagicMock(handle_event=Mock(return_value=False))):
+             patch.object(startmenu_mod, "Button", side_effect=buttons):
             mock_pg.event.get.return_value = [click_ev]
             menu = StartMenu(mock_screen)
             result = run_async(menu.run())
 
         assert result == "credits"
+
+
+# ── Menu overlay close button ───────────────────────────────────────────────
+
+class TestMenuOverlayCloseButton:
+    def test_clicking_close_button_closes_overlay(self):
+        import game.screens.menu as menu_mod
+
+        mock_pg = MagicMock()
+        mock_pg.MOUSEBUTTONDOWN = 1025
+        mock_pg.K_ESCAPE = 27
+        mock_pg.Rect.return_value = MagicMock()
+        mock_pg.mouse.get_pos.return_value = (0, 0)
+
+        mock_screen = Mock()
+        mock_screen.get_width.return_value = 800
+        mock_screen.get_height.return_value = 600
+
+        mock_font_manager = Mock()
+        mock_font_manager.render_text.return_value = Mock(get_rect=Mock(return_value=Mock()))
+
+        click_ev = Mock()
+        click_ev.type = mock_pg.MOUSEBUTTONDOWN
+        click_ev.button = 1
+        click_ev.pos = (620, 130)
+
+        with patch.object(menu_mod, "pygame", mock_pg), \
+             patch.object(menu_mod, "FontManager", return_value=mock_font_manager):
+            overlay = menu_mod.MenuOverlay(mock_screen)
+            overlay.open = True
+            overlay.close_rect = MagicMock()
+            overlay.close_rect.collidepoint.return_value = True
+            overlay.handle_event(click_ev)
+
+        assert overlay.open is False
 
     def test_handle_event_how_to_play_is_forwarded(self):
         """menu_overlay.handle_event returning 'how_to_play' should route

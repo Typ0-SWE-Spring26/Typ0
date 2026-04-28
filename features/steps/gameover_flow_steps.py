@@ -11,10 +11,12 @@ def _setup_go_pg(mock_pg):
     mock_pg.time.get_ticks.return_value = 0
     mock_pg.QUIT = 256
     mock_pg.KEYDOWN = 768
+    mock_pg.MOUSEBUTTONDOWN = 1025
     mock_pg.K_r = 114
     mock_pg.K_c = 99
     mock_pg.K_q = 113
     mock_pg.K_ESCAPE = 27
+    mock_pg.Rect.return_value = Mock(collidepoint=Mock(return_value=False))
     mock_font = Mock()
     mock_font.render.return_value = Mock(get_rect=Mock(return_value=Mock()))
     mock_pg.font.Font.return_value = mock_font
@@ -24,6 +26,14 @@ def _make_key(pg, key):
     ev = Mock()
     ev.type = pg.KEYDOWN
     ev.key = key
+    return ev
+
+
+def _make_click(pg, pos=(0, 0)):
+    ev = Mock()
+    ev.type = pg.MOUSEBUTTONDOWN
+    ev.button = 1
+    ev.pos = pos
     return ev
 
 
@@ -77,6 +87,13 @@ def step_time_elapses(ctx, n):
 
     ctx.mock_pg.time.get_ticks.side_effect = get_ticks
     ctx.mock_pg.event.get.return_value = []
+    ctx.screen_result = asyncio.run(ctx.screen_obj.run())
+
+
+@when('the player clicks the close button')
+def step_click_close(ctx):
+    ctx.mock_pg.Rect.return_value.collidepoint.return_value = True
+    ctx.mock_pg.event.get.return_value = [_make_click(ctx.mock_pg, pos=(780, 20))]
     ctx.screen_result = asyncio.run(ctx.screen_obj.run())
 
 
