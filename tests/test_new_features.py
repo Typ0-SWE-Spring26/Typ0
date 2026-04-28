@@ -668,6 +668,11 @@ class TestMenuOverlaySwitchTargets:
         assert set(targets) == {"simon", "bopit"}
 
     def test_clicking_switch_returns_target_tuple(self):
+        import game.screens.menu as menu_mod
+
+        menu_mod.pygame.MOUSEBUTTONDOWN = 1025
+        menu_mod.pygame.K_ESCAPE = 27
+
         overlay = self._build_overlay("simon")
 
         overlay.open = True
@@ -680,7 +685,7 @@ class TestMenuOverlaySwitchTargets:
         overlay.main_menu_rect = None
 
         ev = Mock()
-        ev.type = 1025
+        ev.type = menu_mod.pygame.MOUSEBUTTONDOWN
         ev.button = 1
         ev.pos = (0, 0)
 
