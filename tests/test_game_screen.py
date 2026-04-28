@@ -10,7 +10,11 @@ def test_game_screen_wires_menu_overlay_with_simon_mode():
     mock_screen = Mock()
     mock_keybinds = Mock(key_labels={}, button_keys={})
 
-    with patch.object(display_mod, "MenuOverlay") as mock_menu:
+    with patch.object(display_mod, "MenuOverlay") as mock_menu, \
+         patch.object(display_mod, "GameView") as mock_view, \
+         patch.object(display_mod, "GameController") as mock_controller:
+        mock_view.return_value = Mock()
+        mock_controller.return_value = Mock()
         display_mod.GameScreen(mock_screen, mock_keybinds)
 
     mock_menu.assert_called_once()

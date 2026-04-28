@@ -23,7 +23,9 @@ def test_bopit_display_wires_menu_for_mode():
     mock_screen = Mock()
     mock_keybinds = Mock(key_labels={})
 
-    with patch.object(display_mod, "MenuOverlay") as mock_menu:
+    with patch.object(display_mod, "MenuOverlay") as mock_menu, \
+         patch.object(display_mod, "BopItView") as mock_view:
+        mock_view.return_value = Mock()
         display_mod.BopItScreen(mock_screen, mock_keybinds)
 
     mock_menu.assert_called_once()
@@ -36,7 +38,9 @@ def test_bopit_display_run_returns_controller_result():
     mock_screen = Mock()
     mock_keybinds = Mock(key_labels={})
 
-    with patch.object(display_mod, "BopItController") as mock_ctrl:
+    with patch.object(display_mod, "BopItController") as mock_ctrl, \
+         patch.object(display_mod, "BopItView") as mock_view:
+        mock_view.return_value = Mock()
         mock_ctrl.return_value.run = Mock(return_value="quit")
         screen = display_mod.BopItScreen(mock_screen, mock_keybinds)
         result = run_async(screen.run())
