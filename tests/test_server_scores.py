@@ -147,6 +147,7 @@ def test_handle_close_connections_closes_all():
     srv._players.clear()
     srv._players["Alice"] = ws_a
     srv._players["Bob"] = ws_b
+    srv.CORS_HEADERS = {}
 
     req = _FakeRequest()
     resp = _run(srv.handle_close_connections(req))
@@ -166,6 +167,7 @@ def test_handle_close_connections_closes_named_player():
     srv._players.clear()
     srv._players["Alice"] = ws_a
     srv._players["Bob"] = ws_b
+    srv.CORS_HEADERS = {}
 
     req = _FakeRequest(name="Alice")
     resp = _run(srv.handle_close_connections(req))
@@ -183,6 +185,7 @@ def test_handle_close_connections_ignores_unknown_player():
     ws_a = AsyncMock()
     srv._players.clear()
     srv._players["Alice"] = ws_a
+    srv.CORS_HEADERS = {}
 
     req = _FakeRequest(name="Ghost")
     resp = _run(srv.handle_close_connections(req))
