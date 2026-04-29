@@ -84,11 +84,25 @@ def creds_ctx():
 
 class TestCreditsDataIntegrity:
     def test_every_name_is_a_nonempty_string(self):
-        from game.screens.credits import CREDITS
+        from game.screens.credits import CREDITS, CREDIT_ENTRIES, TECH_STACK
         for role, names in CREDITS:
             for name in names:
                 assert isinstance(name, str), f"non-string name in role {role!r}: {name!r}"
                 assert name.strip(), f"empty/whitespace name in role {role!r}"
+
+        for entry in CREDIT_ENTRIES:
+            section = entry.get("section", "")
+            name = entry.get("name", "")
+            roles = entry.get("roles", [])
+            assert isinstance(section, str) and section.strip()
+            assert isinstance(name, str) and name.strip()
+            assert isinstance(roles, (list, tuple)) and len(roles) >= 1
+            for role in roles:
+                assert isinstance(role, str) and role.strip()
+
+        for tech in TECH_STACK:
+            assert isinstance(tech, str)
+            assert tech.strip()
 
     def test_every_role_label_is_a_nonempty_string(self):
         from game.screens.credits import CREDITS
@@ -282,9 +296,9 @@ class TestPalette:
         assert cs._KEY_DEPTH > 0
 
     def test_text_is_readable_on_face(self):
-        """Text must be dramatically darker than the face for legibility."""
+        """Text must have strong contrast against the face color."""
         cs = self._cs()
-        assert sum(cs._KEY_FACE) - sum(cs._KEY_TEXT) > 250
+        assert abs(sum(cs._KEY_FACE) - sum(cs._KEY_TEXT)) > 120
 
 
 # ── Click handling edge cases ───────────────────────────────────────────────

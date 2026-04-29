@@ -4,38 +4,95 @@ from game.utils import animation_utils
 from assets.font_loader import FontManager
 
 
-# Each entry: ("Role Title", ["Name1", "Name2", ...])
-CREDITS = [
-    ("Developed by", ["Austin", "Ben", "Charlie", "Dipen", "Gabi", "Jude", "Joel", "Kregg", "Oriye"]),
-    ("Music Composed by", ["Ben"]),
-    ("Art by", ["Charlie"]),
+# Standardized credits entry format: add one dict per person.
+# Required keys: section, name, roles (list of strings).
+CREDIT_ENTRIES = [
+    {"section": "Core Team", "name": "Austin", "roles": ["Backend Development", "Scrum Master"]},
+    {"section": "Core Team", "name": "Ben", "roles": ["Frontend Developer", "Music"]},
+    {"section": "Core Team", "name": "Charlie", "roles": ["Frontend Developer", "Art"]},
+    {"section": "Core Team", "name": "Dipen", "roles": ["NinjaKeys Developer"]},
+    {"section": "Core Team", "name": "Gabi", "roles": ["Developer"]},
+    {"section": "Core Team", "name": "Jude", "roles": ["Developer"]},
+    {"section": "Core Team", "name": "Joel", "roles": ["Developer"]},
+    {"section": "Core Team", "name": "Kregg", "roles": ["Developer"]},
+    {"section": "Core Team", "name": "Oriye", "roles": ["Developer"]},
+    {"section": "Music", "name": "Ben", "roles": ["Composer"]},
+    {"section": "Art", "name": "Charlie", "roles": ["Artist"]},
+]
+
+TECH_STACK = [
+    "Python",
+    "pygame-ce",
+    "pygbag",
+    "aiohttp",
+    "websockets",
+    "Playwright",
+    "pytest",
+    "behave",
+    "TypeScript",
 ]
 
 
+def _normalize_roles(roles):
+    if isinstance(roles, str):
+        roles = [roles]
+    if not isinstance(roles, (list, tuple)):
+        return []
+    return [r.strip() for r in roles if isinstance(r, str) and r.strip()]
+
+
+def _format_entry(name, roles):
+    roles = _normalize_roles(roles)
+    if roles:
+        return f"{name} — {', '.join(roles)}"
+    return name
+
+
+def _build_sections_from_entries(entries):
+    grouped = []
+    index = {}
+    for entry in entries:
+        section = entry.get("section", "").strip()
+        name = entry.get("name", "").strip()
+        roles = entry.get("roles", [])
+        if not section or not name:
+            continue
+        if section not in index:
+            index[section] = len(grouped)
+            grouped.append((section, []))
+        grouped[index[section]][1].append(_format_entry(name, roles))
+    return grouped
+
+
+# Each entry: ("Section Title", ["Name — Role1, Role2", ...])
+CREDITS = _build_sections_from_entries(CREDIT_ENTRIES)
+
+
 class CreditsScreen:
-    _GRAD_TOP    = (15, 15, 60)
+    _GRAD_TOP = (15, 15, 60)
     _GRAD_BOTTOM = (5, 5, 20)
 
-    # Keyboard-keycap palette, pulled from the TYP0 logo so the screen
-    # reads as part of the same visual family. These are intentionally
-    # simpler than the logo (no rotation, no inner-recess line, flat 3D).
-    _KEY_FACE         = (196, 196, 240)
-    _KEY_FACE_HOVER   = (220, 220, 252)
-    _KEY_BASE         = (116, 116, 194)
-    _KEY_BASE_HOVER   = (142, 142, 218)
-    _KEY_OUTLINE      = (24, 24, 56)
-    _KEY_TEXT         = (28, 28, 64)
-    _KEY_DEPTH        = 5  # visible side/bottom of the key
+    # Keyboard-keycap palette aligned with Keys Ninja styling.
+    _KEY_FACE = (200, 150, 255)
+    _KEY_FACE_HOVER = (225, 185, 255)
+    _KEY_BASE = (120, 60, 200)
+    _KEY_BASE_HOVER = (145, 90, 220)
+    _KEY_OUTLINE = (40, 20, 80)
+    _KEY_TEXT = (255, 255, 255)
+    _KEY_DEPTH = 5  # visible side/bottom of the key
 
     # Non-keycap colors
-    _ACCENT           = (255, 215, 0)
-    _HINT_TEXT        = (110, 110, 160)
-    _DIVIDER          = (80, 80, 120)
+    _ACCENT = (200, 150, 255)
+    _HINT_TEXT = (150, 140, 200)
+    _DIVIDER = (90, 70, 140)
+
+    _SCROLL_SPEED = 60.0
 
     def __init__(self, screen):
         self.screen = screen
         self._fm = FontManager()
         self._back_rect = pygame.Rect(0, 0, 0, 0)
+        self._scroll_y = None
 
     # ------------------------------------------------------------------
     # Keycap drawing
@@ -53,14 +110,7 @@ class CreditsScreen:
     def _draw_keycap(self, text, center, font_size=18,
                      pad_x=12, pad_y=6, depth=None,
                      face_color=None, base_color=None):
-        """Draw a keyboard-keycap at *center* sized to its text.
-
-        The cap is built from two stacked rounded rects:
-          - a darker base showing as the side/bottom (the 3D body)
-          - a lighter top face where the character sits
-
-        Returns the outer rect (includes the visible side/depth).
-        """
+        """Draw a keyboard-keycap at *center* sized to its text."""
         face_color = face_color or self._KEY_FACE
         base_color = base_color or self._KEY_BASE
         depth = self._KEY_DEPTH if depth is None else depth
@@ -79,7 +129,7 @@ class CreditsScreen:
         pygame.draw.rect(self.screen, base_color, outer_rect, border_radius=8)
         pygame.draw.rect(self.screen, self._KEY_OUTLINE, outer_rect,
                          width=2, border_radius=8)
-        # Top face with its own outline — visually separates it from the base
+        # Top face with its own outline
         pygame.draw.rect(self.screen, face_color, face_rect, border_radius=7)
         pygame.draw.rect(self.screen, self._KEY_OUTLINE, face_rect,
                          width=2, border_radius=7)
@@ -91,8 +141,7 @@ class CreditsScreen:
 
     def _draw_keycap_at_rect(self, rect, text, font_size,
                              depth=None, face_color=None, base_color=None):
-        """Draw a keycap that fills *rect* (treating rect as the full body
-        including the 3D depth).  Used for fixed-size buttons like BACK."""
+        """Draw a keycap that fills *rect* (treating rect as the full body)."""
         face_color = face_color or self._KEY_FACE
         base_color = base_color or self._KEY_BASE
         depth = self._KEY_DEPTH if depth is None else depth
@@ -111,10 +160,7 @@ class CreditsScreen:
 
     def _draw_title_keys(self, text, center_x, top_y,
                          font_size=34, pad_x=10, pad_y=8, gap=4):
-        """Draw each character of *text* as its own keycap, laid out in a row.
-
-        Mirrors the look of the TYP0 logo without rotating each key.
-        """
+        """Draw each character of *text* as its own keycap, laid out in a row."""
         widths = [self._keycap_size(ch, font_size, pad_x, pad_y)[0] for ch in text]
         _, face_h = self._keycap_size("X", font_size, pad_x, pad_y)
         total_w = sum(widths) + gap * (len(text) - 1)
@@ -126,22 +172,20 @@ class CreditsScreen:
                 font_size=font_size, pad_x=pad_x, pad_y=pad_y,
             )
             x += w + gap
-        return face_h + self._KEY_DEPTH  # total vertical height used
+        return face_h + self._KEY_DEPTH
+
+    def _title_height(self, font_size=34, pad_x=10, pad_y=8):
+        _, face_h = self._keycap_size("X", font_size, pad_x, pad_y)
+        return face_h + self._KEY_DEPTH
 
     def _draw_name_keys(self, names, center_x, top_y, max_width,
-                       font_size=18, pad_x=10, pad_y=5, gap=7, row_gap=6):
-        """Draw a set of name-keycaps centered horizontally, wrapping into
-        additional rows whenever the next keycap would overflow *max_width*.
-
-        Returns the total vertical height consumed.
-        """
+                        font_size=18, pad_x=10, pad_y=5, gap=7, row_gap=6,
+                        draw=True):
+        """Draw a set of name-keycaps centered horizontally, wrapping rows."""
         widths = [self._keycap_size(n, font_size, pad_x, pad_y)[0] for n in names]
         _, face_h = self._keycap_size("X", font_size, pad_x, pad_y)
         row_h = face_h + self._KEY_DEPTH
 
-        # Partition names into rows that each fit within max_width. Coerce
-        # to int so the comparison stays valid under test mocks (where
-        # font-size returns a MagicMock instead of a real integer).
         rows = []
         current, current_w = [], 0
         for n, w in zip(names, widths):
@@ -160,21 +204,48 @@ class CreditsScreen:
         if current:
             rows.append(current)
 
-        # Render each row centered.
         y = top_y
         for row in rows:
             row_widths = [self._keycap_size(n, font_size, pad_x, pad_y)[0] for n in row]
             total_w = sum(row_widths) + gap * (len(row) - 1)
             x = center_x - total_w // 2
             for n, rw in zip(row, row_widths):
-                self._draw_keycap(
-                    n, (x + rw // 2, y + row_h // 2),
-                    font_size=font_size, pad_x=pad_x, pad_y=pad_y,
-                )
+                if draw:
+                    self._draw_keycap(
+                        n, (x + rw // 2, y + row_h // 2),
+                        font_size=font_size, pad_x=pad_x, pad_y=pad_y,
+                    )
                 x += rw + gap
             y += row_h + row_gap
 
         return y - top_y
+
+    def _build_sections(self):
+        sections = list(CREDITS)
+        if TECH_STACK:
+            sections.append(("Tech Stack", TECH_STACK))
+        return sections
+
+    def _measure_content(self, max_row_width):
+        y = 0
+        y += self._title_height(font_size=34, pad_x=10, pad_y=8) + 24
+        for role, entries in self._build_sections():
+            y += 28
+            used = self._draw_name_keys(
+                entries,
+                center_x=0,
+                top_y=0,
+                max_width=max_row_width,
+                font_size=18,
+                pad_x=10,
+                pad_y=5,
+                gap=7,
+                row_gap=6,
+                draw=False,
+            )
+            y += used + 10
+        y += 10
+        return y
 
     # ------------------------------------------------------------------
     # Main loop
@@ -189,6 +260,15 @@ class CreditsScreen:
         btn_w, btn_h = 200, 56
         self._back_rect = pygame.Rect(cx - btn_w // 2, H - 84, btn_w, btn_h)
 
+        scroll_top = 24
+        scroll_bottom = H - 120
+        scroll_rect = pygame.Rect(0, scroll_top, W, scroll_bottom - scroll_top)
+        max_row_width = W - 60
+        content_height = self._measure_content(max_row_width)
+
+        if self._scroll_y is None:
+            self._scroll_y = float(H)
+
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -202,14 +282,19 @@ class CreditsScreen:
 
             animation_utils.draw_gradient(self.screen, self._GRAD_TOP, self._GRAD_BOTTOM)
 
-            # Title — "CREDITS" rendered as a row of keycaps, matching the logo
-            title_h = self._draw_title_keys("CREDITS", cx, 36,
+            dt = clock.tick(60) / 1000.0
+            self._scroll_y -= self._SCROLL_SPEED * dt
+            if self._scroll_y + content_height < scroll_top:
+                self._scroll_y = float(H)
+
+            self.screen.set_clip(scroll_rect)
+
+            y = int(self._scroll_y)
+            title_h = self._draw_title_keys("CREDITS", cx, y,
                                             font_size=34, pad_x=10, pad_y=8, gap=4)
 
-            # Credits grouped by role — role label in gold, names as keycaps
-            y = 36 + title_h + 24
-            max_row_width = W - 60
-            for role, names in CREDITS:
+            y = y + title_h + 24
+            for role, names in self._build_sections():
                 role_surf = self._fm.render_text(role.upper(), self._ACCENT, 24)
                 self.screen.blit(role_surf, role_surf.get_rect(center=(cx, y)))
                 y += 28
@@ -221,20 +306,7 @@ class CreditsScreen:
                 )
                 y += used + 10
 
-            # Divider
-            pygame.draw.line(
-                self.screen,
-                self._DIVIDER,
-                (cx - 160, y - 4),
-                (cx + 160, y - 4),
-                1,
-            )
-            y += 8
-
-            # Built-with line
-            built_surf = self._fm.render_text("Built with Python & Pygame",
-                                              self._HINT_TEXT, 18)
-            self.screen.blit(built_surf, built_surf.get_rect(center=(cx, y)))
+            self.screen.set_clip(None)
 
             # Back button — styled as a keycap that lights up on hover
             mouse = pygame.mouse.get_pos()
@@ -252,5 +324,4 @@ class CreditsScreen:
             self.screen.blit(hint_surf, hint_surf.get_rect(center=(cx, H - 22)))
 
             self.screen.present()
-            clock.tick(60)
             await asyncio.sleep(0)
