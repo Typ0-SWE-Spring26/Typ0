@@ -20,6 +20,13 @@ def test_keys_ninja_view_draws_without_error():
     mock_pg.transform.smoothscale.return_value = mock_surface
     mock_pg.Surface.return_value = Mock(fill=Mock())
     mock_pg.transform.rotozoom.return_value = Mock(get_rect=Mock(return_value=Mock()))
+    mock_pg.Rect.side_effect = lambda x, y, w, h: Mock(
+        x=x,
+        y=y,
+        width=w,
+        height=h,
+        move=lambda dx, dy: Mock(x=x + dx, y=y + dy, width=w, height=h),
+    )
 
     screen = Mock()
     screen.get_width.return_value = 800

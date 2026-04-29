@@ -1,6 +1,6 @@
 import sys
 import asyncio
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, MagicMock, AsyncMock, patch
 
 sys.modules["pygame"] = MagicMock()
 
@@ -46,7 +46,7 @@ def test_keys_ninja_display_run_returns_controller_result():
          patch.object(display_mod, "KeysNinjaView") as mock_view, \
          patch.object(display_mod, "MenuOverlay") as mock_menu:
         mock_view.return_value = Mock()
-        mock_ctrl.return_value.run = Mock(return_value="quit")
+        mock_ctrl.return_value.run = AsyncMock(return_value="quit")
         screen = display_mod.KeysNinjaScreen(mock_screen, mock_keybinds)
         result = run_async(screen.run())
 
