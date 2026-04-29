@@ -59,12 +59,12 @@ class GameView:
 
         # Emo flavor lines shown at game start (round 1 intro)
         self._emo_lines = [
-            "nobody understands me... or this sequence",
-            "watch the buttons. like they're the only ones left.",
-            "memorize this pattern. it's all you have now.",
-            "the sequence grows. just like the emptiness inside.",
-            "you press the keys. but do the keys press back?",
-            "another round begins. another chance to feel something.",
+            "nobody understands me. or this sequence.",
+            "watch the buttons. they're all you have.",
+            "memorize this. it's all you have now.",
+            "the sequence grows. so does the emptiness.",
+            "you press keys. but do they press back?",
+            "another round. another chance to feel something.",
         ]
 
         # Cache the static HUD background — recreating an SRCALPHA surface every

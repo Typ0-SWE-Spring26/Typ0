@@ -235,7 +235,7 @@ class MultiplayerGameScreen:
         text = self.font_pause.render("PAUSED", True, (200, 200, 255))
         self.screen.blit(text, text.get_rect(center=(cx, cy - 30)))
 
-        hint = self.font_hint.render("Press P to Resume", True, (160, 160, 210))
+        hint = self.font_hint.render("press P to resume. or just sit here.", True, (160, 160, 210))
         self.screen.blit(hint, hint.get_rect(center=(cx, cy + 38)))
 
     def _draw_waiting_overlay(self):

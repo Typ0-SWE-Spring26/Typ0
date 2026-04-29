@@ -179,6 +179,9 @@ class MultiplayerLobbyScreen:
         # Title
         title_surf = self.font_title.render("LOBBY", True, (100, 200, 255))
         self.screen.blit(title_surf, title_surf.get_rect(center=(cx, 46)))
+        emo_font = pygame.font.Font(None, 26)
+        emo_surf = emo_font.render("great. other people.", True, (160, 130, 200))
+        self.screen.blit(emo_surf, emo_surf.get_rect(center=(cx, 80)))
 
         # My name (top-left) and Leave button (top-right)
         me_surf = self.font_small.render(f"You: {self.my_name}", True, (160, 255, 160))
