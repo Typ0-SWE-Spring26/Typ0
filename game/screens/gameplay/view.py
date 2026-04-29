@@ -55,6 +55,17 @@ class GameView:
 
         self.font_small = pygame.font.SysFont(None, 32)
         self.font_label = pygame.font.SysFont(None, 50)
+        self.font_emo   = pygame.font.SysFont(None, 28)
+
+        # Emo flavor lines shown at game start (round 1 intro)
+        self._emo_lines = [
+            "nobody understands me... or this sequence",
+            "watch the buttons. like they're the only ones left.",
+            "memorize this pattern. it's all you have now.",
+            "the sequence grows. just like the emptiness inside.",
+            "you press the keys. but do the keys press back?",
+            "another round begins. another chance to feel something.",
+        ]
 
     def _draw_hud_panel(self):
         """Shared top HUD strip background — subclasses blit labels on top."""
@@ -134,3 +145,12 @@ class GameView:
 
         if model.state == 'input':
             self._draw_timer_bar(timer_fraction, gradient=True)
+        # emo flavor text (shown during the showing/adding phase)
+        if model.state in ('adding', 'showing'):
+            round_num = len(model.sequence)
+            line_idx = min(round_num, len(self._emo_lines) - 1)
+            emo_text = self._emo_lines[line_idx]
+            H = self.screen.get_height()
+            emo_surf = self.font_emo.render(emo_text, True, (160, 130, 200))
+            emo_surf.set_alpha(180)
+            self.screen.blit(emo_surf, emo_surf.get_rect(center=(W // 2, H - 20)))

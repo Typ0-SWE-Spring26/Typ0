@@ -48,9 +48,9 @@ class StartScreen:
             )
             # Draw flashing text
             if not loading_complete:
-                animation_utils.flashing_text(self.screen, "Now Loading...", (self.screen.get_width() // 2, self.screen.get_height() - 100))
+                animation_utils.flashing_text(self.screen, "something is loading. not that you'd care...", (self.screen.get_width() // 2, self.screen.get_height() - 100))
             else:
-                animation_utils.flashing_text(self.screen, "Press Space to Start", (self.screen.get_width() // 2, self.screen.get_height() - 100))
+                animation_utils.flashing_text(self.screen, "press SPACE. or don't. nothing matters.", (self.screen.get_width() // 2, self.screen.get_height() - 100))
                 keys = pygame.key.get_pressed()
                 if keys[pygame.K_SPACE]:
                     return "menu"
