@@ -111,7 +111,7 @@ class MultiplayerResultScreen:
         if self.won:
             animation_utils.wave_text(
                 self.screen,
-                "YOU WIN!",
+                "you won. still feels hollow.",
                 (cx, 140),
                 font_size=100,
                 color=(80, 255, 80),
@@ -121,7 +121,7 @@ class MultiplayerResultScreen:
         else:
             animation_utils.wave_text(
                 self.screen,
-                "YOU LOSE",
+                "you lost. to another person. let that sink in.",
                 (cx, 140),
                 font_size=100,
                 color=(255, 70, 70),
@@ -158,9 +158,9 @@ class MultiplayerResultScreen:
 
         # Flavour text
         if self.won:
-            flavour = f"{self.opponent_name} made a mistake — nice work!"
+            flavour = f"{self.opponent_name} made a mistake — nice job ig"
         else:
-            flavour = f"Better luck next time, {self.my_name}!"
+            flavour = f"Better luck next time if youre still here, {self.my_name}!"
         fl_surf = self.font_names.render(flavour, True, (180, 180, 180))
         self.screen.blit(fl_surf, fl_surf.get_rect(center=(cx, top_y + 120)))
 

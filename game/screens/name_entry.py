@@ -62,7 +62,7 @@ class NameEntryScreen:
             # Title
             animation_utils.wave_text(
                 self.screen,
-                "NEW HIGH SCORE!",
+                "you peaked. good job ig",
                 (cx, 80),
                 font_size=64,
                 color=(255, 215, 0),

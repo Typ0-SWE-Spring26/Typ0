@@ -55,6 +55,17 @@ class GameView:
 
         self.font_small = pygame.font.SysFont(None, 32)
         self.font_label = pygame.font.SysFont(None, 50)
+        self.font_emo   = pygame.font.SysFont(None, 28)
+
+        # Emo flavor lines shown at game start (round 1 intro)
+        self._emo_lines = [
+            "nobody understands me. or this sequence.",
+            "watch the buttons. they're all you have.",
+            "memorize this. it's all you have now.",
+            "the sequence grows. so does the emptiness.",
+            "you press keys. but do they press back?",
+            "another round. another chance to feel something.",
+        ]
 
         # Cache the static HUD background — recreating an SRCALPHA surface every
         # frame leaks memory in pygbag/WASM and can stall the browser tab.
@@ -144,3 +155,11 @@ class GameView:
 
         if model.state == 'input':
             self._draw_timer_bar(timer_fraction, gradient=True)
+        # emo flavor text (shown during the showing/adding phase)
+        if model.state in ('adding', 'showing'):
+            round_num = len(model.sequence)
+            line_idx = min(max(round_num - 1, 0), len(self._emo_lines) - 1)
+            emo_text = self._emo_lines[line_idx]
+            emo_surf = self.font_emo.render(emo_text, True, (200, 150, 220))
+            emo_surf.set_alpha(200)
+            self.screen.blit(emo_surf, emo_surf.get_rect(center=(W // 1.86, self._hud_h // 2)))

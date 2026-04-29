@@ -282,7 +282,7 @@ class HowToPlayScreen:
         self.screen.blit(title, title.get_rect(center=(panel.centerx, panel.y + 36)))
 
         subtitle = self._fm.render_text(
-            "Learn the controls fast, then jump right back in.",
+            "i guess someone has to explain this. might as well be me.",
             self._TEXT_MUTED,
             20,
         )

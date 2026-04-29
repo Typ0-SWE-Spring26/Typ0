@@ -89,9 +89,16 @@ class GameOverScreen:
 
             # Display reason for loss
             reason_font = pygame.font.Font(None, 36)
-            reason_surface = reason_font.render(self.reason, True, (200, 200, 200))
+            reason_surface = reason_font.render(self.reason, True, (180, 150, 220))
             reason_rect = reason_surface.get_rect(center=(self.screen.get_width() // 2, 350))
             self.screen.blit(reason_surface, reason_rect)
+
+            # emo additions
+            emo_font = pygame.font.Font(None, 28)
+            emo_surface = emo_font.render(
+                "as expected. nothing lasts.", True, (140, 110, 180)
+            )
+            self.screen.blit(emo_surface, emo_surface.get_rect(center=(self.screen.get_width() // 2, 390)))
 
             # High scores countdown — make it obvious the board exists
             remaining_ms = max(0, AUTO_SWITCH_MS - elapsed)

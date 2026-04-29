@@ -129,9 +129,19 @@ class KeysNinjaView(GameView):
             life_surf = self.font_combo.render("X", True, (255, 100, 100))
             self.screen.blit(life_surf, life_surf.get_rect(midright=(life_x, hud_h // 2)))
         
-        # Mode label (center)
-        mode_surf = self.font_mode.render("KEYS NINJA", True, self.purple_light)
-        self.screen.blit(mode_surf, mode_surf.get_rect(center=(W // 2, hud_h // 2)))
+        # Emo flavor in HUD center
+        ninja_emo_lines = [
+            "they keep falling. so do you.",
+            "type faster. feel nothing.",
+            "the keys are falling oh no..",
+            "hit them. miss them. it's all the same.",
+            "gravity doesn't care about your feelings.",
+            "dodge the bombs or dont",
+        ]
+        emo_idx = model.score % len(ninja_emo_lines)
+        emo_surf = self.font_emo.render(ninja_emo_lines[emo_idx], True, (180, 150, 220))
+        emo_surf.set_alpha(200)
+        self.screen.blit(emo_surf, emo_surf.get_rect(center=(W // 1.7, hud_h // 2)))
         
         # Combo display (center of HUD) - removed for now
         # if model.combo > 1:
@@ -154,3 +164,5 @@ class KeysNinjaView(GameView):
         #         f"Best Combo: {model.max_combo}", True, (150, 150, 200)
         #     )
         #     self.screen.blit(max_combo_surf, max_combo_surf.get_rect(center=(W // 2, H - 120)))
+
+        
