@@ -267,7 +267,7 @@ class CreditsScreen:
         content_height = self._measure_content(max_row_width)
 
         if self._scroll_y is None:
-            self._scroll_y = float(H)
+            self._scroll_y = float(scroll_bottom)
 
         while True:
             for event in pygame.event.get():
@@ -285,7 +285,7 @@ class CreditsScreen:
             dt = clock.tick(60) / 1000.0
             self._scroll_y -= self._SCROLL_SPEED * dt
             if self._scroll_y + content_height < scroll_top:
-                self._scroll_y = float(H)
+                self._scroll_y = float(scroll_bottom)
 
             self.screen.set_clip(scroll_rect)
 
