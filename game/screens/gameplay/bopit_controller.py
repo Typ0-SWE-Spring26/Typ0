@@ -57,6 +57,25 @@ class BopItController:
             self.menu_overlay.open or self.menu_overlay.active_submenu is not None
         )
 
+    def _handle_menu_action(self, menu_action):
+        if menu_action == "switch_mode":
+            animation_utils.stop_music()
+            return ("switch_mode",)
+
+        if (
+            isinstance(menu_action, tuple)
+            and menu_action
+            and menu_action[0] == "switch_mode"
+        ):
+            animation_utils.stop_music()
+            return menu_action
+
+        if menu_action == "main_menu":
+            animation_utils.stop_music()
+            return ("main_menu",)
+
+        return None
+
     def _process_input_result(self, name: str, now: int) -> bool:
         result = self.model.handle_input(name, now)
         animation_utils.play_sound("assets/TypoPressSFX.ogg")
@@ -117,21 +136,9 @@ class BopItController:
                                 return "quit"
                         self._exit_overlay_screen()
 
-                    if menu_action == "switch_mode":
-                        animation_utils.stop_music()
-                        return ("switch_mode",)
-
-                    if (
-                        isinstance(menu_action, tuple)
-                        and menu_action
-                        and menu_action[0] == "switch_mode"
-                    ):
-                        animation_utils.stop_music()
-                        return menu_action
-                    
-                    if menu_action == "main_menu":
-                        animation_utils.stop_music()
-                        return ("main_menu",)
+                    immediate = self._handle_menu_action(menu_action)
+                    if immediate is not None:
+                        return immediate
 
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_p:

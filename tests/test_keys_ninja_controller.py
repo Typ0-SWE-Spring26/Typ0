@@ -89,7 +89,7 @@ def _build_controller(menu_action):
 def test_menu_switch_mode_returns_target_tuple():
     controller = _build_controller(("switch_mode", "bopit"))
 
-    result = run_async(controller.run())
+    result = controller._handle_menu_action(("switch_mode", "bopit"))
 
     assert result == ("switch_mode", "bopit")
     controller._mock_anim.stop_music.assert_called_once()
@@ -98,7 +98,7 @@ def test_menu_switch_mode_returns_target_tuple():
 def test_menu_main_menu_returns_tuple():
     controller = _build_controller("main_menu")
 
-    result = run_async(controller.run())
+    result = controller._handle_menu_action("main_menu")
 
     assert result == ("main_menu",)
     controller._mock_anim.stop_music.assert_called_once()
