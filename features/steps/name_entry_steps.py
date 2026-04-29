@@ -15,10 +15,7 @@ def _setup_name_pg(mock_pg):
     mock_pg.K_DOWN = 274
     mock_pg.K_LEFT = 276
     mock_pg.K_RIGHT = 275
-    mock_pg.K_w = 119
-    mock_pg.K_s = 115
-    mock_pg.K_a = 97
-    mock_pg.K_d = 100
+    mock_pg.K_BACKSPACE = 8
     mock_pg.K_RETURN = 13
     mock_pg.K_SPACE = 32
     mock_font = Mock()
@@ -27,10 +24,11 @@ def _setup_name_pg(mock_pg):
     mock_pg.draw = Mock()
 
 
-def _make_key(pg, key):
+def _make_key(pg, key, unicode=""):
     ev = Mock()
     ev.type = pg.KEYDOWN
     ev.key = key
+    ev.unicode = unicode
     return ev
 
 
@@ -70,30 +68,27 @@ def step_confirm(ctx):
     ctx._pending_events.append(_make_key(ctx.mock_pg, ctx.mock_pg.K_RETURN))
 
 
-@when('the player scrolls up once')
-def step_scroll_up(ctx):
-    ctx._pending_events.append(_make_key(ctx.mock_pg, ctx.mock_pg.K_w))
-
-
-@when('the player scrolls down once')
-def step_scroll_down(ctx):
-    ctx._pending_events.append(_make_key(ctx.mock_pg, ctx.mock_pg.K_s))
-
-
 @when('the player moves cursor right')
 def step_move_right(ctx):
-    ctx._pending_events.append(_make_key(ctx.mock_pg, ctx.mock_pg.K_d))
+    ctx._pending_events.append(_make_key(ctx.mock_pg, ctx.mock_pg.K_RIGHT))
 
 
 @when('the player moves cursor left')
 def step_move_left(ctx):
-    ctx._pending_events.append(_make_key(ctx.mock_pg, ctx.mock_pg.K_a))
+    ctx._pending_events.append(_make_key(ctx.mock_pg, ctx.mock_pg.K_LEFT))
 
 
 @when('the player moves cursor right {n:d} times')
 def step_move_right_n(ctx, n):
     for _ in range(n):
-        ctx._pending_events.append(_make_key(ctx.mock_pg, ctx.mock_pg.K_d))
+        ctx._pending_events.append(_make_key(ctx.mock_pg, ctx.mock_pg.K_RIGHT))
+
+
+@when('the player types "{text}"')
+def step_type_text(ctx, text):
+    for ch in text:
+        key = ord(ch.upper()) if ch.isalnum() else ctx.mock_pg.K_SPACE
+        ctx._pending_events.append(_make_key(ctx.mock_pg, key, unicode=ch))
 
 
 def _run_pending(ctx):

@@ -4,7 +4,6 @@ import pygame
 import asyncio
 from game.utils import animation_utils
 
-ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 "
 MAX_NAME_LEN = 5
 
 
@@ -16,9 +15,8 @@ class NameEntryScreen:
         self.gradient_bottom = (0, 10, 0)
         self.running = True
 
-        self.name = ["A"] * MAX_NAME_LEN
+        self.name = [""] * MAX_NAME_LEN
         self.cursor = 0
-        self.char_index = [0] * MAX_NAME_LEN
 
         self.font_large = pygame.font.Font(None, 72)
         self.font_medium = pygame.font.Font(None, 48)
@@ -32,25 +30,28 @@ class NameEntryScreen:
                 if event.type == pygame.QUIT:
                     return "quit"
                 if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_UP or event.key == pygame.K_w:
-                        # Scroll letter up
-                        self.char_index[self.cursor] = (
-                            self.char_index[self.cursor] + 1
-                        ) % len(ALPHABET)
-                        self.name[self.cursor] = ALPHABET[self.char_index[self.cursor]]
-                    elif event.key == pygame.K_DOWN or event.key == pygame.K_s:
-                        # Scroll letter down
-                        self.char_index[self.cursor] = (
-                            self.char_index[self.cursor] - 1
-                        ) % len(ALPHABET)
-                        self.name[self.cursor] = ALPHABET[self.char_index[self.cursor]]
-                    elif event.key == pygame.K_RIGHT or event.key == pygame.K_d:
-                        self.cursor = min(self.cursor + 1, MAX_NAME_LEN - 1)
-                    elif event.key == pygame.K_LEFT or event.key == pygame.K_a:
-                        self.cursor = max(self.cursor - 1, 0)
-                    elif event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
+                    if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
                         # Confirm name
-                        return "".join(self.name)
+                        raw = "".join(self.name)
+                        if not raw.strip():
+                            raw = "A" * MAX_NAME_LEN
+                        return raw[:MAX_NAME_LEN].ljust(MAX_NAME_LEN)
+                    if event.key == pygame.K_LEFT:
+                        self.cursor = (self.cursor - 1) % MAX_NAME_LEN
+                        continue
+                    if event.key == pygame.K_RIGHT:
+                        self.cursor = (self.cursor + 1) % MAX_NAME_LEN
+                        continue
+                    if event.key == pygame.K_BACKSPACE:
+                        if self.name[self.cursor]:
+                            self.name[self.cursor] = ""
+                        elif self.cursor > 0:
+                            self.cursor -= 1
+                            self.name[self.cursor] = ""
+                    elif event.unicode and (event.unicode.isalnum() or event.unicode == " "):
+                        self.name[self.cursor] = event.unicode.upper()
+                        if self.cursor < MAX_NAME_LEN - 1:
+                            self.cursor += 1
 
             animation_utils.draw_gradient(
                 self.screen, self.gradient_top, self.gradient_bottom
@@ -79,7 +80,7 @@ class NameEntryScreen:
 
             # Instruction
             inst_surface = self.font_small.render(
-                "Enter your name!", True, (200, 200, 200)
+                "Type a 5-character name", True, (200, 200, 200)
             )
             self.screen.blit(inst_surface, inst_surface.get_rect(center=(cx, 220)))
 
@@ -90,22 +91,11 @@ class NameEntryScreen:
 
             for i in range(MAX_NAME_LEN):
                 x = start_x + i * slot_spacing
-                letter = self.name[i]
+                letter = self.name[i] or "_"
 
                 # Highlight current slot
                 is_active = i == self.cursor
                 color = (255, 255, 0) if is_active else (200, 200, 200)
-
-                # Draw up/down arrows for active slot
-                if is_active:
-                    arrow_up = self.font_small.render("^", True, (255, 255, 0))
-                    self.screen.blit(
-                        arrow_up, arrow_up.get_rect(center=(x, slot_y - 50))
-                    )
-                    arrow_down = self.font_small.render("v", True, (255, 255, 0))
-                    self.screen.blit(
-                        arrow_down, arrow_down.get_rect(center=(x, slot_y + 50))
-                    )
 
                 # Draw the letter
                 letter_surface = self.font_large.render(letter, True, color)
@@ -126,7 +116,7 @@ class NameEntryScreen:
             # Controls hint
             animation_utils.flashing_text(
                 self.screen,
-                "W/S: change | A/D: move | ENTER: confirm",
+                "Type A-Z/0-9/SPACE | ARROWS | BACKSPACE | ENTER",
                 (cx, self.screen.get_height() - 60),
             )
 
