@@ -177,32 +177,44 @@ jobs:
           PORT: "15090"
         run: |
           mkdir -p /tmp/scores
-          # Start the server in the background. STATIC_DIR points at a tmp
-          # path so the static catch-all is disabled — we only care about the
-          # admin route here.
           SCORES_DIR=/tmp/scores STATIC_DIR=/tmp/no-static \
             python server/server.py > /tmp/server.log 2>&1 &
           SERVER_PID=$!
 
-          # Wait for the port to accept connections (up to ~10s).
-          for i in $(seq 1 20); do
-            if curl -fsS -o /dev/null "http://127.0.0.1:15090/api/admin/vitals?password=wrong" 2>/dev/null; then
-              break
-            fi
-            # 401 is also "up"; -f makes curl exit non-zero on 401, so check
-            # via raw status code too.
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:15090/api/admin/vitals?password=wrong" || echo "000")
+          dump_log_and_exit() {
+            echo "--- server.log ---"
+            cat /tmp/server.log || echo "(no log)"
+            echo "--- ps ---"
+            ps -p $SERVER_PID -o pid,stat,cmd 2>&1 || echo "(server pid $SERVER_PID is gone)"
+            kill $SERVER_PID 2>/dev/null || true
+            exit 1
+          }
+
+          # Probe the endpoint without -f so curl returns a status code (e.g.
+          # 401) instead of exiting non-zero. `|| echo 000` keeps set -e happy
+          # when curl can't connect at all (exit 7).
+          probe_status() {
+            curl -s -o /dev/null -w "%{http_code}" --max-time 5 "$1" || echo "000"
+          }
+
+          UP=0
+          for i in $(seq 1 40); do
+            STATUS=$(probe_status "http://127.0.0.1:15090/api/admin/vitals?password=wrong")
             if [ "$STATUS" != "000" ]; then
+              UP=1
               break
             fi
             sleep 0.5
           done
 
+          if [ "$UP" -ne 1 ]; then
+            echo "✗ server never accepted a connection on port 15090"
+            dump_log_and_exit
+          fi
+
           FAILED=0
 
-          # Wrong password → 401
-          BAD=$(curl -s -o /dev/null -w "%{http_code}" \
-            "http://127.0.0.1:15090/api/admin/vitals?password=wrong")
+          BAD=$(probe_status "http://127.0.0.1:15090/api/admin/vitals?password=wrong")
           if [ "$BAD" = "401" ]; then
             echo "✓ wrong password rejected (HTTP $BAD)"
           else
@@ -210,9 +222,7 @@ jobs:
             FAILED=1
           fi
 
-          # Missing password → 401
-          MISSING=$(curl -s -o /dev/null -w "%{http_code}" \
-            "http://127.0.0.1:15090/api/admin/vitals")
+          MISSING=$(probe_status "http://127.0.0.1:15090/api/admin/vitals")
           if [ "$MISSING" = "401" ]; then
             echo "✓ missing password rejected (HTTP $MISSING)"
           else
@@ -220,7 +230,6 @@ jobs:
             FAILED=1
           fi
 
-          # Correct password → 200, and the test_vitals.py script succeeds
           if python test_vitals.py "$ADMIN_PASSWORD"; then
             echo "✓ test_vitals.py passed"
           else
@@ -231,7 +240,5 @@ jobs:
           kill $SERVER_PID 2>/dev/null || true
 
           if [ "$FAILED" -ne 0 ]; then
-            echo "--- server.log ---"
-            cat /tmp/server.log
-            exit 1
+            dump_log_and_exit
           fi
