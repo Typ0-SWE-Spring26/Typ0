@@ -9,6 +9,7 @@ class BopItView(GameView):
     def __init__(self, screen, key_labels):
         super().__init__(screen, key_labels)
         self.font_mode = pygame.font.SysFont(None, 28)
+        self.font_emo   = pygame.font.SysFont(None, 28)
 
     def draw(self, model, timer_fraction):
         """Render one frame for Bop-It mode."""
@@ -22,6 +23,12 @@ class BopItView(GameView):
 
         mode_surf = self.font_mode.render("BOP IT", True, (255, 185, 60))
         self.screen.blit(mode_surf, mode_surf.get_rect(midright=(W - 24, hud_h // 2)))
+
+        # Emo flavor in HUD center
+        emo_idx = min(model.score, len(self._emo_lines) - 1)
+        emo_surf = self.font_emo.render(self._emo_lines[emo_idx], True, (180, 150, 220))
+        emo_surf.set_alpha(200)
+        self.screen.blit(emo_surf, emo_surf.get_rect(center=(W // 1.87, hud_h // 2)))
 
         # Draw buttons — highlight only the target command
         for name, rect in self.button_rects.items():
@@ -44,3 +51,6 @@ class BopItView(GameView):
 
         if model.state == 'input':
             self._draw_timer_bar(timer_fraction, gradient=True)
+
+
+            

@@ -129,9 +129,11 @@ class KeysNinjaView(GameView):
             life_surf = self.font_combo.render("X", True, (255, 100, 100))
             self.screen.blit(life_surf, life_surf.get_rect(midright=(life_x, hud_h // 2)))
         
-        # Mode label (center)
-        mode_surf = self.font_mode.render("KEYS NINJA", True, self.purple_light)
-        self.screen.blit(mode_surf, mode_surf.get_rect(center=(W // 2, hud_h // 2)))
+        # Emo flavor in HUD — cycles through lines as game progresses
+        emo_idx = min(model.score, len(self._emo_lines) - 1)
+        emo_surf = self.font_emo.render(self._emo_lines[emo_idx], True, (180, 150, 220))
+        emo_surf.set_alpha(200)
+        self.screen.blit(emo_surf, emo_surf.get_rect(center=(W // 2, hud_h + 20)))
         
         # Combo display (center of HUD) - removed for now
         # if model.combo > 1:
@@ -154,3 +156,5 @@ class KeysNinjaView(GameView):
         #         f"Best Combo: {model.max_combo}", True, (150, 150, 200)
         #     )
         #     self.screen.blit(max_combo_surf, max_combo_surf.get_rect(center=(W // 2, H - 120)))
+
+        

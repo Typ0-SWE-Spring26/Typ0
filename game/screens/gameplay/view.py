@@ -160,7 +160,6 @@ class GameView:
             round_num = len(model.sequence)
             line_idx = min(max(round_num - 1, 0), len(self._emo_lines) - 1)
             emo_text = self._emo_lines[line_idx]
-            H = self.screen.get_height()
-            emo_surf = self.font_emo.render(emo_text, True, (160, 130, 200))
-            emo_surf.set_alpha(180)
-            self.screen.blit(emo_surf, emo_surf.get_rect(center=(W // 2, H - 20)))
+            emo_surf = self.font_emo.render(emo_text, True, (200, 150, 220))
+            emo_surf.set_alpha(200)
+            self.screen.blit(emo_surf, emo_surf.get_rect(center=(W // 1.86, self._hud_h // 2)))
