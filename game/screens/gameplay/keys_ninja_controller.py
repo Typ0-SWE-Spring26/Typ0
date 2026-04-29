@@ -18,6 +18,7 @@ class KeysNinjaController:
         self.menu_overlay = menu_overlay
         self.paused = False
         self._menu_forced_pause = False
+        self._anim = animation_utils
         
         if pause_overlay is not None:
             pause_overlay.subscribe(self._bus)
@@ -56,7 +57,7 @@ class KeysNinjaController:
 
     def _handle_menu_action(self, menu_action):
         if menu_action == "switch_mode":
-            animation_utils.stop_music()
+            self._anim.stop_music()
             return ("switch_mode",)
 
         if (
@@ -64,11 +65,11 @@ class KeysNinjaController:
             and menu_action
             and menu_action[0] == "switch_mode"
         ):
-            animation_utils.stop_music()
+            self._anim.stop_music()
             return menu_action
 
         if menu_action == "main_menu":
-            animation_utils.stop_music()
+            self._anim.stop_music()
             return ("main_menu",)
 
         return None

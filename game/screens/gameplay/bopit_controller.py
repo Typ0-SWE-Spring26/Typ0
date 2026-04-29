@@ -19,6 +19,7 @@ class BopItController:
         self.menu_overlay = menu_overlay
         self.paused = False
         self._menu_forced_pause = False
+        self._anim = animation_utils
 
         self.game_timer = GameTimer(self._bus)
         self._bus.subscribe('timer_expired', self.model.on_timer_expired)
@@ -59,7 +60,7 @@ class BopItController:
 
     def _handle_menu_action(self, menu_action):
         if menu_action == "switch_mode":
-            animation_utils.stop_music()
+            self._anim.stop_music()
             return ("switch_mode",)
 
         if (
@@ -67,11 +68,11 @@ class BopItController:
             and menu_action
             and menu_action[0] == "switch_mode"
         ):
-            animation_utils.stop_music()
+            self._anim.stop_music()
             return menu_action
 
         if menu_action == "main_menu":
-            animation_utils.stop_music()
+            self._anim.stop_music()
             return ("main_menu",)
 
         return None

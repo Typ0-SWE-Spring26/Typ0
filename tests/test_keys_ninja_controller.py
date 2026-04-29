@@ -82,6 +82,7 @@ def _build_controller(menu_action):
             menu_overlay=menu,
         )
         controller._mock_anim = mock_anim
+        controller._anim = mock_anim
 
     return controller
 

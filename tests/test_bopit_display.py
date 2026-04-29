@@ -38,8 +38,9 @@ def test_bopit_display_run_returns_controller_result():
     mock_screen = Mock()
     mock_keybinds = Mock(key_labels={})
 
-    with patch.object(display_mod, "BopItController") as mock_ctrl, \
-         patch.object(display_mod, "BopItView") as mock_view:
+        with patch.object(display_mod, "BopItController") as mock_ctrl, \
+            patch.object(display_mod, "BopItView") as mock_view, \
+            patch.object(display_mod, "MenuOverlay") as mock_menu:
         mock_view.return_value = Mock()
         mock_ctrl.return_value.run = Mock(return_value="quit")
         screen = display_mod.BopItScreen(mock_screen, mock_keybinds)

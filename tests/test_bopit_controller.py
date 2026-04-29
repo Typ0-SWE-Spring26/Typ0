@@ -47,6 +47,9 @@ class _FakeModel:
     def handle_input(self, _name, _now):
         return "correct"
 
+    def on_timer_expired(self, _data):
+        pass
+
 
 class _FakeView:
     def __init__(self):
@@ -86,6 +89,7 @@ def _build_controller(menu_action):
             menu_overlay=menu,
         )
         controller._mock_anim = mock_anim
+        controller._anim = mock_anim
 
     return controller
 
