@@ -177,8 +177,8 @@ jobs:
           PORT: "15090"
         run: |
           mkdir -p /tmp/scores
-          SCORES_DIR=/tmp/scores STATIC_DIR=/tmp/no-static \
-            python server/server.py > /tmp/server.log 2>&1 &
+          SCORES_DIR=/tmp/scores STATIC_DIR=/tmp/no-static PYTHONUNBUFFERED=1 \
+            python -u server/server.py > /tmp/server.log 2>&1 &
           SERVER_PID=$!
 
           dump_log_and_exit() {
@@ -190,11 +190,11 @@ jobs:
             exit 1
           }
 
-          # Probe the endpoint without -f so curl returns a status code (e.g.
-          # 401) instead of exiting non-zero. `|| echo 000` keeps set -e happy
-          # when curl can't connect at all (exit 7).
+          # curl with -w writes "000" itself when it can't connect, then
+          # exits non-zero — `|| true` keeps set -e happy without doubling
+          # the output.
           probe_status() {
-            curl -s -o /dev/null -w "%{http_code}" --max-time 5 "$1" || echo "000"
+            curl -s -o /dev/null -w "%{http_code}" --max-time 5 "$1" || true
           }
 
           UP=0
