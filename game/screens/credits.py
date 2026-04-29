@@ -282,7 +282,11 @@ class CreditsScreen:
 
             animation_utils.draw_gradient(self.screen, self._GRAD_TOP, self._GRAD_BOTTOM)
 
-            dt = clock.tick(60) / 1000.0
+            dt_ms = clock.tick(60)
+            try:
+                dt = float(dt_ms) / 1000.0
+            except (TypeError, ValueError):
+                dt = 0.0
             self._scroll_y -= self._SCROLL_SPEED * dt
             if self._scroll_y + content_height < scroll_top:
                 self._scroll_y = float(scroll_bottom)
