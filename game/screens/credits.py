@@ -1,7 +1,7 @@
 import pygame
 import asyncio
 from game.utils import animation_utils
-from assets.font_loader import FontManager
+from assets.font_loader import FontManager, SANS_SERIF_PREFERRED
 
 
 # Standardized credits entry format: add one dict per person.
@@ -100,7 +100,7 @@ class CreditsScreen:
 
     def _keycap_size(self, text, font_size, pad_x, pad_y):
         """Return (width, height) of the keycap *face* for a given text."""
-        surf = self._fm.render_text(text, self._KEY_TEXT, font_size)
+        surf = self._fm.render_text(text, self._KEY_TEXT, font_size, font_name=SANS_SERIF_PREFERRED)
         # Use separate getters instead of unpacking get_size() — safer under
         # MagicMock and equally fast at runtime.
         tw = surf.get_width()
@@ -135,7 +135,7 @@ class CreditsScreen:
                          width=2, border_radius=7)
 
         # Label centered on the face
-        text_surf = self._fm.render_text(text, self._KEY_TEXT, font_size)
+        text_surf = self._fm.render_text(text, self._KEY_TEXT, font_size, font_name=SANS_SERIF_PREFERRED)
         self.screen.blit(text_surf, text_surf.get_rect(center=face_rect.center))
         return outer_rect
 
@@ -155,7 +155,7 @@ class CreditsScreen:
         pygame.draw.rect(self.screen, self._KEY_OUTLINE, face_rect,
                          width=2, border_radius=9)
 
-        text_surf = self._fm.render_text(text, self._KEY_TEXT, font_size)
+        text_surf = self._fm.render_text(text, self._KEY_TEXT, font_size, font_name=SANS_SERIF_PREFERRED)
         self.screen.blit(text_surf, text_surf.get_rect(center=face_rect.center))
 
     def _draw_title_keys(self, text, center_x, top_y,
@@ -304,7 +304,7 @@ class CreditsScreen:
 
             y = y + title_h + 24
             for role, names in self._build_sections():
-                role_surf = self._fm.render_text(role.upper(), self._ACCENT, 24)
+                role_surf = self._fm.render_text(role.upper(), self._ACCENT, 24, font_name=SANS_SERIF_PREFERRED)
                 self.screen.blit(role_surf, role_surf.get_rect(center=(cx, y)))
                 y += 28
 
@@ -329,7 +329,8 @@ class CreditsScreen:
 
             # Key hint
             hint_surf = self._fm.render_text("ESC / Q  or click BACK",
-                                             self._HINT_TEXT, 16)
+                                             self._HINT_TEXT, 16,
+                                             font_name=SANS_SERIF_PREFERRED)
             self.screen.blit(hint_surf, hint_surf.get_rect(center=(cx, H - 22)))
 
             self.screen.present()

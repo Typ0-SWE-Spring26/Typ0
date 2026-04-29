@@ -38,7 +38,7 @@ def _make_font_manager(char_w=10, line_h=14):
 
     width = char_w * len(text), height = line_h
     """
-    def _render(text, color=None, size=18):
+    def _render(text, color=None, size=18, **_kwargs):
         surf = Mock()
         surf.get_width.return_value = char_w * len(text)
         surf.get_height.return_value = line_h

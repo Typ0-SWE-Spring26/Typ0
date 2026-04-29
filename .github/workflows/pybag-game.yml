@@ -93,6 +93,23 @@ jobs:
             ./build/web/ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/typo/deploy/
 
+      - name: Stamp server/version.json
+        run: |
+          # The deploy box has no .git directory, so the vitals handler can't
+          # shell out to git. Stamp commit/branch/build-time into a sidecar
+          # file that the handler reads at request time.
+          python -c "
+          import json, os, datetime
+          out = {
+            'commit': os.environ['GITHUB_SHA'][:7],
+            'branch': os.environ['GITHUB_REF_NAME'],
+            'build_timestamp': datetime.datetime.utcnow().isoformat() + 'Z',
+          }
+          with open('server/version.json', 'w') as f:
+            json.dump(out, f)
+          print('wrote server/version.json:', out)
+          "
+
       - name: Deploy multiplayer server
         run: |
           rsync -az \

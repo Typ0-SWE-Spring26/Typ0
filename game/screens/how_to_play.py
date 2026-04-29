@@ -214,7 +214,7 @@ class HowToPlayScreen:
             ("SIMON", "Repeat the full sequence in order."),
             ("BOP IT", "React to one command before time runs out."),
             ("KEYS NINJA", None),  # custom-rendered with color-coded callouts
-            ("MENU", "Open settings, music, and mode switching."),
+            ("MENU", "Settings, music, and switch modes anytime."),
         ]
         for label, desc in lines:
             label_surf = self._fm.render_text(label, self._TEXT_GOOD, 20)
@@ -262,18 +262,7 @@ class HowToPlayScreen:
 
         y = self._draw_shortcut_row("P", "Pause / Resume", x, y, max_right)
         y = self._draw_shortcut_row("ESC", "Close menus / Back", x, y, max_right)
-        y = self._draw_shortcut_row("MOUSE", "Click on-screen prompts", x, y, max_right)
-
-        tip_y = min(rect.bottom - 24, y + 6)
-        self._draw_wrapped_text(
-            "Tip: switch mode from MENU anytime.",
-            x,
-            tip_y,
-            max_right - x,
-            15,
-            self._TEXT_MUTED,
-            line_gap=1,
-        )
+        self._draw_shortcut_row("MOUSE", "Click on-screen prompts", x, y, max_right)
 
     def _draw(self):
         w = self.screen.get_width()

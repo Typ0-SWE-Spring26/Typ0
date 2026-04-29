@@ -380,38 +380,33 @@ async def handle_admin_vitals(request: web.Request) -> web.Response:
             "top_player": scores[0]["name"] if scores else None,
         }
     
-    # Git info (if available)
-    git_info = {}
-    try:
-        git_hash = subprocess.check_output(
-            ["git", "rev-parse", "--short", "HEAD"],
-            cwd=str(Path(__file__).parent.parent),
-            stderr=subprocess.DEVNULL,
-            text=True,
-        ).strip()
-        git_info["commit"] = git_hash
-    except Exception:
-        git_info["commit"] = "unknown"
-    
-    try:
-        git_branch = subprocess.check_output(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            cwd=str(Path(__file__).parent.parent),
-            stderr=subprocess.DEVNULL,
-            text=True,
-        ).strip()
-        git_info["branch"] = git_branch
-    except Exception:
-        git_info["branch"] = "unknown"
-    
-    # Build timestamp
-    version_file = Path(__file__).parent.parent / "build" / "version.txt"
-    build_time = None
+    # Version info — prefer the sidecar version.json that the deploy workflow
+    # stamps next to server.py (the deploy box has no .git). Fall back to git
+    # for local dev where the repo is checked out.
+    version_file = Path(__file__).parent / "version.json"
+    git_info = {"commit": "unknown", "branch": "unknown"}
+    build_time = "unknown"
     try:
         with open(version_file) as f:
-            build_time = f.read().strip()
-    except Exception:
-        build_time = "unknown"
+            stamp = json.load(f)
+        git_info["commit"] = stamp.get("commit", "unknown")
+        git_info["branch"] = stamp.get("branch", "unknown")
+        build_time = stamp.get("build_timestamp", "unknown")
+    except FileNotFoundError:
+        repo_root = str(Path(__file__).parent.parent)
+        def _git(*args: str) -> str:
+            return subprocess.check_output(
+                ["git", *args], cwd=repo_root,
+                stderr=subprocess.DEVNULL, text=True,
+            ).strip()
+        try:
+            git_info["commit"] = _git("rev-parse", "--short", "HEAD")
+        except Exception:
+            pass
+        try:
+            git_info["branch"] = _git("rev-parse", "--abbrev-ref", "HEAD")
+        except Exception:
+            pass
     
     vitals = {
         "timestamp": datetime.utcnow().isoformat() + "Z",
