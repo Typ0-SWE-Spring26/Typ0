@@ -249,6 +249,13 @@ class KeysNinjaModel:
         else:
             # Wrong key or no matching key
             self.combo = 0
+            self.lives -= 1
+            if self.lives <= 0:
+                self.lives = 0
+                self.state = 'gameover'
+                self.gameover_reason = "Out of lives!"
+                self._bus.emit('input_result', {'result': 'wrong', 'name': char})
+                return 'wrong'
             # Don't end game, just reset combo
             return 'wrong'
     
