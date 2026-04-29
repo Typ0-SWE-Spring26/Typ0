@@ -4,13 +4,14 @@ all served from a single aiohttp app on one port.
 
 Run with:
     pip install -r server/requirements.txt
-    STATIC_DIR=build/web python server/server.py
+    ADMIN_PASSWORD=your_password STATIC_DIR=build/web python server/server.py
 
 Routes:
-    GET  /ws                   -> multiplayer WebSocket
-    GET  /scores/{game_type}   -> JSON array of top 10
-    POST /scores/{game_type}   -> body {"name":"..","score":0}, returns top 10
-    GET  /*                    -> pygbag build (STATIC_DIR)
+    GET  /ws                      -> multiplayer WebSocket
+    GET  /scores/{game_type}      -> JSON array of top 10
+    POST /scores/{game_type}      -> body {"name":"..","score":0}, returns top 10
+    GET  /api/admin/vitals        -> project health/stats (requires ?password=ADMIN_PASSWORD)
+    GET  /*                       -> pygbag build (STATIC_DIR)
 
 Valid game_type values: simon, bopit, keys_ninja, multiplayer
 """
@@ -19,6 +20,9 @@ import asyncio
 import json
 import os
 import random
+import subprocess
+import time
+from datetime import datetime
 from pathlib import Path
 
 from aiohttp import WSMsgType, web
@@ -30,10 +34,16 @@ except ImportError:
 
 HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = int(os.environ.get("PORT", "15090"))
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin_secret_123")
 STATIC_DIR = os.environ.get(
     "STATIC_DIR",
     str(Path(__file__).resolve().parent.parent / "build" / "web"),
 )
+
+# Server startup time for uptime tracking
+_server_start_time = time.time()
+
+CORS_HEADERS = {"Access-Control-Allow-Origin": "*"}
 
 # name -> websocket connection
 _players: dict[str, web.WebSocketResponse] = {}
@@ -318,6 +328,97 @@ async def handle_post_score(request: web.Request) -> web.Response:
     return web.json_response(updated)
 
 
+async def handle_admin_vitals(request: web.Request) -> web.Response:
+    """Admin endpoint to get project vitals (health/stats).
+    
+    Requires query param: ?password=ADMIN_PASSWORD
+    Returns JSON with test results, git info, server status, etc.
+    """
+    # Check password
+    password = request.rel_url.query.get("password", "")
+    if password != ADMIN_PASSWORD:
+        return web.Response(
+            status=401,
+            text="Unauthorized",
+            headers=CORS_HEADERS,
+        )
+    
+    # Gather vitals
+    uptime_seconds = time.time() - _server_start_time
+    uptime_hours = uptime_seconds / 3600
+    
+    # Active multiplayer stats
+    active_players = len(_players)
+    active_games = len(_active_games)
+    pending_challenges = len(_pending_challenges)
+    
+    # Score database stats
+    score_stats = {}
+    for game_type in VALID_GAME_TYPES:
+        scores = load_scores(game_type)
+        score_stats[game_type] = {
+            "count": len(scores),
+            "top_score": scores[0]["score"] if scores else 0,
+            "top_player": scores[0]["name"] if scores else None,
+        }
+    
+    # Git info (if available)
+    git_info = {}
+    try:
+        git_hash = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=str(Path(__file__).parent.parent),
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+        git_info["commit"] = git_hash
+    except Exception:
+        git_info["commit"] = "unknown"
+    
+    try:
+        git_branch = subprocess.check_output(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=str(Path(__file__).parent.parent),
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+        git_info["branch"] = git_branch
+    except Exception:
+        git_info["branch"] = "unknown"
+    
+    # Build timestamp
+    version_file = Path(__file__).parent.parent / "build" / "version.txt"
+    build_time = None
+    try:
+        with open(version_file) as f:
+            build_time = f.read().strip()
+    except Exception:
+        build_time = "unknown"
+    
+    vitals = {
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "server": {
+            "uptime_seconds": round(uptime_seconds, 2),
+            "uptime_hours": round(uptime_hours, 2),
+            "host": HOST,
+            "port": PORT,
+        },
+        "multiplayer": {
+            "active_players": active_players,
+            "active_games": active_games,
+            "pending_challenges": pending_challenges,
+        },
+        "scores": score_stats,
+        "build": {
+            "timestamp": build_time,
+            "static_dir": str(STATIC_DIR),
+        },
+        "git": git_info,
+    }
+    
+    return web.json_response(vitals, headers=CORS_HEADERS)
+
+
 def build_app() -> web.Application:
     app = web.Application()
 
@@ -325,6 +426,7 @@ def build_app() -> web.Application:
     app.router.add_get("/ws", ws_handler)
     app.router.add_get("/scores/{game_type}", handle_get_scores)
     app.router.add_post("/scores/{game_type}", handle_post_score)
+    app.router.add_get("/api/admin/vitals", handle_admin_vitals)
 
     # Pygbag build (game). aiohttp's add_static doesn't serve index.html
     # automatically, so wire up a root handler that returns it explicitly.
@@ -349,6 +451,7 @@ def main() -> None:
     print(f"  static dir : {STATIC_DIR}")
     print(f"  websocket  : /ws")
     print(f"  score api  : /scores/{{game_type}}")
+    print(f"  admin api  : /api/admin/vitals?password=<ADMIN_PASSWORD>")
     web.run_app(build_app(), host=HOST, port=PORT, print=None)
 
 

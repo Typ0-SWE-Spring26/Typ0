@@ -13,6 +13,7 @@ on:
       - "main.py"
       - "requirements.txt"
       - "run_tests.py"
+      - "test_vitals.py"
 
 jobs:
   web-audio-tests:
@@ -145,3 +146,92 @@ jobs:
           python -m http.server 8000 --directory build/web &
           sleep 3
           python -m pytest tests/test_browser.py tests/test_browser_features.py tests/test_browser_multiplayer.py tests/test_browser_ws.py -v -m browser
+
+  admin-vitals-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-3.12-${{ hashFiles('requirements.txt', 'server/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-3.12-
+
+      - name: Install server dependencies
+        run: |
+          pip install -r server/requirements.txt
+          pip install requests
+
+      - name: Boot server and probe admin vitals endpoint
+        env:
+          ADMIN_PASSWORD: ci_test_password_xyz
+          PORT: "15090"
+        run: |
+          mkdir -p /tmp/scores
+          # Start the server in the background. STATIC_DIR points at a tmp
+          # path so the static catch-all is disabled — we only care about the
+          # admin route here.
+          SCORES_DIR=/tmp/scores STATIC_DIR=/tmp/no-static \
+            python server/server.py > /tmp/server.log 2>&1 &
+          SERVER_PID=$!
+
+          # Wait for the port to accept connections (up to ~10s).
+          for i in $(seq 1 20); do
+            if curl -fsS -o /dev/null "http://127.0.0.1:15090/api/admin/vitals?password=wrong" 2>/dev/null; then
+              break
+            fi
+            # 401 is also "up"; -f makes curl exit non-zero on 401, so check
+            # via raw status code too.
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:15090/api/admin/vitals?password=wrong" || echo "000")
+            if [ "$STATUS" != "000" ]; then
+              break
+            fi
+            sleep 0.5
+          done
+
+          FAILED=0
+
+          # Wrong password → 401
+          BAD=$(curl -s -o /dev/null -w "%{http_code}" \
+            "http://127.0.0.1:15090/api/admin/vitals?password=wrong")
+          if [ "$BAD" = "401" ]; then
+            echo "✓ wrong password rejected (HTTP $BAD)"
+          else
+            echo "✗ wrong password got HTTP $BAD (expected 401)"
+            FAILED=1
+          fi
+
+          # Missing password → 401
+          MISSING=$(curl -s -o /dev/null -w "%{http_code}" \
+            "http://127.0.0.1:15090/api/admin/vitals")
+          if [ "$MISSING" = "401" ]; then
+            echo "✓ missing password rejected (HTTP $MISSING)"
+          else
+            echo "✗ missing password got HTTP $MISSING (expected 401)"
+            FAILED=1
+          fi
+
+          # Correct password → 200, and the test_vitals.py script succeeds
+          if python test_vitals.py "$ADMIN_PASSWORD"; then
+            echo "✓ test_vitals.py passed"
+          else
+            echo "✗ test_vitals.py failed"
+            FAILED=1
+          fi
+
+          kill $SERVER_PID 2>/dev/null || true
+
+          if [ "$FAILED" -ne 0 ]; then
+            echo "--- server.log ---"
+            cat /tmp/server.log
+            exit 1
+          fi

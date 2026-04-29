@@ -122,12 +122,15 @@ jobs:
               SCORES_DIR=/home/typo/scores \
               STATIC_DIR=/home/typo/deploy \
               PORT=15090 \
+              ADMIN_PASSWORD="${{ secrets.ADMIN_PASSWORD }}" \
               python3 server.py >> /home/typo/logs/server.log 2>&1'
 
           echo "Server started."
           EOF
 
       - name: Health check
+        env:
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
         run: |
           echo "Waiting for server to come up..."
           sleep 6
@@ -170,6 +173,34 @@ jobs:
           else
             echo "✗ WebSocket         /ws              →  HTTP $WS_STATUS (expected 101)"
             FAILED=1
+          fi
+
+          # Admin vitals — wrong password should be rejected (401).
+          ADMIN_BAD=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 10 "$BASE/api/admin/vitals?password=definitely-not-the-password")
+          if [ "$ADMIN_BAD" = "401" ]; then
+            echo "✓ Admin vitals 401  /api/admin/vitals →  HTTP $ADMIN_BAD (rejected bad password)"
+          else
+            echo "✗ Admin vitals 401  /api/admin/vitals →  HTTP $ADMIN_BAD (expected 401)"
+            FAILED=1
+          fi
+
+          # Admin vitals — correct password should return 200 with JSON.
+          # Skip if no secret is configured so the workflow doesn't fail before
+          # the user adds the ADMIN_PASSWORD secret.
+          if [ -n "$ADMIN_PASSWORD" ]; then
+            ADMIN_OK=$(curl -s -o /tmp/vitals.json -w "%{http_code}" \
+              --max-time 10 --get \
+              --data-urlencode "password=$ADMIN_PASSWORD" \
+              "$BASE/api/admin/vitals")
+            if [ "$ADMIN_OK" = "200" ] && grep -q '"server"' /tmp/vitals.json; then
+              echo "✓ Admin vitals 200  /api/admin/vitals →  HTTP $ADMIN_OK (authorized)"
+            else
+              echo "✗ Admin vitals 200  /api/admin/vitals →  HTTP $ADMIN_OK (expected 200 with JSON)"
+              FAILED=1
+            fi
+          else
+            echo "⚠ Admin vitals 200  skipped — ADMIN_PASSWORD secret not set"
           fi
 
           [ "$FAILED" -eq 0 ] && echo "All health checks passed." || exit 1
