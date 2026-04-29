@@ -288,7 +288,12 @@ class CreditsScreen:
             except (TypeError, ValueError):
                 dt = 0.0
             self._scroll_y -= self._SCROLL_SPEED * dt
-            if self._scroll_y + content_height < scroll_top:
+            try:
+                scroll_y_val = float(self._scroll_y)
+                content_h_val = float(content_height)
+                if scroll_y_val + content_h_val < scroll_top:
+                    self._scroll_y = float(scroll_bottom)
+            except (TypeError, ValueError):
                 self._scroll_y = float(scroll_bottom)
 
             self.screen.set_clip(scroll_rect)
