@@ -63,6 +63,11 @@ def _web_audio(method, *args):
 # Cache for pre-rendered gradient surfaces, keyed by (size, top_color, bottom_color)
 _gradient_cache = {}
 
+# Cache for loaded pygame.mixer.Sound objects, keyed by filename. Avoids
+# reconstructing a Sound on every play_sound() call in hot paths like the
+# Keys Ninja keypress handler.
+_sound_cache = {}
+
 
 def draw_gradient(screen, gradient_top=(25, 25, 112), gradient_bottom=(0, 0, 0)):
     """Draw a vertical gradient from top to bottom.
@@ -135,6 +140,12 @@ def draw_animated_icons(screen, string="TYP0!", position=None, radius=100, font_
         icon_text = icon_font.render(string[i % len(string)], True, color)
         icon_rect = icon_text.get_rect(center=(icon_x, icon_y))
         screen.blit(icon_text, icon_rect)
+
+
+def float_offset(amplitude=8, speed=2.0, phase=0.0):
+    """Return a vertical offset for gentle bobbing animations."""
+    time = pygame.time.get_ticks() / 1000
+    return math.sin((time * speed) + phase) * amplitude
 
 
 def flashing_text(screen, text, position=None, font_size=36, color_on=(255, 255, 255), color_off=(100, 100, 100), flash_speed=500, font=None, font_name=None):
@@ -319,7 +330,10 @@ def play_sound(file):
         _web_audio("playSound", file)
         return
     try:
-        sound = pygame.mixer.Sound(file)
+        sound = _sound_cache.get(file)
+        if sound is None:
+            sound = pygame.mixer.Sound(file)
+            _sound_cache[file] = sound
         sound.play()
     except pygame.error as exc:
         print(f"Warning: failed to play sound {file}: {exc}")

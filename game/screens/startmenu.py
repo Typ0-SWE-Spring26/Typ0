@@ -25,24 +25,31 @@ class StartMenu:
         W = self.screen.get_width()
         H = self.screen.get_height()
         cx = W // 2
-        btn_w, btn_h = 400, 75
+        btn_w, btn_h = 380, 65  # Reduced from 400x75 to fit better
         btn_x = cx - btn_w // 2
 
-        # Distribute 4 buttons evenly in the space below the title
-        btn_gap   = 16
-        block_h   = 4 * btn_h + 3 * btn_gap
-        title_clearance = H // 4 + 60          # first pixel available below title
-        btn_start = title_clearance + (H - 20 - title_clearance - block_h) // 2
+        # Distribute 5 buttons evenly in the space below the title
+        btn_gap   = 10  # Reduced from 12 for even tighter spacing
+        block_h   = 5 * btn_h + 4 * btn_gap
+        title_clearance = H // 4 + 70  # Adjusted for better spacing
+        btn_start = title_clearance + (H - 40 - title_clearance - block_h) // 2  # Changed from H-20
         stride    = btn_h + btn_gap
 
-        self.simon_rect    = pygame.Rect(btn_x, btn_start,              btn_w, btn_h)
-        self.bopit_rect    = pygame.Rect(btn_x, btn_start + stride,     btn_w, btn_h)
-        self.multi_rect    = pygame.Rect(btn_x, btn_start + stride * 2, btn_w, btn_h)
-        self.settings_rect = pygame.Rect(btn_x, btn_start + stride * 3, btn_w, btn_h)
-        self.btn_simon      = Button(self.simon_rect,    "Simon Mode",   self.font_btn)
-        self.btn_bopit      = Button(self.bopit_rect,    "Bop It Mode",  self.font_btn)
-        self.btn_multi      = Button(self.multi_rect,    "Multiplayer",  self.font_btn)
-        self.btn_settings   = Button(self.settings_rect, "Settings",     self.font_btn)
+        self.simon_rect      = pygame.Rect(btn_x, btn_start,              btn_w, btn_h)
+        self.bopit_rect      = pygame.Rect(btn_x, btn_start + stride,     btn_w, btn_h)
+        self.keys_ninja_rect = pygame.Rect(btn_x, btn_start + stride * 2, btn_w, btn_h)
+        self.multi_rect      = pygame.Rect(btn_x, btn_start + stride * 3, btn_w, btn_h)
+        split_gap = 16
+        split_w = (btn_w - split_gap) // 2
+        split_y = btn_start + stride * 4
+        self.settings_rect   = pygame.Rect(btn_x, split_y, split_w, btn_h)
+        self.credits_rect    = pygame.Rect(btn_x + split_w + split_gap, split_y, split_w, btn_h)
+        self.btn_simon       = Button(self.simon_rect,      "Simon Mode",      self.font_btn)
+        self.btn_bopit       = Button(self.bopit_rect,      "Bop It Mode",     self.font_btn)
+        self.btn_keys_ninja  = Button(self.keys_ninja_rect, "Keys Ninja Mode", self.font_btn)
+        self.btn_multi       = Button(self.multi_rect,      "Multiplayer",     self.font_btn)
+        self.btn_settings    = Button(self.settings_rect,   "Settings",        self.font_btn)
+        self.btn_credits     = Button(self.credits_rect,    "Credits",         self.font_btn)
 
         while self.running:
 
@@ -60,10 +67,12 @@ class StartMenu:
                     continue
 
                 for btn, result in [
-                    (self.btn_simon,    "start_simon"),
-                    (self.btn_bopit,    "start_bopit"),
-                    (self.btn_multi,    "multiplayer"),
-                    (self.btn_settings, None),
+                    (self.btn_simon,      "start_simon"),
+                    (self.btn_bopit,      "start_bopit"),
+                    (self.btn_keys_ninja, "start_keys_ninja"),
+                    (self.btn_multi,      "multiplayer"),
+                    (self.btn_settings,   None),
+                    (self.btn_credits,    "credits"),
                 ]:
                     if btn.handle_event(event):
                         if result:
@@ -80,13 +89,18 @@ class StartMenu:
             oldh=logo.get_height()
             logo=pygame.transform.smoothscale(logo,((oldw//2),(oldh//2)))
             logo_rect=logo.get_rect()
-            logo_rect.center=(cx, H//5)
+            logo_rect.center=(
+                cx,
+                int((H // 6) + animation_utils.float_offset(amplitude=8, speed=1.2)),
+            )
             self.screen.blit(logo, logo_rect)
 
             self.btn_simon.draw(self.screen)
             self.btn_bopit.draw(self.screen)
+            self.btn_keys_ninja.draw(self.screen)
             self.btn_multi.draw(self.screen)
             self.btn_settings.draw(self.screen)
+            self.btn_credits.draw(self.screen)
 
             # Hint that high-score leaderboards exist — shown after every game.
             hint_font = pygame.font.Font(None, 24)

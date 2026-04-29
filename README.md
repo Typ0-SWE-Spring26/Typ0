@@ -93,7 +93,7 @@ deactivate
 
 ## Multiplayer
 
-Multiplayer uses a WebSocket server for matchmaking and a separate HTTP API for online score tracking. Both players receive the same RNG seed so their sequences are identical — the server declares the first player to make a mistake the loser.
+Multiplayer uses a WebSocket for matchmaking and an HTTP API for online score tracking — both served from the same aiohttp app as the game's static files. Both players receive the same RNG seed so their sequences are identical; the server declares the first player to make a mistake the loser.
 
 ### Server setup
 
@@ -101,15 +101,17 @@ The server lives in [`server/`](server/) and has its own dependencies.
 
 ```bash
 cd server
-pip install -r requirements.txt   # websockets, aiohttp
-python server.py
+pip install -r requirements.txt   # aiohttp
+STATIC_DIR=../build/web python server.py
 ```
 
-| Service | Address | Purpose |
-|---------|---------|---------|
-| Game (web) | `http://host:15090` | Serves the pygbag web build |
-| WebSocket  | `ws://host:14023`   | Real-time matchmaking & game events |
-| Score API  | `http://host:14024` | Score submission and leaderboard |
+Everything is served from one port (default 15090) so it can sit behind a single nginx vhost / TLS terminator with no extra path or port wiring:
+
+| Path | Purpose |
+|------|---------|
+| `/`                     | Serves the pygbag web build (`STATIC_DIR`) |
+| `/ws`                   | Real-time matchmaking & game events (WebSocket) |
+| `/scores/{game_type}`   | Score submission and leaderboard |
 
 ### Score API
 
@@ -179,10 +181,9 @@ Every push to `main` triggers the [deploy workflow](.github/workflows/pybag-game
 5. Downloads the pygame-ce WASM wheel into the build output
 6. `rsync`s the built web files to `/home/typo/deploy/` on the server
 7. `rsync`s `server/` to `/home/typo/server/` on the server
-8. Restarts both server processes via `screen`:
-   - `typ0` — game HTTP server on **port 15090**
-   - `typ0-ws` — multiplayer WebSocket + Score API on **ports 14023 / 14024**
-9. Health-checks all three ports before marking the deploy successful
+8. Restarts the unified server via `screen`:
+   - `typ0` — serves static game, `/ws`, and `/scores/*` on **port 15090** (behind nginx)
+9. Health-checks the static files, score API, and WebSocket upgrade before marking the deploy successful
 
 Deployment uses SSH with a private key stored as the `SSH_PRIVATE_KEY` GitHub secret (`SSH_HOST` and `SSH_USER` also required).
 

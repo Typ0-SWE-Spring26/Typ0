@@ -118,6 +118,28 @@ async def run_one_frame(ctrl, pg, events=None):
 
     return await ctrl.run()
 
+def test_menu_switch_mode_returns_target_tuple(pg, bus, model, view, keybinds):
+    menu_overlay = Mock()
+    menu_overlay.open = False
+    menu_overlay.active_submenu = None
+    menu_overlay.handle_event.return_value = ("switch_mode", "keys_ninja")
+
+    screen = Mock()
+    screen.remap_event.side_effect = lambda event: event
+
+    with patch("game.screens.gameplay.controller.animation_utils") as mock_anim:
+        ctrl = GameController(screen, model, view, bus, keybinds, menu_overlay=menu_overlay)
+
+        ev = Mock()
+        ev.type = pg.KEYDOWN
+        ev.key = pg.K_a
+        pg.event.get.return_value = [ev]
+
+        result = asyncio.run(ctrl.run())
+
+    assert result == ("switch_mode", "keys_ninja")
+    mock_anim.stop_music.assert_called_once()
+
 
 # ======================================================================
 # #36 — Button Input (keyboard)

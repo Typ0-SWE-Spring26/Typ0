@@ -46,15 +46,6 @@ def _boot_game(page):
     page.locator("#canvas").click()  # focus canvas / pass UME
 
 
-def _hold_space_to_continue(page):
-    """Hold Space briefly so pygame detects key state on the start screen."""
-    page.locator("#canvas").click()
-    page.keyboard.down("Space")
-    page.wait_for_timeout(250)
-    page.keyboard.up("Space")
-    page.wait_for_timeout(350)
-
-
 def _press_ctrl_e(page):
     """Trigger controller debug shortcut to jump to game over."""
     page.locator("#canvas").click()
@@ -121,7 +112,6 @@ def _sample_canvas_pixels(page, points):
 
 def _enter_gameplay_and_gameover(page):
     """Start a game and trigger game over via Ctrl+E debug shortcut."""
-    _hold_space_to_continue(page)          # start screen -> menu
     page.keyboard.press("w")              # start game from menu
     page.wait_for_timeout(1_200)
     _press_ctrl_e(page)
@@ -134,45 +124,28 @@ def _enter_gameplay_and_gameover(page):
 
 @pytest.mark.browser
 def test_credits_screen_accessible_from_menu(page):
-    """Clicking MENU then About on the start menu should show credits."""
+    """Clicking Credits on the start menu should show credits."""
     _boot_game(page)
-    _hold_space_to_continue(page)          # past start screen
     page.wait_for_timeout(1_500)
 
     before = page.locator("#canvas").screenshot()
 
-    # Click MENU button (virtual 80, 555)
-    pt = _virtual_to_canvas_point(page, 80, 555)
+    # Click Credits button (virtual 500, 540)
+    pt = _virtual_to_canvas_point(page, 500, 540)
     page.mouse.click(pt["x"], pt["y"])
-    changed, menu_open = _wait_for_canvas_change(page, before, wait_ms=2_000)
+    changed, after = _wait_for_canvas_change(page, before, wait_ms=2_500)
     if not changed:
-        pytest.skip("Canvas did not change after clicking MENU on this backend/runtime")
-
-    # Click About button (virtual 400, 395)
-    pt = _virtual_to_canvas_point(page, 400, 395)
-    page.mouse.click(pt["x"], pt["y"])
-    changed, after = _wait_for_canvas_change(page, menu_open, wait_ms=2_500)
-    if not changed:
-        pytest.skip("Canvas did not change after clicking About on this backend/runtime")
+        pytest.skip("Canvas did not change after clicking Credits on this backend/runtime")
 
 
 @pytest.mark.browser
 def test_credits_returns_to_menu(page):
     """Pressing ESC on the credits screen should return to the menu."""
     _boot_game(page)
-    _hold_space_to_continue(page)          # past start screen
     page.wait_for_timeout(500)
 
-    # Click MENU button (virtual 80, 555)
-    pt = _virtual_to_canvas_point(page, 80, 555)
-    before_menu = page.locator("#canvas").screenshot()
-    page.mouse.click(pt["x"], pt["y"])
-    changed, _ = _wait_for_canvas_change(page, before_menu, wait_ms=1_500)
-    if not changed:
-        pytest.skip("MENU overlay did not open reliably on this backend/runtime")
-
-    # Click About button (virtual 400, 395)
-    pt = _virtual_to_canvas_point(page, 400, 395)
+    # Click Credits button (virtual 500, 540)
+    pt = _virtual_to_canvas_point(page, 500, 540)
     page.mouse.click(pt["x"], pt["y"])
     page.wait_for_timeout(1_000)
 
@@ -223,6 +196,22 @@ def test_retry_from_game_over(page):
         pytest.skip("Retry transition was not visually observable on this backend/runtime")
 
 
+@pytest.mark.browser
+def test_game_over_close_button_returns_menu(page):
+    """Clicking the X button on game over should return to the menu."""
+    _boot_game(page)
+    _enter_gameplay_and_gameover(page)
+
+    before = page.locator("#canvas").screenshot()
+
+    # Click close button (virtual 766, 34)
+    pt = _virtual_to_canvas_point(page, 766, 34)
+    page.mouse.click(pt["x"], pt["y"])
+    changed, _ = _wait_for_canvas_change(page, before, wait_ms=2_500)
+    if not changed:
+        pytest.skip("Close button did not visibly return to menu on this backend/runtime")
+
+
 # ---------------------------------------------------------------------------
 # High scores screen
 # ---------------------------------------------------------------------------
@@ -244,6 +233,25 @@ def test_high_scores_screen_appears_after_timeout(page):
 
     if before == after:
         pytest.skip("High-score auto-transition not visually observable on this backend/runtime")
+
+
+@pytest.mark.browser
+def test_high_scores_close_button_returns_menu(page):
+    """Clicking the X button on high scores should return to the menu."""
+    _boot_game(page)
+    _enter_gameplay_and_gameover(page)
+
+    # Wait for auto-switch (10s + buffer)
+    page.wait_for_timeout(12_000)
+
+    before = page.locator("#canvas").screenshot()
+
+    # Click close button (virtual 766, 34)
+    pt = _virtual_to_canvas_point(page, 766, 34)
+    page.mouse.click(pt["x"], pt["y"])
+    changed, _ = _wait_for_canvas_change(page, before, wait_ms=2_500)
+    if not changed:
+        pytest.skip("Close button did not visibly return to menu on this backend/runtime")
 
 
 # ---------------------------------------------------------------------------
@@ -357,8 +365,6 @@ def test_scaled_screen_mouse_remap_hits_virtual_button(page):
     """
     page.set_viewport_size({"width": 1600, "height": 900})
     _boot_game(page)
-
-    _hold_space_to_continue(page)
     page.keyboard.press("w")
     page.wait_for_timeout(3_500)
 
@@ -396,7 +402,6 @@ def test_scaled_screen_mouse_remap_hits_virtual_button(page):
 def test_menu_overlay_click_flow(page):
     """Clicking MENU should open the overlay, and X should close it."""
     _boot_game(page)
-    _hold_space_to_continue(page)          # past start screen
     page.wait_for_timeout(1_000)
 
     before = page.locator("#canvas").screenshot()
@@ -414,3 +419,199 @@ def test_menu_overlay_click_flow(page):
     changed, closed = _wait_for_canvas_change(page, opened, wait_ms=2_000)
     if not changed:
         pytest.skip("MENU overlay close transition not visually observable on this backend/runtime")
+
+
+@pytest.mark.browser
+def test_menu_overlay_switch_mode_to_bopit(page):
+    """Switching modes from the in-game menu should change the screen."""
+    _boot_game(page)
+
+    # Start Simon and open the menu overlay.
+    page.keyboard.press("w")
+    page.wait_for_timeout(1_200)
+
+    before = page.locator("#canvas").screenshot()
+
+    # Click MENU button (virtual 80, 555)
+    pt = _virtual_to_canvas_point(page, 80, 555)
+    page.mouse.click(pt["x"], pt["y"])
+    changed, opened = _wait_for_canvas_change(page, before, wait_ms=2_000)
+    if not changed:
+        pytest.skip("MENU overlay open transition not visually observable on this backend/runtime")
+
+    # Click first switch button (virtual 400, 330) -> SWITCH TO BOP IT
+    pt = _virtual_to_canvas_point(page, 400, 330)
+    page.mouse.click(pt["x"], pt["y"])
+    changed, _ = _wait_for_canvas_change(page, opened, wait_ms=2_500)
+    if not changed:
+        pytest.skip("Switch mode transition not visually observable on this backend/runtime")
+
+
+@pytest.mark.browser
+def test_menu_overlay_switch_mode_to_keys_ninja(page):
+    """Switching to Keys Ninja from the in-game menu should change the screen."""
+    _boot_game(page)
+
+    # Start Simon and open the menu overlay.
+    page.keyboard.press("w")
+    page.wait_for_timeout(1_200)
+
+    before = page.locator("#canvas").screenshot()
+
+    # Click MENU button (virtual 80, 555)
+    pt = _virtual_to_canvas_point(page, 80, 555)
+    page.mouse.click(pt["x"], pt["y"])
+    changed, opened = _wait_for_canvas_change(page, before, wait_ms=2_000)
+    if not changed:
+        pytest.skip("MENU overlay open transition not visually observable on this backend/runtime")
+
+    # Click second switch button (virtual 400, 390) -> SWITCH TO KEYS NINJA
+    pt = _virtual_to_canvas_point(page, 400, 390)
+    page.mouse.click(pt["x"], pt["y"])
+    changed, _ = _wait_for_canvas_change(page, opened, wait_ms=2_500)
+    if not changed:
+        pytest.skip("Switch to Keys Ninja not visually observable on this backend/runtime")
+
+
+@pytest.mark.browser
+def test_menu_overlay_switch_mode_to_simon_from_bopit(page):
+    """Switching from Bop It to Simon via menu should change the screen."""
+    _boot_game(page)
+
+    # Start Simon, open menu, switch to Bop It first.
+    page.keyboard.press("w")
+    page.wait_for_timeout(1_200)
+
+    before = page.locator("#canvas").screenshot()
+    pt = _virtual_to_canvas_point(page, 80, 555)
+    page.mouse.click(pt["x"], pt["y"])
+    changed, opened = _wait_for_canvas_change(page, before, wait_ms=2_000)
+    if not changed:
+        pytest.skip("MENU overlay open transition not visually observable on this backend/runtime")
+
+    pt = _virtual_to_canvas_point(page, 400, 330)
+    page.mouse.click(pt["x"], pt["y"])
+    changed, after_switch = _wait_for_canvas_change(page, opened, wait_ms=2_500)
+    if not changed:
+        pytest.skip("Switch to Bop It not visually observable on this backend/runtime")
+
+    # Now open menu in Bop It and switch back to Simon.
+    pt = _virtual_to_canvas_point(page, 80, 555)
+    page.mouse.click(pt["x"], pt["y"])
+    changed, opened_bopit = _wait_for_canvas_change(page, after_switch, wait_ms=2_000)
+    if not changed:
+        pytest.skip("MENU overlay open transition not visually observable on this backend/runtime")
+
+    pt = _virtual_to_canvas_point(page, 400, 330)
+    page.mouse.click(pt["x"], pt["y"])
+    changed, _ = _wait_for_canvas_change(page, opened_bopit, wait_ms=2_500)
+    if not changed:
+        pytest.skip("Switch back to Simon not visually observable on this backend/runtime")
+
+
+@pytest.mark.browser
+def test_menu_overlay_switch_mode_keys_ninja_to_bopit(page):
+    """Switching from Keys Ninja to Bop It via menu should change the screen."""
+    _boot_game(page)
+
+    # Start Simon, switch to Keys Ninja first.
+    page.keyboard.press("w")
+    page.wait_for_timeout(1_200)
+
+    before = page.locator("#canvas").screenshot()
+    pt = _virtual_to_canvas_point(page, 80, 555)
+    page.mouse.click(pt["x"], pt["y"])
+    changed, opened = _wait_for_canvas_change(page, before, wait_ms=2_000)
+    if not changed:
+        pytest.skip("MENU overlay open transition not visually observable on this backend/runtime")
+
+    pt = _virtual_to_canvas_point(page, 400, 390)
+    page.mouse.click(pt["x"], pt["y"])
+    changed, after_switch = _wait_for_canvas_change(page, opened, wait_ms=2_500)
+    if not changed:
+        pytest.skip("Switch to Keys Ninja not visually observable on this backend/runtime")
+
+    # Open menu in Keys Ninja and switch to Bop It.
+    pt = _virtual_to_canvas_point(page, 80, 555)
+    page.mouse.click(pt["x"], pt["y"])
+    changed, opened_ninja = _wait_for_canvas_change(page, after_switch, wait_ms=2_000)
+    if not changed:
+        pytest.skip("MENU overlay open transition not visually observable on this backend/runtime")
+
+    pt = _virtual_to_canvas_point(page, 400, 330)
+    page.mouse.click(pt["x"], pt["y"])
+    changed, _ = _wait_for_canvas_change(page, opened_ninja, wait_ms=2_500)
+    if not changed:
+        pytest.skip("Switch from Keys Ninja to Bop It not visually observable on this backend/runtime")
+
+
+@pytest.mark.browser
+def test_menu_overlay_switch_mode_bopit_to_keys_ninja(page):
+    """Switching from Bop It to Keys Ninja via menu should change the screen."""
+    _boot_game(page)
+
+    # Start Simon, switch to Bop It first.
+    page.keyboard.press("w")
+    page.wait_for_timeout(1_200)
+
+    before = page.locator("#canvas").screenshot()
+    pt = _virtual_to_canvas_point(page, 80, 555)
+    page.mouse.click(pt["x"], pt["y"])
+    changed, opened = _wait_for_canvas_change(page, before, wait_ms=2_000)
+    if not changed:
+        pytest.skip("MENU overlay open transition not visually observable on this backend/runtime")
+
+    pt = _virtual_to_canvas_point(page, 400, 330)
+    page.mouse.click(pt["x"], pt["y"])
+    changed, after_bopit = _wait_for_canvas_change(page, opened, wait_ms=2_500)
+    if not changed:
+        pytest.skip("Switch to Bop It not visually observable on this backend/runtime")
+
+    # Open menu in Bop It and switch to Keys Ninja.
+    pt = _virtual_to_canvas_point(page, 80, 555)
+    page.mouse.click(pt["x"], pt["y"])
+    changed, opened_bopit = _wait_for_canvas_change(page, after_bopit, wait_ms=2_000)
+    if not changed:
+        pytest.skip("MENU overlay open transition not visually observable on this backend/runtime")
+
+    pt = _virtual_to_canvas_point(page, 400, 390)
+    page.mouse.click(pt["x"], pt["y"])
+    changed, _ = _wait_for_canvas_change(page, opened_bopit, wait_ms=2_500)
+    if not changed:
+        pytest.skip("Switch from Bop It to Keys Ninja not visually observable on this backend/runtime")
+
+
+@pytest.mark.browser
+def test_menu_overlay_switch_mode_keys_ninja_to_simon(page):
+    """Switching from Keys Ninja to Simon via menu should change the screen."""
+    _boot_game(page)
+
+    # Start Simon, switch to Keys Ninja first.
+    page.keyboard.press("w")
+    page.wait_for_timeout(1_200)
+
+    before = page.locator("#canvas").screenshot()
+    pt = _virtual_to_canvas_point(page, 80, 555)
+    page.mouse.click(pt["x"], pt["y"])
+    changed, opened = _wait_for_canvas_change(page, before, wait_ms=2_000)
+    if not changed:
+        pytest.skip("MENU overlay open transition not visually observable on this backend/runtime")
+
+    pt = _virtual_to_canvas_point(page, 400, 390)
+    page.mouse.click(pt["x"], pt["y"])
+    changed, after_switch = _wait_for_canvas_change(page, opened, wait_ms=2_500)
+    if not changed:
+        pytest.skip("Switch to Keys Ninja not visually observable on this backend/runtime")
+
+    # Open menu in Keys Ninja and switch to Simon.
+    pt = _virtual_to_canvas_point(page, 80, 555)
+    page.mouse.click(pt["x"], pt["y"])
+    changed, opened_ninja = _wait_for_canvas_change(page, after_switch, wait_ms=2_000)
+    if not changed:
+        pytest.skip("MENU overlay open transition not visually observable on this backend/runtime")
+
+    pt = _virtual_to_canvas_point(page, 400, 330)
+    page.mouse.click(pt["x"], pt["y"])
+    changed, _ = _wait_for_canvas_change(page, opened_ninja, wait_ms=2_500)
+    if not changed:
+        pytest.skip("Switch from Keys Ninja to Simon not visually observable on this backend/runtime")

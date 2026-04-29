@@ -10,8 +10,17 @@ class PauseOverlay:
         self.font_large = pygame.font.Font(None, 96)
         self.font_small = pygame.font.Font(None, 36)
 
+        # Cache the dim overlay — recreating an SRCALPHA Surface every frame
+        # while paused leaks ~2MB/frame in pygbag/WASM and can freeze the tab.
+        self._dim = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
+        self._dim.fill((0, 0, 0, 160))
+
     def subscribe(self, event_bus) -> None:
         """Attach to an EventBus so visibility is driven by game_paused/game_resumed events."""
+        # Re-subscribing means a new game (new EventBus) — clear any leftover
+        # visibility from the previous game so the overlay doesn't render on top
+        # of fresh gameplay.
+        self.visible = False
         event_bus.subscribe('game_paused',  self._on_paused)
         event_bus.subscribe('game_resumed', self._on_resumed)
 
@@ -28,9 +37,7 @@ class PauseOverlay:
         W, H = self.screen.get_width(), self.screen.get_height()
         cx, cy = W // 2, H // 2
 
-        overlay = pygame.Surface((W, H), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 160))
-        self.screen.blit(overlay, (0, 0))
+        self.screen.blit(self._dim, (0, 0))
 
         panel_w, panel_h = 340, 180
         panel_rect = pygame.Rect(cx - panel_w // 2, cy - panel_h // 2, panel_w, panel_h)

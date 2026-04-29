@@ -4,14 +4,18 @@ Works in two environments:
 * Browser (pygbag WASM) — uses JavaScript's fetch API via platform.window.eval()
 * Native (desktop / CI) — uses urllib in a thread executor
 
-The server runs at HTTP_PORT (14024) on the same host as the game.
+In production the API is served same-origin (e.g. ``/scores/simon`` over HTTPS)
+so it goes through the existing nginx termination — no separate port. For native
+dev set ``TYP0_API_URL`` to point at your local server (default
+http://localhost:15090).
 """
 
 import asyncio
 import json
+import os
 import sys
 
-HTTP_PORT = 14024
+NATIVE_API_BASE = os.environ.get("TYP0_API_URL", "http://localhost:15090")
 _IN_BROWSER: bool = sys.platform == "emscripten"
 
 
@@ -20,9 +24,9 @@ def _api_base() -> str:
         import platform
         loc = platform.window.location
         scheme = "https" if loc.protocol == "https:" else "http"
-        host = str(loc.hostname)
-        return f"{scheme}://{host}:{HTTP_PORT}"
-    return f"http://localhost:{HTTP_PORT}"
+        host = str(loc.host)  # includes port if non-standard
+        return f"{scheme}://{host}"
+    return NATIVE_API_BASE
 
 
 async def fetch_scores(game_type: str) -> list:

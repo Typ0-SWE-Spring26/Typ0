@@ -255,12 +255,15 @@ class TestPauseOverlay:
         overlay = PauseOverlay(mock_screen)
         overlay.visible = True
 
+        # The dim Surface is allocated once at __init__ — drawing reuses it
+        # so pygbag/WASM doesn't leak ~2MB/frame while paused.
+        baseline = mock_pygame.Surface.call_count
+
         overlay.draw()
         overlay.draw()
         overlay.draw()
 
-        # Each draw should create a new surface
-        assert mock_pygame.Surface.call_count == 3
+        assert mock_pygame.Surface.call_count == baseline
 
     def test_event_data_ignored(self, mock_pygame, mock_screen):
         """Pause/resume callbacks should ignore event data."""

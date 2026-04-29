@@ -90,6 +90,23 @@ jobs:
             ./build/web/ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/typo/deploy/
 
+      - name: Stamp server/version.json
+        run: |
+          # The deploy box has no .git directory, so the vitals handler can't
+          # shell out to git. Stamp commit/branch/build-time into a sidecar
+          # file that the handler reads at request time.
+          python -c "
+          import json, os, datetime
+          out = {
+            'commit': os.environ['GITHUB_SHA'][:7],
+            'branch': os.environ['GITHUB_REF_NAME'],
+            'build_timestamp': datetime.datetime.utcnow().isoformat() + 'Z',
+          }
+          with open('server/version.json', 'w') as f:
+            json.dump(out, f)
+          print('wrote server/version.json:', out)
+          "
+
       - name: Deploy multiplayer server
         run: |
           rsync -az \
@@ -114,51 +131,104 @@ jobs:
           screen -S typ0-ws -X quit 2>/dev/null || true
           sleep 1
 
-          # Game HTTP server on port 15090
+          # Unified server on port 15090 — serves the pygbag build,
+          # the multiplayer WebSocket (/ws), and the score API (/scores/*).
+          # nginx already terminates HTTPS in front of this port.
           screen -dmS typ0 bash -c \
-            'cd /home/typo/deploy && python3 -m http.server 15090 >> /home/typo/logs/http.log 2>&1'
+            'cd /home/typo/server && \
+              SCORES_DIR=/home/typo/scores \
+              STATIC_DIR=/home/typo/deploy \
+              PORT=15090 \
+              ADMIN_PASSWORD="${{ secrets.ADMIN_PASSWORD }}" \
+              python3 server.py >> /home/typo/logs/server.log 2>&1'
 
-          # Multiplayer WebSocket server (14023) + Score API (14024)
-          screen -dmS typ0-ws bash -c \
-            'cd /home/typo/server && SCORES_DIR=/home/typo/scores python3 server.py >> /home/typo/logs/ws.log 2>&1'
-
-          echo "Servers started."
+          echo "Server started."
           EOF
 
       - name: Health check
+        env:
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
         run: |
-          echo "Waiting for servers to come up..."
+          echo "Waiting for server to come up..."
           sleep 6
 
           FAILED=0
+          BASE="http://${{ secrets.SSH_HOST }}:15090"
 
-          # Game HTTP server
+          # Static game files
           HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            --max-time 10 \
-            "http://${{ secrets.SSH_HOST }}:15090/index.html")
+            --max-time 10 "$BASE/index.html")
           if [ "$HTTP_STATUS" = "200" ]; then
-            echo "✓ Game server       :15090  →  HTTP $HTTP_STATUS"
+            echo "✓ Static game       /index.html      →  HTTP $HTTP_STATUS"
           else
-            echo "✗ Game server       :15090  →  HTTP $HTTP_STATUS (expected 200)"
+            echo "✗ Static game       /index.html      →  HTTP $HTTP_STATUS (expected 200)"
             FAILED=1
           fi
 
-          # WebSocket server (TCP port check)
-          if timeout 10 bash -c "</dev/tcp/${{ secrets.SSH_HOST }}/14023" 2>/dev/null; then
-            echo "✓ WebSocket server  :14023  →  port open"
-          else
-            echo "✗ WebSocket server  :14023  →  port not reachable"
-            FAILED=1
-          fi
-
-          # Score API (HTTP check)
+          # Score API
           SCORE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            --max-time 10 \
-            "http://${{ secrets.SSH_HOST }}:14024/scores/simon")
+            --max-time 10 "$BASE/scores/simon")
           if [ "$SCORE_STATUS" = "200" ]; then
-            echo "✓ Score API         :14024  →  HTTP $SCORE_STATUS"
+            echo "✓ Score API         /scores/simon    →  HTTP $SCORE_STATUS"
           else
-            echo "✗ Score API         :14024  →  HTTP $SCORE_STATUS (expected 200)"
+            echo "✗ Score API         /scores/simon    →  HTTP $SCORE_STATUS (expected 200)"
+            FAILED=1
+          fi
+
+          # WebSocket handshake — expect HTTP 101 Switching Protocols.
+          # `|| true` because after a successful upgrade curl waits for WS
+          # frames and exits 28 (timeout); the status code is still captured.
+          WS_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 5 \
+            -H "Connection: Upgrade" \
+            -H "Upgrade: websocket" \
+            -H "Sec-WebSocket-Version: 13" \
+            -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \
+            "$BASE/ws" || true)
+          if [ "$WS_STATUS" = "101" ]; then
+            echo "✓ WebSocket         /ws              →  HTTP $WS_STATUS (upgraded)"
+          else
+            echo "✗ WebSocket         /ws              →  HTTP $WS_STATUS (expected 101)"
+            FAILED=1
+          fi
+
+          # Admin vitals — wrong password should be rejected (401).
+          ADMIN_BAD=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 10 \
+            -H "Authorization: Bearer definitely-not-the-password" \
+            "$BASE/api/admin/vitals")
+          if [ "$ADMIN_BAD" = "401" ]; then
+            echo "✓ Admin vitals 401  /api/admin/vitals →  HTTP $ADMIN_BAD (rejected bad password)"
+          else
+            echo "✗ Admin vitals 401  /api/admin/vitals →  HTTP $ADMIN_BAD (expected 401)"
+            FAILED=1
+          fi
+
+          # Admin vitals — correct password should return 200 with JSON.
+          # Skip if no secret is configured so the workflow doesn't fail before
+          # the user adds the ADMIN_PASSWORD secret.
+          if [ -n "$ADMIN_PASSWORD" ]; then
+            ADMIN_OK=$(curl -s -o /tmp/vitals.json -w "%{http_code}" \
+              --max-time 10 \
+              -H "Authorization: Bearer $ADMIN_PASSWORD" \
+              "$BASE/api/admin/vitals")
+            if [ "$ADMIN_OK" = "200" ] && grep -q '"server"' /tmp/vitals.json; then
+              echo "✓ Admin vitals 200  /api/admin/vitals →  HTTP $ADMIN_OK (authorized)"
+            else
+              echo "✗ Admin vitals 200  /api/admin/vitals →  HTTP $ADMIN_OK (expected 200 with JSON)"
+              FAILED=1
+            fi
+          else
+            echo "⚠ Admin vitals 200  skipped — ADMIN_PASSWORD secret not set"
+          fi
+
+          # Admin GUI page — public HTML, no auth required.
+          ADMIN_PAGE=$(curl -s -o /tmp/admin.html -w "%{http_code}" \
+            --max-time 10 "$BASE/admin")
+          if [ "$ADMIN_PAGE" = "200" ] && grep -q '<title>TYP0 admin' /tmp/admin.html; then
+            echo "✓ Admin GUI         /admin            →  HTTP $ADMIN_PAGE"
+          else
+            echo "✗ Admin GUI         /admin            →  HTTP $ADMIN_PAGE (expected 200 with HTML)"
             FAILED=1
           fi
 

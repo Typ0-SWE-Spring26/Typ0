@@ -23,6 +23,11 @@ class HowToPlayScreen:
     _TEXT_ACCENT = (255, 214, 104)
     _TEXT_GOOD = (160, 238, 196)
 
+    # Match the in-game Keys Ninja palette so the legend reads like the keys
+    # the player actually sees (see KeysNinjaView.purple_light / red_bomb).
+    _NINJA_PURPLE = (180, 120, 255)
+    _NINJA_RED    = (255, 90, 90)
+
     _ICON_FILES = {
         "up": "up.png",
         "down": "down.png",
@@ -32,10 +37,10 @@ class HowToPlayScreen:
     }
 
     _INPUT_ROWS = [
-        ("up", ("W", "UP"), "Match UP prompts"),
-        ("down", ("S", "DOWN"), "Match DOWN prompts"),
-        ("left", ("A", "LEFT"), "Match LEFT prompts"),
-        ("right", ("D", "RIGHT"), "Match RIGHT prompts"),
+        ("up", ("W",), "Match UP prompts"),
+        ("down", ("S",), "Match DOWN prompts"),
+        ("left", ("A",), "Match LEFT prompts"),
+        ("right", ("D",), "Match RIGHT prompts"),
         ("space", ("SPACE",), "Match CENTER prompts"),
     ]
 
@@ -48,7 +53,6 @@ class HowToPlayScreen:
         self._load_icons()
 
         self._back_rect = pygame.Rect(0, 0, 0, 0)
-        self._credits_rect = pygame.Rect(0, 0, 0, 0)
 
     # ------------------------------------------------------------------
     # Asset helpers
@@ -133,6 +137,21 @@ class HowToPlayScreen:
             y += surf.get_height() + line_gap
         return y
 
+    def _draw_inline_text_line(self, x, y, segments, size, line_gap=2):
+        """Render one line of text composed of (text, color) segments laid
+        out left-to-right. Used to color-emphasize keywords (e.g. 'purple',
+        'red') inside an otherwise uniform sentence."""
+        cur_x = x
+        line_h = 0
+        for text, color in segments:
+            surf = self._fm.render_text(text, color, size)
+            self.screen.blit(surf, surf.get_rect(topleft=(cur_x, y)))
+            cur_x += surf.get_width()
+            h = surf.get_height()
+            if h > line_h:
+                line_h = h
+        return y + line_h + line_gap
+
     def _draw_shortcut_row(self, chip_label, text, x, y, max_right):
         y_center = y + 14
         chip_right = self._draw_key_chip(chip_label, x, y_center, h=30)
@@ -150,7 +169,7 @@ class HowToPlayScreen:
 
         row_area_top = rect.y + 44
         row_area_h = rect.height - 54
-        row_h = max(48, min(62, row_area_h // len(self._INPUT_ROWS)))
+        row_h = max(44, min(56, row_area_h // len(self._INPUT_ROWS)))
 
         for idx, (icon_name, key_labels, action_text) in enumerate(self._INPUT_ROWS):
             row_y = row_area_top + idx * row_h
@@ -159,7 +178,7 @@ class HowToPlayScreen:
             shade = (26, 32, 66) if idx % 2 == 0 else (24, 29, 60)
             pygame.draw.rect(self.screen, shade, row_rect, border_radius=10)
 
-            icon_box = pygame.Rect(row_rect.x + 8, row_rect.y + 5, 82, row_rect.height - 10)
+            icon_box = pygame.Rect(row_rect.x + 8, row_rect.y + 4, 64, row_rect.height - 8)
             icon = self._get_scaled_icon(icon_name, icon_box.size)
             if icon is not None:
                 icon_rect = icon.get_rect(center=icon_box.center)
@@ -169,13 +188,9 @@ class HowToPlayScreen:
                 fallback = self._fm.render_text(icon_name.upper(), self._TEXT_MUTED, 16)
                 self.screen.blit(fallback, fallback.get_rect(center=icon_box.center))
 
-            x = icon_box.right + 14
-            for i, label in enumerate(key_labels):
+            x = icon_box.right + 12
+            for label in key_labels:
                 x = self._draw_key_chip(label, x, row_rect.centery)
-                if i < len(key_labels) - 1:
-                    join = self._fm.render_text("/", self._TEXT_MUTED, 18)
-                    self.screen.blit(join, join.get_rect(center=(x + 10, row_rect.centery)))
-                    x += 20
 
             action = self._fm.render_text(action_text, self._TEXT_MAIN, 19)
             action_rect = action.get_rect(midleft=(x + 14, row_rect.centery))
@@ -198,21 +213,46 @@ class HowToPlayScreen:
         lines = [
             ("SIMON", "Repeat the full sequence in order."),
             ("BOP IT", "React to one command before time runs out."),
-            ("MENU", "Open settings, music, and mode switching."),
+            ("KEYS NINJA", None),  # custom-rendered with color-coded callouts
+            ("MENU", "Settings, music, and switch modes anytime."),
         ]
         for label, desc in lines:
             label_surf = self._fm.render_text(label, self._TEXT_GOOD, 20)
             self.screen.blit(label_surf, label_surf.get_rect(topleft=(x, y)))
             y += 22
-            y = self._draw_wrapped_text(
-                desc,
-                x + 10,
-                y,
-                max_right - (x + 10),
-                17,
-                self._TEXT_MAIN,
-                line_gap=2,
-            )
+
+            if label == "KEYS NINJA":
+                # Two short color-coded callouts: purple = press, red = avoid.
+                # Keeping each line short so it fits without wrapping the
+                # color-segmented helper (which doesn't wrap automatically).
+                y = self._draw_inline_text_line(
+                    x + 10, y,
+                    [
+                        ("Tap ", self._TEXT_MAIN),
+                        ("purple", self._NINJA_PURPLE),
+                        (" keys before they fall.", self._TEXT_MAIN),
+                    ],
+                    size=17,
+                )
+                y = self._draw_inline_text_line(
+                    x + 10, y,
+                    [
+                        ("Avoid ", self._TEXT_MAIN),
+                        ("red", self._NINJA_RED),
+                        (" bombs — instant game over.", self._TEXT_MAIN),
+                    ],
+                    size=17,
+                )
+            else:
+                y = self._draw_wrapped_text(
+                    desc,
+                    x + 10,
+                    y,
+                    max_right - (x + 10),
+                    17,
+                    self._TEXT_MAIN,
+                    line_gap=2,
+                )
             y += 8
 
         y += 4
@@ -222,18 +262,7 @@ class HowToPlayScreen:
 
         y = self._draw_shortcut_row("P", "Pause / Resume", x, y, max_right)
         y = self._draw_shortcut_row("ESC", "Close menus / Back", x, y, max_right)
-        y = self._draw_shortcut_row("MOUSE", "Click on-screen prompts", x, y, max_right)
-
-        tip_y = min(rect.bottom - 24, y + 6)
-        self._draw_wrapped_text(
-            "Tip: switch mode from MENU anytime.",
-            x,
-            tip_y,
-            max_right - x,
-            15,
-            self._TEXT_MUTED,
-            line_gap=1,
-        )
+        self._draw_shortcut_row("MOUSE", "Click on-screen prompts", x, y, max_right)
 
     def _draw(self):
         w = self.screen.get_width()
@@ -274,17 +303,12 @@ class HowToPlayScreen:
         self._draw_right_column(right_rect)
 
         button_y = h - 90
-        button_w = 200
+        button_w = 220
         button_h = 50
-        gap = 20
-        total = button_w * 2 + gap
-        row_left = panel.centerx - total // 2
-
-        self._back_rect = pygame.Rect(row_left, button_y, button_w, button_h)
-        self._credits_rect = pygame.Rect(row_left + button_w + gap, button_y, button_w, button_h)
+        self._back_rect = pygame.Rect(panel.centerx - button_w // 2, button_y, button_w, button_h)
 
         mouse = pygame.mouse.get_pos()
-        for rect, label in ((self._back_rect, "BACK"), (self._credits_rect, "CREDITS")):
+        for rect, label in ((self._back_rect, "BACK"),):
             hover = rect.collidepoint(mouse)
             color = (104, 118, 190) if hover else (62, 76, 136)
             pygame.draw.rect(self.screen, (8, 10, 24), rect.move(0, 3), border_radius=12)
@@ -321,8 +345,6 @@ class HowToPlayScreen:
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     if self._back_rect.collidepoint(event.pos):
                         return "back"
-                    if self._credits_rect.collidepoint(event.pos):
-                        return "credits"
 
             self._draw()
             self.screen.present()

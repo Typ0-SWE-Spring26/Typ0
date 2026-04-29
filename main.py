@@ -10,10 +10,10 @@ import random
 import time
 import pygame
 from game.utils.scaled_screen import ScaledScreen
-from game.screens.startscreen import StartScreen
 from game.screens.startmenu import StartMenu
 from game.screens.gameplay.display import GameScreen
 from game.screens.gameplay.bopit_display import BopItScreen
+from game.screens.gameplay.keys_ninja_display import KeysNinjaScreen
 from game.screens.gameover import GameOverScreen
 from game.screens.credits import CreditsScreen
 from game.screens.how_to_play import HowToPlayScreen
@@ -137,6 +137,49 @@ async def _run_single_player(screen, keybinds, game_mode):
     """Run config -> gameplay -> post-game loop for one single-player mode."""
     pause_overlay = PauseOverlay(screen)
 
+    # Keys Ninja mode skips config and goes straight to gameplay
+    if game_mode == "keys_ninja":
+        result = "retry"
+        while result == "retry":
+            game_screen = KeysNinjaScreen(
+                screen,
+                keybinds,
+                pause_overlay=pause_overlay,
+                difficulty="normal",  # Not used, difficulty auto-scales
+            )
+            game_result = await game_screen.run()
+
+            if game_result == "quit":
+                return "quit"
+
+            # Player used the in-game menu to go to main menu
+            if isinstance(game_result, tuple) and game_result and game_result[0] == "main_menu":
+                return "menu"
+
+            # Player used the in-game menu to switch modes
+            if isinstance(game_result, tuple) and game_result and game_result[0] == "switch_mode":
+                target = game_result[1] if len(game_result) > 1 else "simon"
+                return f"start_{target}"
+
+            # game_result is ("gameover", score, reason)
+            _, score, reason = game_result
+
+            # Arcade-style: name entry if high score
+            hs_name = None
+            if await is_high_score_async(score, game_mode):
+                name_entry = NameEntryScreen(screen, score)
+                name_result = await name_entry.run()
+                if name_result == "quit":
+                    return "quit"
+                hs_name = name_result
+                await add_score_async(hs_name, score, game_mode)
+
+            result = await _run_single_player_post_game(
+                screen, game_mode, score, reason, hs_name
+            )
+
+        return result
+
     # Persist previous selection across retries so the config screen feels continuous.
     selected_inverted = False
     selected_difficulty = "normal"
@@ -180,10 +223,21 @@ async def _run_single_player(screen, keybinds, game_mode):
         if game_result == "quit":
             return "quit"
 
+        # Player used the in-game menu to go to main menu
+        if isinstance(game_result, tuple) and game_result and game_result[0] == "main_menu":
+            return "menu"
+
         # Player used the in-game menu to switch modes — bubble up so the
         # outer loop can restart in the other mode.
         if isinstance(game_result, tuple) and game_result and game_result[0] == "switch_mode":
-            other = "bopit" if game_mode == "simon" else "simon"
+            if len(game_result) > 1:
+                return f"start_{game_result[1]}"
+            if game_mode == "simon":
+                other = "bopit"
+            elif game_mode == "bopit":
+                other = "keys_ninja"
+            else:
+                other = "simon"
             return f"start_{other}"
 
         # game_result is ("gameover", score, reason)
@@ -215,13 +269,8 @@ async def main():
 
     keybinds = KeybindManager()
 
-    # Show start screen (once)
-    start_screen = StartScreen(screen)
-    result = await start_screen.run()
-
-    if result == "quit":
-        pygame.quit()
-        return
+    # Start on the main menu.
+    result = "menu"
 
     # ------------------------------------------------------------------ #
     # Main navigation loop — allows returning to the menu from anywhere.  #
@@ -265,8 +314,13 @@ async def main():
             continue
 
         # --- Single-player game modes ---
-        if result in ("start", "start_simon", "start_bopit"):
-            game_mode = "bopit" if result == "start_bopit" else "simon"
+        if result in ("start", "start_simon", "start_bopit", "start_keys_ninja"):
+            if result == "start_bopit":
+                game_mode = "bopit"
+            elif result == "start_keys_ninja":
+                game_mode = "keys_ninja"
+            else:
+                game_mode = "simon"
             result = await _run_single_player(screen, keybinds, game_mode)
             continue
 

@@ -60,6 +60,16 @@ class MultiplayerGameScreen:
         self.font_hud  = pygame.font.Font(None, 32)
         self.font_opp  = pygame.font.Font(None, 28)
         self.font_pause = pygame.font.Font(None, 96)
+        self.font_hint  = pygame.font.Font(None, 30)
+
+        # Cache the full-screen alpha overlays. Re-creating an SRCALPHA
+        # Surface every frame leaks ~2MB/frame in pygbag/WASM and locks the
+        # browser tab after a few hundred frames of pause / waiting state.
+        W, H = screen.get_width(), screen.get_height()
+        self._dim_pause = pygame.Surface((W, H), pygame.SRCALPHA)
+        self._dim_pause.fill((0, 0, 0, 160))
+        self._dim_wait  = pygame.Surface((W, H), pygame.SRCALPHA)
+        self._dim_wait.fill((0, 0, 0, 140))
 
     def _set_paused(self, paused: bool) -> None:
         if paused == self._paused:
@@ -180,6 +190,7 @@ class MultiplayerGameScreen:
 
     def _handle_input(self, name: str, now: int) -> None:
         result = self.model.handle_input(name, now)
+        animation_utils.play_sound("assets/TypoPressSFX.ogg")
         if result in ("wrong", "round_complete"):
             self.timer.stop()
 
@@ -212,9 +223,7 @@ class MultiplayerGameScreen:
         """Semi-transparent PAUSED overlay — local only, game timer is frozen."""
         W, H = self.screen.get_width(), self.screen.get_height()
         cx, cy = W // 2, H // 2
-        overlay = pygame.Surface((W, H), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 160))
-        self.screen.blit(overlay, (0, 0))
+        self.screen.blit(self._dim_pause, (0, 0))
 
         panel_w, panel_h = 360, 180
         panel_rect = pygame.Rect(cx - panel_w // 2, cy - panel_h // 2, panel_w, panel_h)
@@ -226,16 +235,13 @@ class MultiplayerGameScreen:
         text = self.font_pause.render("PAUSED", True, (200, 200, 255))
         self.screen.blit(text, text.get_rect(center=(cx, cy - 30)))
 
-        hint_font = pygame.font.Font(None, 30)
-        hint = hint_font.render("Press P to Resume", True, (160, 160, 210))
+        hint = self.font_hint.render("Press P to Resume", True, (160, 160, 210))
         self.screen.blit(hint, hint.get_rect(center=(cx, cy + 38)))
 
     def _draw_waiting_overlay(self):
         """Semi-transparent overlay shown while awaiting server verdict."""
         W, H = self.screen.get_width(), self.screen.get_height()
-        overlay = pygame.Surface((W, H), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 140))
-        self.screen.blit(overlay, (0, 0))
+        self.screen.blit(self._dim_wait, (0, 0))
 
         animation_utils.flashing_text(
             self.screen,

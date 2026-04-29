@@ -17,8 +17,8 @@ import time
 
 import pytest
 
-WS_PORT = 14023
-WS_URL  = f"ws://localhost:{WS_PORT}"
+WS_PORT = 15090
+WS_URL  = f"ws://localhost:{WS_PORT}/ws"
 
 
 # ---------------------------------------------------------------------------

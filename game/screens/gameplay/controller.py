@@ -73,6 +73,7 @@ class GameController:
 
         Returns True so callers can ``break`` after a matched input.
         """
+        animation_utils.play_sound("assets/TypoPressSFX.ogg")
         result = self.model.handle_input(name, now)
         if result in ('wrong', 'round_complete'):
             self.game_timer.stop()
@@ -145,6 +146,18 @@ class GameController:
                     if menu_action == "switch_mode":
                         animation_utils.stop_music()
                         return ("switch_mode",)
+
+                    if (
+                        isinstance(menu_action, tuple)
+                        and menu_action
+                        and menu_action[0] == "switch_mode"
+                    ):
+                        animation_utils.stop_music()
+                        return menu_action
+                    
+                    if menu_action == "main_menu":
+                        animation_utils.stop_music()
+                        return ("main_menu",)
 
                 if event.type == pygame.KEYDOWN:
                     # P always toggles pause regardless of game state
