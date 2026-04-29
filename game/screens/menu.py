@@ -9,10 +9,10 @@ class MenuOverlay:
     def __init__(self, screen, game_mode: str | None = None):
         """
         game_mode:
-          - None          -> no "Switch Mode" button (start menu)
-          - "simon"       -> show button to switch to Bop It
-          - "bopit"       -> show button to switch to Simon
-          - "keys_ninja"  -> show button to switch to Simon
+          - None          -> no mode switching (start menu)
+          - "simon"       -> allow switching to bopit / keys_ninja
+          - "bopit"       -> allow switching to simon / keys_ninja
+          - "keys_ninja"  -> allow switching to simon / bopit
         """
         self.screen = screen
         self.font_manager = FontManager()
@@ -23,14 +23,14 @@ class MenuOverlay:
         H = screen.get_height()
         # MENU button sits in the top-left of the HUD header.
         self.button_rect = pygame.Rect(8, 7, 80, 36)
-        
+
         # LOAD BACKGROUND IMAGE - Add error handling
         bg_path = os.path.join("assets", "menu_bg.png")
         try:
             self.bg_image = pygame.image.load(bg_path).convert_alpha()
             # Scale the original image
             self.bg_image = pygame.transform.smoothscale(self.bg_image, (500, 400))
-            
+
             # Create a DARKER version of just the brick background
             self.bg_image_dark = self.bg_image.copy()
             dark_overlay = pygame.Surface(self.bg_image.get_size(), pygame.SRCALPHA)
@@ -47,6 +47,7 @@ class MenuOverlay:
 
         # Center it
         self.bg_rect = self.bg_image.get_rect(center=(W // 2, H // 2))
+        self.close_rect = pygame.Rect(0, 0, 0, 0)
 
         # CENTERED MENU OPTIONS
         button_width = 250
@@ -58,9 +59,17 @@ class MenuOverlay:
         # Layout: evenly distribute N buttons around the popup centre.
         # The "Main Menu" button only makes sense when a game is in progress —
         # the start menu IS the main menu, so don't show it there.
-        show_switch    = self.game_mode in ("simon", "bopit", "keys_ninja")
+        switch_targets = []
+        if self.game_mode in ("simon", "bopit", "keys_ninja"):
+            for target, label in (
+                ("simon", "SWITCH TO SIMON"),
+                ("bopit", "SWITCH TO BOP IT"),
+                ("keys_ninja", "SWITCH TO KEYS NINJA"),
+            ):
+                if target != self.game_mode:
+                    switch_targets.append((target, label))
         show_main_menu = self.game_mode is not None
-        button_count = 3 + (1 if show_switch else 0) + (1 if show_main_menu else 0)
+        button_count = 3 + len(switch_targets) + (1 if show_main_menu else 0)
         spacing = 60
         total_h = button_count * button_height + (button_count - 1) * (spacing - button_height)
         first_y = popup_center_y - total_h // 2
@@ -74,19 +83,14 @@ class MenuOverlay:
             )
 
         self.volume_rect = _rect_at(0)
-        self.music_rect  = _rect_at(1)
-        self.about_rect  = _rect_at(2)
-        self.switch_rect = _rect_at(3) if show_switch else None
-        self.main_menu_rect = _rect_at(4 if show_switch else 3) if show_main_menu else None
+        self.music_rect = _rect_at(1)
+        self.about_rect = _rect_at(2)
+        self.switch_rects = [
+            _rect_at(3 + i) for i in range(len(switch_targets))
+        ]
+        self._switch_targets = switch_targets
+        self.main_menu_rect = _rect_at(3 + len(switch_targets)) if show_main_menu else None
 
-        # Switch-mode label must mirror the cycle in main.py:
-        # simon -> bopit -> keys_ninja -> simon
-        self._switch_label = {
-            "simon":      "SWITCH TO BOP IT",
-            "bopit":      "SWITCH TO KEYS NINJA",
-            "keys_ninja": "SWITCH TO SIMON",
-        }.get(self.game_mode)
-        
         # Initialize submenus
         self.volume_menu = VolumeMenu(screen, self.font_manager)
         self.music_menu = MusicMenu(screen, self.font_manager)
@@ -119,6 +123,22 @@ class MenuOverlay:
             # Draw DARKENED brick background (only the brick area is darkened)
             self.screen.blit(self.bg_image_dark, self.bg_rect)
 
+            # Draw close button (top-right of popup)
+            close_size = 34
+            self.close_rect = pygame.Rect(
+                self.bg_rect.right - close_size - 10,
+                self.bg_rect.top + 10,
+                close_size,
+                close_size,
+            )
+            hovered = self.close_rect.collidepoint(pygame.mouse.get_pos())
+            close_color = (140, 70, 80) if hovered else (110, 55, 65)
+            pygame.draw.rect(self.screen, (10, 10, 20), self.close_rect.move(0, 2), border_radius=8)
+            pygame.draw.rect(self.screen, close_color, self.close_rect, border_radius=8)
+            pygame.draw.rect(self.screen, (200, 170, 180), self.close_rect, width=2, border_radius=8)
+            x_font = self.font_manager.render_text("X", (255, 235, 235), 20)
+            self.screen.blit(x_font, x_font.get_rect(center=self.close_rect.center))
+
         # Draw submenus
         if self.active_submenu == "volume":
             self.volume_menu.draw(self.bg_rect)
@@ -130,8 +150,8 @@ class MenuOverlay:
                 (self.music_rect,  "MUSIC"),
                 (self.about_rect,  "HOW TO PLAY"),
             ]
-            if self.switch_rect is not None and self._switch_label:
-                items.append((self.switch_rect, self._switch_label))
+            for rect, (_, label) in zip(self.switch_rects, self._switch_targets):
+                items.append((rect, label))
 
             if self.main_menu_rect is not None:
                 items.append((self.main_menu_rect, "MAIN MENU"))
@@ -185,6 +205,9 @@ class MenuOverlay:
                 return None
 
             if self.open:
+                if self.close_rect.collidepoint(event.pos):
+                    self._close()
+                    return None
                 if self.volume_rect.collidepoint(event.pos):
                     self.active_submenu = "volume"
                     self.open = False
@@ -196,11 +219,16 @@ class MenuOverlay:
                 if self.about_rect.collidepoint(event.pos):
                     self.open = False
                     return "how_to_play"
-                if self.switch_rect is not None and self.switch_rect.collidepoint(event.pos):
-                    self.open = False
-                    return "switch_mode"
+                for rect, (target, _label) in zip(self.switch_rects, self._switch_targets):
+                    if rect.collidepoint(event.pos):
+                        self.open = False
+                        return ("switch_mode", target)
                 if self.main_menu_rect is not None and self.main_menu_rect.collidepoint(event.pos):
                     self.open = False
                     return "main_menu"
+
+            if self.active_submenu is not None and self.close_rect.collidepoint(event.pos):
+                self._close()
+                return None
 
         return None

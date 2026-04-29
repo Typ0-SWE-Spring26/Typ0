@@ -10,7 +10,6 @@ import random
 import time
 import pygame
 from game.utils.scaled_screen import ScaledScreen
-from game.screens.startscreen import StartScreen
 from game.screens.startmenu import StartMenu
 from game.screens.gameplay.display import GameScreen
 from game.screens.gameplay.bopit_display import BopItScreen
@@ -159,7 +158,8 @@ async def _run_single_player(screen, keybinds, game_mode):
 
             # Player used the in-game menu to switch modes
             if isinstance(game_result, tuple) and game_result and game_result[0] == "switch_mode":
-                return "start_simon"
+                target = game_result[1] if len(game_result) > 1 else "simon"
+                return f"start_{target}"
 
             # game_result is ("gameover", score, reason)
             _, score, reason = game_result
@@ -230,6 +230,8 @@ async def _run_single_player(screen, keybinds, game_mode):
         # Player used the in-game menu to switch modes — bubble up so the
         # outer loop can restart in the other mode.
         if isinstance(game_result, tuple) and game_result and game_result[0] == "switch_mode":
+            if len(game_result) > 1:
+                return f"start_{game_result[1]}"
             if game_mode == "simon":
                 other = "bopit"
             elif game_mode == "bopit":
@@ -267,13 +269,8 @@ async def main():
 
     keybinds = KeybindManager()
 
-    # Show start screen (once)
-    start_screen = StartScreen(screen)
-    result = await start_screen.run()
-
-    if result == "quit":
-        pygame.quit()
-        return
+    # Start on the main menu.
+    result = "menu"
 
     # ------------------------------------------------------------------ #
     # Main navigation loop — allows returning to the menu from anywhere.  #

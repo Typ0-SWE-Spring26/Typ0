@@ -11,7 +11,7 @@ import os
 from pathlib import Path
 
 MAX_SCORES = 10
-VALID_GAME_TYPES = {"simon", "bopit", "multiplayer"}
+VALID_GAME_TYPES = {"simon", "bopit", "keys_ninja", "multiplayer"}
 
 
 def _scores_dir() -> Path:

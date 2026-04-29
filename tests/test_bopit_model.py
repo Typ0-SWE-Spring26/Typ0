@@ -70,3 +70,36 @@ def test_prompt_to_input_uses_scaled_flash_time():
     assert model.state == 'input'
     assert model.current_command == 'right'
     assert model.flash_end == 2_000 + model.flash_time
+
+
+def test_reset_sets_initial_state_and_score():
+    model = BopItModel(EventBus())
+    model.score = 5
+    model.state = 'input'
+
+    model.reset()
+
+    assert model.score == 0
+    assert model.state in ('prompting', 'adding')
+
+
+def test_wrong_input_triggers_gameover():
+    model = BopItModel(EventBus())
+    model.state = 'input'
+    model.current_command = 'left'
+
+    result = model.handle_input('right', 1_000)
+
+    assert result == 'wrong'
+    assert model.state == 'gameover'
+
+
+def test_correct_input_increments_score():
+    model = BopItModel(EventBus())
+    model.state = 'input'
+    model.current_command = 'left'
+
+    result = model.handle_input('left', 1_000)
+
+    assert result in ('correct', 'round_complete')
+    assert model.score >= 1

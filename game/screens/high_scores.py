@@ -21,12 +21,19 @@ class HighScoresScreen:
         self.font_name = pygame.font.Font(None, 40)
         self.font_score = pygame.font.Font(None, 40)
         self.font_empty = pygame.font.Font(None, 30)
+        self.close_rect = pygame.Rect(0, 0, 0, 0)
 
     async def run(self):
         self.scores = await load_scores_async(self.game_type)
         clock = pygame.time.Clock()
 
         while self.running:
+            self.close_rect = pygame.Rect(
+                self.screen.get_width() - 52,
+                16,
+                36,
+                36,
+            )
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     return "quit"
@@ -37,6 +44,9 @@ class HighScoresScreen:
                         event.key == pygame.K_ESCAPE
                         or event.key == pygame.K_q
                     ):
+                        return "menu"
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    if self.close_rect.collidepoint(event.pos):
                         return "menu"
 
             animation_utils.draw_gradient(
@@ -121,6 +131,15 @@ class HighScoresScreen:
                 "R  Retry  |  ESC  Main Menu",
                 (cx, self.screen.get_height() - 50),
             )
+
+            # Close button (top-right)
+            hovered = self.close_rect.collidepoint(pygame.mouse.get_pos())
+            close_color = (140, 70, 80) if hovered else (110, 55, 65)
+            pygame.draw.rect(self.screen, (10, 10, 20), self.close_rect.move(0, 2), border_radius=8)
+            pygame.draw.rect(self.screen, close_color, self.close_rect, border_radius=8)
+            pygame.draw.rect(self.screen, (200, 170, 180), self.close_rect, width=2, border_radius=8)
+            close_text = pygame.font.Font(None, 24).render("X", True, (255, 235, 235))
+            self.screen.blit(close_text, close_text.get_rect(center=self.close_rect.center))
 
             self.screen.present()
             clock.tick(60)

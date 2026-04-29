@@ -9,6 +9,7 @@ sys.modules['pygame'] = MagicMock()
 from game.screens.startscreen import StartScreen
 from game.screens.startmenu import StartMenu
 from game.screens.gameover import GameOverScreen
+from game.screens.high_scores import HighScoresScreen
 
 
 # ── Helpers ────────────────────────────────────────────────────────────
@@ -47,9 +48,6 @@ def pg_start():
         mock_screen.get_width.return_value = 800
         mock_screen.get_height.return_value = 600
 
-        mock_pg.time.Clock.return_value = Mock()
-        mock_pg.time.get_ticks.return_value = 0
-        mock_pg.K_SPACE = 32
         mock_pg.QUIT = 256
 
         yield mock_pg, mock_screen, mock_anim
@@ -103,13 +101,44 @@ def pg_gameover():
         mock_pg.time.get_ticks.return_value = 0
         mock_pg.QUIT = 256
         mock_pg.KEYDOWN = 768
+        mock_pg.MOUSEBUTTONDOWN = 1025
         mock_pg.K_r = 114
         mock_pg.K_q = 113
         mock_pg.K_ESCAPE = 27
+        mock_pg.Rect.return_value = MagicMock()
 
         mock_font = Mock()
         mock_font.render.return_value = Mock(get_rect=Mock(return_value=Mock()))
         mock_pg.font.Font.return_value = mock_font
+
+        yield mock_pg, mock_screen, mock_anim
+
+
+@pytest.fixture
+def pg_high_scores():
+    """Patch pygame and async loader for HighScoresScreen."""
+    with patch('game.screens.high_scores.pygame') as mock_pg, \
+         patch('game.screens.high_scores.animation_utils') as mock_anim, \
+         patch('game.screens.high_scores.load_scores_async', new_callable=AsyncMock) as mock_load:
+        mock_screen = Mock()
+        mock_screen.get_width.return_value = 800
+        mock_screen.get_height.return_value = 600
+
+        mock_pg.time.Clock.return_value = Mock()
+        mock_pg.time.get_ticks.return_value = 0
+        mock_pg.QUIT = 256
+        mock_pg.KEYDOWN = 768
+        mock_pg.MOUSEBUTTONDOWN = 1025
+        mock_pg.K_r = 114
+        mock_pg.K_q = 113
+        mock_pg.K_ESCAPE = 27
+        mock_pg.Rect.return_value = MagicMock()
+
+        mock_font = Mock()
+        mock_font.render.return_value = Mock(get_rect=Mock(return_value=Mock()))
+        mock_pg.font.Font.return_value = mock_font
+
+        mock_load.return_value = []
 
         yield mock_pg, mock_screen, mock_anim
 
@@ -132,46 +161,14 @@ class TestStartScreen:
 
         assert result == "quit"
 
-    def test_returns_menu_when_space_pressed_after_loading(self, pg_start):
-        mock_pg, mock_screen, mock_anim = pg_start
-
-        # Simulate loading complete
-        mock_anim.loading_bar.return_value = True
-
-        # Space key pressed
-        keys = MagicMock()
-        keys.__getitem__ = Mock(return_value=True)
-        mock_pg.key.get_pressed.return_value = keys
+    def test_returns_menu_by_default(self, pg_start):
+        mock_pg, mock_screen, _ = pg_start
 
         mock_pg.event.get.return_value = []
 
         screen = StartScreen(mock_screen)
         result = run_async(screen.run())
 
-        assert result == "menu"
-
-    def test_does_not_return_menu_while_loading(self, pg_start):
-        mock_pg, mock_screen, mock_anim = pg_start
-
-        # Loading NOT complete first call, then QUIT to exit
-        call_count = [0]
-        def side_effect(*args, **kwargs):
-            call_count[0] += 1
-            if call_count[0] == 1:
-                return False  # still loading
-            return True  # done
-
-        mock_anim.loading_bar.side_effect = side_effect
-
-        keys = MagicMock()
-        keys.__getitem__ = Mock(return_value=True)
-        mock_pg.key.get_pressed.return_value = keys
-        mock_pg.event.get.return_value = []
-
-        screen = StartScreen(mock_screen)
-        result = run_async(screen.run())
-
-        # Should eventually return "menu" once loading is done
         assert result == "menu"
 
     def test_plays_music_on_init(self, pg_start):
@@ -182,10 +179,6 @@ class TestStartScreen:
     def test_music_continues_into_menu(self, pg_start):
         mock_pg, mock_screen, mock_anim = pg_start
 
-        mock_anim.loading_bar.return_value = True
-        keys = MagicMock()
-        keys.__getitem__ = Mock(return_value=True)
-        mock_pg.key.get_pressed.return_value = keys
         mock_pg.event.get.return_value = []
 
         screen = StartScreen(mock_screen)
@@ -284,6 +277,40 @@ class TestGameOverScreen:
 
         assert screen.score == 42
         assert screen.reason == "Time's up!"
+
+    def test_menu_on_close_button_click(self, pg_gameover):
+        mock_pg, mock_screen, _ = pg_gameover
+
+        mock_pg.Rect.return_value.collidepoint.return_value = True
+        click_ev = Mock()
+        click_ev.type = mock_pg.MOUSEBUTTONDOWN
+        click_ev.button = 1
+        click_ev.pos = (780, 20)
+        mock_pg.event.get.return_value = [click_ev]
+
+        screen = GameOverScreen(mock_screen, score=5, reason="Wrong input!")
+        result = run_async(screen.run())
+
+        assert result == "menu"
+
+
+class TestHighScoresScreen:
+    """Verify HighScoresScreen navigation signals."""
+
+    def test_menu_on_close_button_click(self, pg_high_scores):
+        mock_pg, mock_screen, _ = pg_high_scores
+
+        mock_pg.Rect.return_value.collidepoint.return_value = True
+        click_ev = Mock()
+        click_ev.type = mock_pg.MOUSEBUTTONDOWN
+        click_ev.button = 1
+        click_ev.pos = (780, 20)
+        mock_pg.event.get.return_value = [click_ev]
+
+        screen = HighScoresScreen(mock_screen, game_type="simon")
+        result = run_async(screen.run())
+
+        assert result == "menu"
 
     def test_renders_score_text(self, pg_gameover):
         mock_pg, mock_screen, mock_anim = pg_gameover

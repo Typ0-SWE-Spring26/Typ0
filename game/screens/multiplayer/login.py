@@ -29,6 +29,7 @@ class MultiplayerLoginScreen:
         self.font_btn    = pygame.font.Font(None, 36)
 
         self.input_rect = pygame.Rect(cx - 220, H // 2 - 35, 440, 60)
+        self.close_rect = pygame.Rect(0, 0, 0, 0)
         self.btn_connect = Button(
             pygame.Rect(cx - 120, H // 2 + 50, 240, 58),
             "Connect",
@@ -46,6 +47,12 @@ class MultiplayerLoginScreen:
         cx = W // 2
 
         while True:
+            self.close_rect = pygame.Rect(
+                self.screen.get_width() - 52,
+                16,
+                36,
+                36,
+            )
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     return "quit"
@@ -64,6 +71,10 @@ class MultiplayerLoginScreen:
 
                 if self.btn_connect.handle_event(event) and not self.connecting:
                     await self._attempt_connect()
+
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    if self.close_rect.collidepoint(event.pos) and not self.connecting:
+                        return "back"
 
             # Check server responses
             while True:
@@ -142,6 +153,15 @@ class MultiplayerLoginScreen:
         # Connect button (hidden while connecting)
         if not self.connecting:
             self.btn_connect.draw(self.screen)
+
+        # Close button (top-right)
+        hovered = self.close_rect.collidepoint(pygame.mouse.get_pos())
+        close_color = (140, 70, 80) if hovered else (110, 55, 65)
+        pygame.draw.rect(self.screen, (10, 10, 20), self.close_rect.move(0, 2), border_radius=8)
+        pygame.draw.rect(self.screen, close_color, self.close_rect, border_radius=8)
+        pygame.draw.rect(self.screen, (200, 170, 180), self.close_rect, width=2, border_radius=8)
+        close_text = self.font_btn.render("X", True, (255, 235, 235))
+        self.screen.blit(close_text, close_text.get_rect(center=self.close_rect.center))
 
         animation_utils.flashing_text(
             self.screen, "ESC  back to menu",

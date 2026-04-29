@@ -75,6 +75,60 @@ def menu_overlay():
         yield overlay, mock_pg, screen
 
 
+def _make_overlay(game_mode):
+    with patch("game.screens.menu.pygame") as mock_pg, \
+         patch("game_screens.menu_volume.pygame") as mock_vol_pg, \
+         patch("game_screens.menu_music.pygame") as mock_music_pg, \
+         patch("assets.font_loader.pygame") as mock_font_pg:
+        screen = Mock()
+        screen.get_width.return_value = 800
+        screen.get_height.return_value = 600
+        screen.get_size.return_value = (800, 600)
+
+        mock_font = Mock()
+        mock_font.render.return_value = Mock(get_rect=Mock(return_value=Mock()))
+
+        for pg_mock in [mock_pg, mock_vol_pg, mock_music_pg, mock_font_pg]:
+            pg_mock.font.SysFont.return_value = mock_font
+            pg_mock.font.Font.return_value = mock_font
+
+        bg_image = Mock()
+        bg_image.get_rect.return_value = Mock(centerx=400, centery=300, right=650, top=100, bottom=500)
+        bg_image.convert_alpha.return_value = bg_image
+        bg_image.copy.return_value = bg_image
+        bg_image.get_size.return_value = (500, 400)
+
+        mock_pg.image.load.return_value = bg_image
+        mock_pg.transform.smoothscale.return_value = bg_image
+
+        def make_rect(x, y, w, h):
+            return Mock(
+                x=x,
+                y=y,
+                width=w,
+                height=h,
+                center=(x + w // 2, y + h // 2),
+                centerx=x + w // 2,
+                centery=y + h // 2,
+                bottom=y + h,
+                collidepoint=Mock(return_value=False),
+            )
+
+        for pg_mock in [mock_pg, mock_vol_pg, mock_music_pg]:
+            pg_mock.Rect.side_effect = make_rect
+            pg_mock.MOUSEBUTTONDOWN = 1
+            pg_mock.KEYDOWN = 768
+            pg_mock.K_ESCAPE = 27
+            pg_mock.SRCALPHA = 1
+            pg_mock.Surface.return_value = Mock()
+            pg_mock.draw.rect = Mock()
+            pg_mock.draw.circle = Mock()
+            pg_mock.mouse.get_pos.return_value = (0, 0)
+
+        overlay = MenuOverlay(screen, game_mode=game_mode)
+        return overlay, mock_pg
+
+
 def _mouse_event(mock_pg, pos, button=1):
     event = Mock()
     event.type = mock_pg.MOUSEBUTTONDOWN
@@ -161,4 +215,44 @@ def test_non_left_click_does_nothing(menu_overlay):
     result = overlay.handle_event(_mouse_event(mock_pg, (30, 540), button=3))
 
     assert result is None
+    assert overlay.open is False
+
+
+def test_escape_closes_overlay_when_open(menu_overlay):
+    overlay, mock_pg, _ = menu_overlay
+    overlay.open = True
+
+    event = Mock()
+    event.type = mock_pg.KEYDOWN
+    event.key = mock_pg.K_ESCAPE
+    overlay.handle_event(event)
+
+    assert overlay.open is False
+    assert overlay.active_submenu is None
+
+
+def test_escape_closes_music_submenu(menu_overlay):
+    overlay, mock_pg, _ = menu_overlay
+    overlay.open = False
+    overlay.active_submenu = "music"
+    overlay.music_menu.on_close = Mock()
+
+    event = Mock()
+    event.type = mock_pg.KEYDOWN
+    event.key = mock_pg.K_ESCAPE
+    overlay.handle_event(event)
+
+    assert overlay.open is False
+    assert overlay.active_submenu is None
+    overlay.music_menu.on_close.assert_called_once()
+
+
+def test_clicking_main_menu_returns_main_menu():
+    overlay, mock_pg = _make_overlay("simon")
+    overlay.open = True
+    overlay.main_menu_rect.collidepoint.return_value = True
+
+    result = overlay.handle_event(_mouse_event(mock_pg, overlay.main_menu_rect.center))
+
+    assert result == "main_menu"
     assert overlay.open is False

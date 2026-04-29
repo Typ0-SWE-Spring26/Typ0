@@ -43,6 +43,10 @@ def _safe_stop(context, attr):
 
 def after_scenario(context, scenario):
     for attr in (
+        "_menu_pg_patch",
+        "_menu_fm_patch",
+        "_bopit_pg_patch",
+        "_bopit_anim_patch",
         "_go_pg_patch",
         "_go_anim_patch",
         "_hs_pg_patch",

@@ -19,6 +19,7 @@ class GameOverScreen:
         self.running = True
         self.start_time = None
         self.font_timer = pygame.font.Font(None, 28)
+        self.close_rect = pygame.Rect(0, 0, 0, 0)
         # Make sure any previously-playing track is fully stopped so the ending
         # riff plays cleanly — blob-URL tracks can linger past stopMusic() in
         # some browsers, so calling it twice is a cheap belt-and-braces.
@@ -32,6 +33,12 @@ class GameOverScreen:
         self.start_time = pygame.time.get_ticks()
 
         while self.running:
+            self.close_rect = pygame.Rect(
+                self.screen.get_width() - 52,
+                16,
+                36,
+                36,
+            )
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     animation_utils.set_music_menu_locked(False)
@@ -49,6 +56,10 @@ class GameOverScreen:
                     if event.key == pygame.K_h:
                         animation_utils.set_music_menu_locked(False)
                         return "high_scores"
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    if self.close_rect.collidepoint(event.pos):
+                        animation_utils.set_music_menu_locked(False)
+                        return "menu"
 
             # Auto-switch to high scores after timeout
             elapsed = pygame.time.get_ticks() - self.start_time
@@ -103,6 +114,15 @@ class GameOverScreen:
                 (self.screen.get_width() // 2, self.screen.get_height() - 70),
                 font_size=28,
             )
+
+            # Close button (top-right)
+            hovered = self.close_rect.collidepoint(pygame.mouse.get_pos())
+            close_color = (140, 70, 80) if hovered else (110, 55, 65)
+            pygame.draw.rect(self.screen, (10, 10, 20), self.close_rect.move(0, 2), border_radius=8)
+            pygame.draw.rect(self.screen, close_color, self.close_rect, border_radius=8)
+            pygame.draw.rect(self.screen, (200, 170, 180), self.close_rect, width=2, border_radius=8)
+            close_text = pygame.font.Font(None, 24).render("X", True, (255, 235, 235))
+            self.screen.blit(close_text, close_text.get_rect(center=self.close_rect.center))
 
             self.screen.present()
             clock.tick(60)

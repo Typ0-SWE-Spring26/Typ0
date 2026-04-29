@@ -142,6 +142,12 @@ def draw_animated_icons(screen, string="TYP0!", position=None, radius=100, font_
         screen.blit(icon_text, icon_rect)
 
 
+def float_offset(amplitude=8, speed=2.0, phase=0.0):
+    """Return a vertical offset for gentle bobbing animations."""
+    time = pygame.time.get_ticks() / 1000
+    return math.sin((time * speed) + phase) * amplitude
+
+
 def flashing_text(screen, text, position=None, font_size=36, color_on=(255, 255, 255), color_off=(100, 100, 100), flash_speed=500, font=None, font_name=None):
     """Draw flashing text at the bottom of the screen"""
     if font is None:

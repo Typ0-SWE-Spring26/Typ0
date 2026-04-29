@@ -13,6 +13,7 @@ on:
       - "main.py"
       - "requirements.txt"
       - "run_tests.py"
+      - "test_vitals.py"
 
 jobs:
   web-audio-tests:
@@ -145,3 +146,109 @@ jobs:
           python -m http.server 8000 --directory build/web &
           sleep 3
           python -m pytest tests/test_browser.py tests/test_browser_features.py tests/test_browser_multiplayer.py tests/test_browser_ws.py -v -m browser
+
+  admin-vitals-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-3.12-${{ hashFiles('requirements.txt', 'server/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-3.12-
+
+      - name: Install server dependencies
+        run: |
+          pip install -r server/requirements.txt
+          pip install requests
+
+      - name: Boot server and probe admin vitals endpoint
+        env:
+          ADMIN_PASSWORD: ci_test_password_xyz
+          PORT: "15090"
+        run: |
+          mkdir -p /tmp/scores
+          SCORES_DIR=/tmp/scores STATIC_DIR=/tmp/no-static PYTHONUNBUFFERED=1 \
+            python -u server/server.py > /tmp/server.log 2>&1 &
+          SERVER_PID=$!
+
+          dump_log_and_exit() {
+            echo "--- server.log ---"
+            cat /tmp/server.log || echo "(no log)"
+            echo "--- ps ---"
+            ps -p $SERVER_PID -o pid,stat,cmd 2>&1 || echo "(server pid $SERVER_PID is gone)"
+            kill $SERVER_PID 2>/dev/null || true
+            exit 1
+          }
+
+          # curl with -w writes "000" itself when it can't connect, then
+          # exits non-zero — `|| true` keeps set -e happy without doubling
+          # the output.
+          probe_status() {
+            curl -s -o /dev/null -w "%{http_code}" --max-time 5 "$@" || true
+          }
+
+          VITALS_URL="http://127.0.0.1:15090/api/admin/vitals"
+
+          UP=0
+          for i in $(seq 1 40); do
+            STATUS=$(probe_status "$VITALS_URL")
+            if [ "$STATUS" != "000" ]; then
+              UP=1
+              break
+            fi
+            sleep 0.5
+          done
+
+          if [ "$UP" -ne 1 ]; then
+            echo "✗ server never accepted a connection on port 15090"
+            dump_log_and_exit
+          fi
+
+          FAILED=0
+
+          BAD=$(probe_status -H "Authorization: Bearer wrong" "$VITALS_URL")
+          if [ "$BAD" = "401" ]; then
+            echo "✓ wrong password rejected (HTTP $BAD)"
+          else
+            echo "✗ wrong password got HTTP $BAD (expected 401)"
+            FAILED=1
+          fi
+
+          MISSING=$(probe_status "$VITALS_URL")
+          if [ "$MISSING" = "401" ]; then
+            echo "✓ missing Authorization rejected (HTTP $MISSING)"
+          else
+            echo "✗ missing Authorization got HTTP $MISSING (expected 401)"
+            FAILED=1
+          fi
+
+          ADMIN_PAGE=$(probe_status "http://127.0.0.1:15090/admin")
+          if [ "$ADMIN_PAGE" = "200" ]; then
+            echo "✓ /admin GUI served (HTTP $ADMIN_PAGE)"
+          else
+            echo "✗ /admin GUI got HTTP $ADMIN_PAGE (expected 200)"
+            FAILED=1
+          fi
+
+          if python test_vitals.py "$ADMIN_PASSWORD"; then
+            echo "✓ test_vitals.py passed"
+          else
+            echo "✗ test_vitals.py failed"
+            FAILED=1
+          fi
+
+          kill $SERVER_PID 2>/dev/null || true
+
+          if [ "$FAILED" -ne 0 ]; then
+            dump_log_and_exit
+          fi
