@@ -180,7 +180,9 @@ jobs:
 
           # Admin vitals — wrong password should be rejected (401).
           ADMIN_BAD=$(curl -s -o /dev/null -w "%{http_code}" \
-            --max-time 10 "$BASE/api/admin/vitals?password=definitely-not-the-password")
+            --max-time 10 \
+            -H "Authorization: Bearer definitely-not-the-password" \
+            "$BASE/api/admin/vitals")
           if [ "$ADMIN_BAD" = "401" ]; then
             echo "✓ Admin vitals 401  /api/admin/vitals →  HTTP $ADMIN_BAD (rejected bad password)"
           else
@@ -193,8 +195,8 @@ jobs:
           # the user adds the ADMIN_PASSWORD secret.
           if [ -n "$ADMIN_PASSWORD" ]; then
             ADMIN_OK=$(curl -s -o /tmp/vitals.json -w "%{http_code}" \
-              --max-time 10 --get \
-              --data-urlencode "password=$ADMIN_PASSWORD" \
+              --max-time 10 \
+              -H "Authorization: Bearer $ADMIN_PASSWORD" \
               "$BASE/api/admin/vitals")
             if [ "$ADMIN_OK" = "200" ] && grep -q '"server"' /tmp/vitals.json; then
               echo "✓ Admin vitals 200  /api/admin/vitals →  HTTP $ADMIN_OK (authorized)"
@@ -204,6 +206,16 @@ jobs:
             fi
           else
             echo "⚠ Admin vitals 200  skipped — ADMIN_PASSWORD secret not set"
+          fi
+
+          # Admin GUI page — public HTML, no auth required.
+          ADMIN_PAGE=$(curl -s -o /tmp/admin.html -w "%{http_code}" \
+            --max-time 10 "$BASE/admin")
+          if [ "$ADMIN_PAGE" = "200" ] && grep -q '<title>TYP0 admin' /tmp/admin.html; then
+            echo "✓ Admin GUI         /admin            →  HTTP $ADMIN_PAGE"
+          else
+            echo "✗ Admin GUI         /admin            →  HTTP $ADMIN_PAGE (expected 200 with HTML)"
+            FAILED=1
           fi
 
           [ "$FAILED" -eq 0 ] && echo "All health checks passed." || exit 1

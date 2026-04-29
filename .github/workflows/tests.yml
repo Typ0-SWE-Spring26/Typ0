@@ -194,12 +194,14 @@ jobs:
           # exits non-zero — `|| true` keeps set -e happy without doubling
           # the output.
           probe_status() {
-            curl -s -o /dev/null -w "%{http_code}" --max-time 5 "$1" || true
+            curl -s -o /dev/null -w "%{http_code}" --max-time 5 "$@" || true
           }
+
+          VITALS_URL="http://127.0.0.1:15090/api/admin/vitals"
 
           UP=0
           for i in $(seq 1 40); do
-            STATUS=$(probe_status "http://127.0.0.1:15090/api/admin/vitals?password=wrong")
+            STATUS=$(probe_status "$VITALS_URL")
             if [ "$STATUS" != "000" ]; then
               UP=1
               break
@@ -214,7 +216,7 @@ jobs:
 
           FAILED=0
 
-          BAD=$(probe_status "http://127.0.0.1:15090/api/admin/vitals?password=wrong")
+          BAD=$(probe_status -H "Authorization: Bearer wrong" "$VITALS_URL")
           if [ "$BAD" = "401" ]; then
             echo "✓ wrong password rejected (HTTP $BAD)"
           else
@@ -222,11 +224,19 @@ jobs:
             FAILED=1
           fi
 
-          MISSING=$(probe_status "http://127.0.0.1:15090/api/admin/vitals")
+          MISSING=$(probe_status "$VITALS_URL")
           if [ "$MISSING" = "401" ]; then
-            echo "✓ missing password rejected (HTTP $MISSING)"
+            echo "✓ missing Authorization rejected (HTTP $MISSING)"
           else
-            echo "✗ missing password got HTTP $MISSING (expected 401)"
+            echo "✗ missing Authorization got HTTP $MISSING (expected 401)"
+            FAILED=1
+          fi
+
+          ADMIN_PAGE=$(probe_status "http://127.0.0.1:15090/admin")
+          if [ "$ADMIN_PAGE" = "200" ]; then
+            echo "✓ /admin GUI served (HTTP $ADMIN_PAGE)"
+          else
+            echo "✗ /admin GUI got HTTP $ADMIN_PAGE (expected 200)"
             FAILED=1
           fi
 

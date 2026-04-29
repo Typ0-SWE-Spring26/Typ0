@@ -19,10 +19,10 @@ if len(sys.argv) < 2:
     sys.exit(1)
 
 password = sys.argv[1]
-url = f"http://localhost:15090/api/admin/vitals?password={password}"
+url = "http://localhost:15090/api/admin/vitals"
 
 try:
-    response = requests.get(url)
+    response = requests.get(url, headers={"Authorization": f"Bearer {password}"})
     
     if response.status_code == 200:
         vitals = response.json()
