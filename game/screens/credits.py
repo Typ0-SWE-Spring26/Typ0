@@ -11,24 +11,17 @@ CREDIT_ENTRIES = [
     {"section": "Core Team", "name": "Ben", "roles": ["Frontend Developer", "Music"]},
     {"section": "Core Team", "name": "Charlie", "roles": ["Frontend Developer", "Art"]},
     {"section": "Core Team", "name": "Dipen", "roles": ["NinjaKeys Developer"]},
-    {"section": "Core Team", "name": "Gabi", "roles": ["Developer"]},
-    {"section": "Core Team", "name": "Jude", "roles": ["Developer"]},
-    {"section": "Core Team", "name": "Joel", "roles": ["Developer"]},
-    {"section": "Core Team", "name": "Kregg", "roles": ["Developer"]},
-    {"section": "Core Team", "name": "Oriye", "roles": ["Developer"]},
+    {"section": "Core Team", "name": "Gabi", "roles": ["Input Development"]},
+    {"section": "Core Team", "name": "Jude", "roles": ["Flavor and Polish"]},
     {"section": "Music", "name": "Ben", "roles": ["Composer"]},
     {"section": "Art", "name": "Charlie", "roles": ["Artist"]},
 ]
 
 TECH_STACK = [
     "Python",
-    "pygame-ce",
+    "pygame",
     "pygbag",
-    "aiohttp",
     "websockets",
-    "Playwright",
-    "pytest",
-    "behave",
     "TypeScript",
 ]
 
