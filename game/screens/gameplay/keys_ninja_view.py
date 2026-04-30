@@ -89,6 +89,22 @@ class KeysNinjaView(GameView):
         char_surf = char_font.render(char_text, True, (255, 255, 255))
         char_rect = char_surf.get_rect(center=(center, center))
         key_surf.blit(char_surf, char_rect)
+
+        # Underline beneath the character — also a "this side up" marker
+        # for symmetric letters (M/W, N/Z, etc.) when the key rotates.
+        underline_thickness = max(2, int(3 * key_obj.scale))
+        underline_y = char_rect.bottom + 1
+        underline_inset = max(2, char_rect.width // 8)
+        underline_start = (char_rect.left + underline_inset, underline_y)
+        underline_end = (char_rect.right - underline_inset, underline_y)
+        # Shadow first, then the bright underline on top
+        pygame.draw.line(key_surf, (0, 0, 0, 150),
+                         (underline_start[0] + 2, underline_y + 2),
+                         (underline_end[0] + 2, underline_y + 2),
+                         underline_thickness)
+        pygame.draw.line(key_surf, (255, 255, 255),
+                         underline_start, underline_end,
+                         underline_thickness)
         
         # Apply alpha
         key_surf.set_alpha(int(key_obj.alpha))

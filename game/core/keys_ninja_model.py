@@ -54,8 +54,15 @@ class KeysNinjaModel:
             return random.choice([1, 2, 2, 3])  # 25% 1-key, 50% 2-keys, 25% 3-keys
     
     def _get_spawn_interval(self) -> int:
-        """Spawn interval - stays constant, no speed increase."""
-        return 2500  # Always 2.5 seconds
+        """Spawn interval shrinks as score climbs — more keys, faster."""
+        # 2500ms at score 0, drops by 100ms per 50 points, floor at 1000ms
+        reduction = (self.score // 50) * 100
+        return max(1000, _BASE_SPAWN_INTERVAL - reduction)
+
+    def _get_speed_multiplier(self) -> float:
+        """Rise/fall speed multiplier — keys move faster at higher scores."""
+        # Linear ramp: 1.0x at 0, +0.1x per 100 points, capped at 1.6x
+        return min(1.6, 1.0 + (self.score / 1000))
     
     def _get_bomb_chance(self) -> float:
         """Bomb chance based on score."""
@@ -117,16 +124,18 @@ class KeysNinjaModel:
         # Bombs keep their random letter - they just look red
         
         key_obj = KeyObject(char, x, y, is_bomb)
-        
+
+        speed_mult = self._get_speed_multiplier()
+
         # Set initial velocities for arc motion (like Fruit Ninja)
-        key_obj.velocity_y = -_BASE_RISE_SPEED
-        
+        key_obj.velocity_y = -_BASE_RISE_SPEED * speed_mult
+
         # Add horizontal velocity for arc effect
         center_x = screen_width // 2
         if x < center_x:
-            key_obj.velocity_x = random.uniform(0.5, 2.0)  # Move right
+            key_obj.velocity_x = random.uniform(0.5, 2.0) * speed_mult  # Move right
         else:
-            key_obj.velocity_x = random.uniform(-2.0, -0.5)  # Move left
+            key_obj.velocity_x = random.uniform(-2.0, -0.5) * speed_mult  # Move left
         
         self.keys.append(key_obj)
         self.last_spawn_time = now
@@ -157,6 +166,10 @@ class KeysNinjaModel:
                     self._spawn_key_at_position(now, screen_width, screen_height, 'right')
         
         # Update existing keys
+        speed_mult = self._get_speed_multiplier()
+        # Square the multiplier on gravity so total flight time scales down
+        # (v*s, g*s^2 keeps apex height stable while shrinking flight time by s).
+        gravity = 0.15 * speed_mult * speed_mult
         keys_to_remove = []
         for key in self.keys:
             if key.state == 'hit':
@@ -166,14 +179,13 @@ class KeysNinjaModel:
                 if key.alpha <= 0:
                     keys_to_remove.append(key)
                 continue
-            
+
             # Update position (arc motion like Fruit Ninja)
             key.y += key.velocity_y
             key.x += key.velocity_x
             key.rotation += key.rotation_speed
-            
-            # Apply gravity to vertical velocity (reduced gravity for higher arc)
-            key.velocity_y += 0.15  # Reduced from 0.20 - keys will go higher
+
+            key.velocity_y += gravity
             
             # State transitions based on velocity
             if key.state == 'rising' and key.velocity_y >= 0:

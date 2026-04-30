@@ -106,9 +106,36 @@ def test_get_keys_per_spawn_thresholds():
         assert model._get_keys_per_spawn() == 3
 
 
-def test_spawn_interval_constant():
+def test_spawn_interval_scales_with_score():
     model, _ = _make_model()
+
+    model.score = 0
     assert model._get_spawn_interval() == 2500
+
+    # Drops by 100ms per 50 points
+    model.score = 100
+    assert model._get_spawn_interval() == 2300
+
+    model.score = 250
+    assert model._get_spawn_interval() == 2000
+
+    # Floor at 1000ms regardless of how high score climbs
+    model.score = 5000
+    assert model._get_spawn_interval() == 1000
+
+
+def test_speed_multiplier_scales_with_score():
+    model, _ = _make_model()
+
+    model.score = 0
+    assert model._get_speed_multiplier() == 1.0
+
+    model.score = 500
+    assert model._get_speed_multiplier() == 1.5
+
+    # Capped at 1.6x
+    model.score = 5000
+    assert model._get_speed_multiplier() == 1.6
 
 
 def test_update_does_not_spawn_when_max_keys():

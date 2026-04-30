@@ -9,7 +9,10 @@ def test_keys_ninja_view_draws_without_error():
 
     mock_pg = MagicMock()
     mock_font = Mock()
-    mock_font.render.return_value = Mock(get_rect=Mock(return_value=Mock()))
+    # Provide numeric rect attributes so the view's arithmetic on char_rect
+    # (e.g. char_rect.bottom + 1, char_rect.width // 8) works under mocking.
+    mock_char_rect = Mock(left=10, right=50, bottom=40, top=10, width=40, height=30)
+    mock_font.render.return_value = Mock(get_rect=Mock(return_value=mock_char_rect))
     mock_pg.font.SysFont.return_value = mock_font
     mock_pg.font.Font.return_value = mock_font
     mock_pg.draw = Mock()
