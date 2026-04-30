@@ -64,6 +64,13 @@ class KeysNinjaModel:
         # Linear ramp: 1.0x at 0, +0.1x per 100 points, capped at 1.6x
         return min(1.6, 1.0 + (self.score / 1000))
     
+    def _get_stagger_window(self) -> int:
+        """Max ms to spread a wave's keys across — wider window at higher scores."""
+        # 600ms baseline, +200ms per 100 points, capped at 1400ms.
+        # Wider window means waves drip in over a longer span instead of
+        # arriving as a wall.
+        return min(1400, 600 + (self.score // 100) * 200)
+
     def _get_bomb_chance(self) -> float:
         """Bomb chance based on score."""
         if self.score < 100:
@@ -79,6 +86,9 @@ class KeysNinjaModel:
         self.state = 'playing'
         self.keys: list[KeyObject] = []
         self.last_spawn_time = 0
+        # Pending (spawn_time_ms, position) tuples — lets a wave's keys arrive
+        # at staggered random times instead of all at the same instant.
+        self._pending_spawns: list[tuple[int, str]] = []
         self.gameover_reason = "Out of lives!"
         
         # Visual state
@@ -91,13 +101,7 @@ class KeysNinjaModel:
         self.player_index = 0
         self.current_command = None
     
-    def _spawn_key(self, now: int, screen_width: int, screen_height: int):
-        """Spawn a new key at the bottom of the screen with arc trajectory."""
-        # Random spawn position
-        spawn_side = random.choice(['left', 'center', 'right'])
-        self._spawn_key_at_position(now, screen_width, screen_height, spawn_side)
-    
-    def _spawn_key_at_position(self, now: int, screen_width: int, screen_height: int, position: str):
+    def _spawn_key_at_position(self, screen_width: int, screen_height: int, position: str):
         """Spawn a key at a specific position to avoid overlap."""
         # Random character (A-Z, excluding P, excluding letters already on screen
         # so handle_input always has an unambiguous match).
@@ -138,32 +142,46 @@ class KeysNinjaModel:
             key_obj.velocity_x = random.uniform(-2.0, -0.5) * speed_mult  # Move left
         
         self.keys.append(key_obj)
-        self.last_spawn_time = now
+        # Note: wave timing (`last_spawn_time`) is owned by the update loop now,
+        # so individual staggered spawns inside a wave don't reset the clock.
     
     def update(self, now: int, screen_width: int, screen_height: int) -> bool:
         """Update all keys positions and spawn new ones."""
         if self.state != 'playing':
             return False
         
-        # Spawn multiple keys at once based on score
+        # On interval tick, schedule a wave of keys to arrive at staggered
+        # random times (instead of all at once).
         spawn_interval = self._get_spawn_interval()
         if now - self.last_spawn_time >= spawn_interval:
-            if len(self.keys) < _MAX_KEYS_ON_SCREEN:
-                # Spawn multiple keys at once with spacing
-                keys_to_spawn = self._get_keys_per_spawn()
-                
-                # Calculate spawn positions to avoid overlap
-                if keys_to_spawn == 1:
-                    self._spawn_key(now, screen_width, screen_height)
-                elif keys_to_spawn == 2:
-                    # Spawn one on left, one on right
-                    self._spawn_key_at_position(now, screen_width, screen_height, 'left')
-                    self._spawn_key_at_position(now, screen_width, screen_height, 'right')
-                elif keys_to_spawn == 3:
-                    # Spawn left, center, right
-                    self._spawn_key_at_position(now, screen_width, screen_height, 'left')
-                    self._spawn_key_at_position(now, screen_width, screen_height, 'center')
-                    self._spawn_key_at_position(now, screen_width, screen_height, 'right')
+            keys_to_spawn = self._get_keys_per_spawn()
+            if keys_to_spawn == 1:
+                positions = [random.choice(['left', 'center', 'right'])]
+            elif keys_to_spawn == 2:
+                positions = ['left', 'right']
+            else:
+                positions = ['left', 'center', 'right']
+            random.shuffle(positions)
+
+            stagger_window = self._get_stagger_window()
+            for i, position in enumerate(positions):
+                # First key in the wave arrives immediately so the cadence
+                # never stalls; the rest land at random offsets within the
+                # stagger window.
+                offset = 0 if i == 0 else random.randint(120, stagger_window)
+                self._pending_spawns.append((now + offset, position))
+            self.last_spawn_time = now
+
+        # Drain any pending spawns whose time has come.
+        if self._pending_spawns:
+            still_pending = []
+            for spawn_at, position in self._pending_spawns:
+                if spawn_at <= now and len(self.keys) < _MAX_KEYS_ON_SCREEN:
+                    self._spawn_key_at_position(screen_width, screen_height, position)
+                elif spawn_at > now:
+                    still_pending.append((spawn_at, position))
+                # else: screen is full at the scheduled moment — drop it.
+            self._pending_spawns = still_pending
         
         # Update existing keys
         speed_mult = self._get_speed_multiplier()

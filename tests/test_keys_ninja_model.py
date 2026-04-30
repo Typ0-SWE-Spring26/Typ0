@@ -138,6 +138,34 @@ def test_speed_multiplier_scales_with_score():
     assert model._get_speed_multiplier() == 1.6
 
 
+def test_update_staggers_multi_key_waves_over_time():
+    """A multi-key wave should not all land on the same frame — only the first
+    key spawns immediately, the rest land later when their pending time hits."""
+    model, _ = _make_model()
+    model.score = 250  # 3-key waves possible
+    model.last_spawn_time = 0
+
+    # Force a 3-key wave with a known stagger window so timing is deterministic.
+    with patch("game.core.keys_ninja_model.random.choice", return_value=3), \
+         patch("game.core.keys_ninja_model.random.shuffle", lambda lst: None), \
+         patch("game.core.keys_ninja_model.random.randint", return_value=500), \
+         patch("game.core.keys_ninja_model.random.uniform", return_value=1.0):
+        # First update at t=3000 schedules the wave; one key spawns immediately
+        # (offset=0), the other two are pending at t+500.
+        model.update(now=3000, screen_width=800, screen_height=600)
+        assert len(model.keys) == 1
+        assert len(model._pending_spawns) == 2
+
+        # 200ms later, the staggered keys are not yet due.
+        model.update(now=3200, screen_width=800, screen_height=600)
+        assert len(model.keys) == 1
+
+        # By t=3500 the pending spawns are due and drain in.
+        model.update(now=3500, screen_width=800, screen_height=600)
+        assert len(model.keys) == 3
+        assert model._pending_spawns == []
+
+
 def test_update_does_not_spawn_when_max_keys():
     model, _ = _make_model()
     model.last_spawn_time = 0
