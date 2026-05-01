@@ -12,7 +12,7 @@ CREDIT_ENTRIES = [
     {"section": "Core Team", "name": "Charlie", "roles": ["Frontend Developer", "Art"]},
     {"section": "Core Team", "name": "Dipen", "roles": ["NinjaKeys Developer"]},
     {"section": "Core Team", "name": "Gabi", "roles": ["Developer"]},
-    {"section": "Core Team", "name": "Jude", "roles": ["UI/UX Design", "Pause System", "Emo Flavour"]},
+    {"section": "Core Team", "name": "Jude", "roles": ["UI/UX Design", "Pause System"]},
     {"section": "Core Team", "name": "Joel", "roles": ["Developer"]},
     {"section": "Core Team", "name": "Kregg", "roles": ["Developer"]},
     {"section": "Core Team", "name": "Oriye", "roles": ["Developer"]},
