@@ -158,7 +158,9 @@ class KeysNinjaView(GameView):
             "gravity doesn't care about your feelings.",
             "dodge the bombs or dont",
         ]
-        emo_idx = model.score % len(ninja_emo_lines)
+        # Score grows by 10 per key, so plain `score % 6` only ever lands on
+        # three of the six lines. Divide first so every line is reachable.
+        emo_idx = (model.score // 10) % len(ninja_emo_lines)
         emo_surf = self.font_emo.render(ninja_emo_lines[emo_idx], True, (180, 150, 220))
         emo_surf.set_alpha(200)
         self.screen.blit(emo_surf, emo_surf.get_rect(center=(W // 1.7, hud_h // 2)))
