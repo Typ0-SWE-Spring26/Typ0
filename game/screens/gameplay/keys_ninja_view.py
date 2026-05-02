@@ -80,20 +80,24 @@ class KeysNinjaView(GameView):
         font_size = int(52 * key_obj.scale)
         char_font = pygame.font.SysFont('Arial', font_size, bold=True)
         
+        # Lift the character so the underline can sit inside the key with a
+        # visible gap below the glyph.
+        char_y_shift = max(14, int(16 * key_obj.scale))
+
         # Character shadow for depth
         char_shadow = char_font.render(char_text, True, (0, 0, 0, 150))
-        char_shadow_rect = char_shadow.get_rect(center=(center + 2, center + 2))
+        char_shadow_rect = char_shadow.get_rect(center=(center + 2, center - char_y_shift + 2))
         key_surf.blit(char_shadow, char_shadow_rect)
-        
+
         # Main character
         char_surf = char_font.render(char_text, True, (255, 255, 255))
-        char_rect = char_surf.get_rect(center=(center, center))
+        char_rect = char_surf.get_rect(center=(center, center - char_y_shift))
         key_surf.blit(char_surf, char_rect)
 
-        # Underline beneath the character — also a "this side up" marker
-        # for symmetric letters (M/W, N/Z, etc.) when the key rotates.
+        # Underline anchored near the bottom of the key body — also a
+        # "this side up" marker for symmetric letters when the key rotates.
         underline_thickness = max(2, int(3 * key_obj.scale))
-        underline_y = char_rect.bottom + 1
+        underline_y = rect.bottom - underline_thickness - max(6, int(7 * key_obj.scale))
         underline_inset = max(2, char_rect.width // 8)
         underline_start = (char_rect.left + underline_inset, underline_y)
         underline_end = (char_rect.right - underline_inset, underline_y)
