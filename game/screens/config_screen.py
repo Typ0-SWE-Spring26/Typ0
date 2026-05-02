@@ -80,6 +80,9 @@ class ConfigScreen:
     START_COLOR       = (60, 160,  90)
     START_HOVER_COLOR = (85, 195, 120)
 
+    # Modes that don't have a left/right/up/down semantic to invert.
+    _NO_INVERTED_MODES = {"keys_ninja"}
+
     def __init__(
         self,
         screen,
@@ -88,7 +91,8 @@ class ConfigScreen:
         initial_difficulty: str = "normal",
     ):
         self.screen    = screen
-        self.game_mode = game_mode   # "simon" or "bopit" (keys_ninja skips this screen)
+        self.game_mode = game_mode   # "simon", "bopit", or "keys_ninja"
+        self._show_inverted_toggle = game_mode not in self._NO_INVERTED_MODES
 
         self.inverted = bool(initial_inverted)
 
@@ -138,18 +142,32 @@ class ConfigScreen:
         # --- Vertical layout (explicit y coordinates, no overlap) ---
         title_y    = 70
         mode_y     = 115
-        controls_y = 170    # "Controls" label
-        toggle_y   = 205    # toggle switch top
-        diff_lbl_y = 295    # "Difficulty" label
-        diff_y     = 325    # difficulty buttons top
-        stars_y    = 405
-        hint_y     = 432
+        if self._show_inverted_toggle:
+            controls_y = 170    # "Controls" label
+            toggle_y   = 205    # toggle switch top
+            diff_lbl_y = 295    # "Difficulty" label
+            diff_y     = 325    # difficulty buttons top
+            stars_y    = 405
+            hint_y     = 432
+        else:
+            # No inverted toggle for this mode — pull the difficulty section
+            # up so the screen still looks centered.
+            controls_y = None
+            toggle_y   = None
+            diff_lbl_y = 200
+            diff_y     = 240
+            stars_y    = 330
+            hint_y     = 365
         action_y   = H - 85
 
         # Toggle switch (pill) — centered below the Controls label
         tog_w, tog_h = 80, 40
-        toggle_rect  = pygame.Rect(cx - tog_w // 2, toggle_y, tog_w, tog_h)
-        toggle       = ToggleSwitch(toggle_rect, state=self.inverted)
+        if self._show_inverted_toggle:
+            toggle_rect = pygame.Rect(cx - tog_w // 2, toggle_y, tog_w, tog_h)
+            toggle      = ToggleSwitch(toggle_rect, state=self.inverted)
+        else:
+            toggle_rect = None
+            toggle      = None
 
         # Difficulty buttons — evenly spaced row
         diff_btn_w, diff_btn_h = 160, 60
@@ -184,6 +202,13 @@ class ConfigScreen:
                 "Hard":   "Up to 3.5s per command  -  rapid speedup",
             }
             mode_label = "Bop It Mode"
+        elif self.game_mode == "keys_ninja":
+            hints = {
+                "Easy":   "4 lives  -  slower spawns  -  bombs come late",
+                "Normal": "3 lives  -  balanced spawns  -  bombs from 100",
+                "Hard":   "2 lives  -  rapid spawns  -  bombs from 50",
+            }
+            mode_label = "Keys Ninja Mode"
         else:
             raise ValueError(f"ConfigScreen does not support game_mode={self.game_mode!r}")
         challenge_stars = {"Easy": "*", "Normal": "* *", "Hard": "* * *"}
@@ -195,7 +220,7 @@ class ConfigScreen:
                 if event.type == pygame.QUIT:
                     return "quit"
 
-                if toggle.handle_event(event):
+                if toggle is not None and toggle.handle_event(event):
                     self.inverted = toggle.state
 
                 for label, btn in diff_btns.items():
@@ -230,25 +255,28 @@ class ConfigScreen:
             sub_surf = self.font_sub.render(mode_label, True, (180, 180, 220))
             self.screen.blit(sub_surf, sub_surf.get_rect(center=(cx, mode_y)))
 
-            # Controls section — label + toggle + ON/OFF text either side
-            sec1_surf = self.font_label.render("Controls", True, (200, 200, 240))
-            self.screen.blit(sec1_surf, sec1_surf.get_rect(center=(cx, controls_y)))
+            # Controls section — label + toggle + ON/OFF text either side.
+            # Skipped entirely for modes (e.g. keys_ninja) without an
+            # invertible left/right/up/down semantic.
+            if self._show_inverted_toggle:
+                sec1_surf = self.font_label.render("Controls", True, (200, 200, 240))
+                self.screen.blit(sec1_surf, sec1_surf.get_rect(center=(cx, controls_y)))
 
-            inverted_lbl = self.font_sub.render("Inverted:", True, (200, 200, 240))
-            self.screen.blit(
-                inverted_lbl,
-                inverted_lbl.get_rect(midright=(toggle_rect.left - 14,
-                                                toggle_rect.centery)),
-            )
-            state_label  = "ON" if self.inverted else "OFF"
-            state_color  = (130, 220, 160) if self.inverted else (160, 160, 190)
-            state_surf   = self.font_sub.render(state_label, True, state_color)
-            self.screen.blit(
-                state_surf,
-                state_surf.get_rect(midleft=(toggle_rect.right + 14,
-                                             toggle_rect.centery)),
-            )
-            toggle.draw(self.screen)
+                inverted_lbl = self.font_sub.render("Inverted:", True, (200, 200, 240))
+                self.screen.blit(
+                    inverted_lbl,
+                    inverted_lbl.get_rect(midright=(toggle_rect.left - 14,
+                                                    toggle_rect.centery)),
+                )
+                state_label  = "ON" if self.inverted else "OFF"
+                state_color  = (130, 220, 160) if self.inverted else (160, 160, 190)
+                state_surf   = self.font_sub.render(state_label, True, state_color)
+                self.screen.blit(
+                    state_surf,
+                    state_surf.get_rect(midleft=(toggle_rect.right + 14,
+                                                 toggle_rect.centery)),
+                )
+                toggle.draw(self.screen)
 
             # Difficulty section
             sec2_surf = self.font_label.render("Difficulty", True, (200, 200, 240))

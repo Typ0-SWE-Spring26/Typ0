@@ -2,9 +2,54 @@ import random
 import string
 
 # Base settings - simple and slow
-_BASE_SPAWN_INTERVAL = 2500  # 2.5 seconds between spawns (slower)
 _BASE_RISE_SPEED = 11.0      # Rise speed
 _MAX_KEYS_ON_SCREEN = 8      # Maximum keys that can be on screen at once
+
+
+# Difficulty presets — Easy is gentler, Hard ratchets up the pressure.
+# Each preset tunes the auto-scaling curves (it doesn't replace them) so the
+# in-run ramp still happens, just from a different starting point.
+#
+#   starting_lives    — initial life count
+#   spawn_base        — starting ms between spawn waves (before score reduction)
+#   spawn_floor       — minimum ms between spawn waves once fully ramped
+#   spawn_step_score  — how many points before the spawn interval drops 100ms
+#   speed_cap         — maximum fall-speed multiplier
+#   speed_per_point   — how quickly the fall-speed multiplier climbs with score
+#   bomb_start_score  — score at which bombs start appearing
+#   bomb_chance       — bomb spawn probability past the start threshold
+_DIFFICULTY_PRESETS = {
+    'easy':   {
+        'starting_lives':   4,
+        'spawn_base':       3000,
+        'spawn_floor':      1400,
+        'spawn_step_score': 75,
+        'speed_cap':        1.4,
+        'speed_per_point':  1 / 1400,
+        'bomb_start_score': 200,
+        'bomb_chance':      0.10,
+    },
+    'normal': {
+        'starting_lives':   3,
+        'spawn_base':       2500,
+        'spawn_floor':      1000,
+        'spawn_step_score': 50,
+        'speed_cap':        1.6,
+        'speed_per_point':  1 / 1000,
+        'bomb_start_score': 100,
+        'bomb_chance':      0.15,
+    },
+    'hard':   {
+        'starting_lives':   2,
+        'spawn_base':       2000,
+        'spawn_floor':      700,
+        'spawn_step_score': 35,
+        'speed_cap':        1.8,
+        'speed_per_point':  1 / 700,
+        'bomb_start_score': 50,
+        'bomb_chance':      0.22,
+    },
+}
 
 
 class KeyObject:
@@ -34,13 +79,17 @@ class KeysNinjaModel:
     
     def __init__(self, event_bus, difficulty: str = 'normal'):
         self._bus = event_bus
+        self._preset = _DIFFICULTY_PRESETS.get(
+            difficulty, _DIFFICULTY_PRESETS['normal']
+        )
+        self.difficulty = difficulty if difficulty in _DIFFICULTY_PRESETS else 'normal'
         self.reset()
-    
+
     @property
     def time_limit(self) -> int:
         """No timer in Keys Ninja mode, but needed for compatibility."""
         return 999999
-    
+
     def _get_keys_per_spawn(self) -> int:
         """How many keys to spawn at once based on score - random selection."""
         if self.score < 60:
@@ -52,18 +101,19 @@ class KeysNinjaModel:
         else:
             # Late game: randomly 1, 2, or 3 keys
             return random.choice([1, 2, 2, 3])  # 25% 1-key, 50% 2-keys, 25% 3-keys
-    
+
     def _get_spawn_interval(self) -> int:
         """Spawn interval shrinks as score climbs — more keys, faster."""
-        # 2500ms at score 0, drops by 100ms per 50 points, floor at 1000ms
-        reduction = (self.score // 50) * 100
-        return max(1000, _BASE_SPAWN_INTERVAL - reduction)
+        step = self._preset['spawn_step_score']
+        reduction = (self.score // step) * 100
+        return max(self._preset['spawn_floor'],
+                   self._preset['spawn_base'] - reduction)
 
     def _get_speed_multiplier(self) -> float:
         """Rise/fall speed multiplier — keys move faster at higher scores."""
-        # Linear ramp: 1.0x at 0, +0.1x per 100 points, capped at 1.6x
-        return min(1.6, 1.0 + (self.score / 1000))
-    
+        return min(self._preset['speed_cap'],
+                   1.0 + self.score * self._preset['speed_per_point'])
+
     def _get_stagger_window(self) -> int:
         """Max ms to spread a wave's keys across — wider window at higher scores."""
         # 600ms baseline, +200ms per 100 points, capped at 1400ms.
@@ -73,16 +123,15 @@ class KeysNinjaModel:
 
     def _get_bomb_chance(self) -> float:
         """Bomb chance based on score."""
-        if self.score < 100:
-            return 0.0  # No bombs early game
-        else:
-            return 0.15  # 15% chance after 100 points
-    
+        if self.score < self._preset['bomb_start_score']:
+            return 0.0
+        return self._preset['bomb_chance']
+
     def reset(self):
         self.score = 0
         self.combo = 0
         self.max_combo = 0
-        self.lives = 3  # Start with 3 lives
+        self.lives = self._preset['starting_lives']
         self.state = 'playing'
         self.keys: list[KeyObject] = []
         self.last_spawn_time = 0
