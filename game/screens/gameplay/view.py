@@ -158,7 +158,7 @@ class GameView:
         # emo flavor text (shown during the showing/adding phase)
         if model.state in ('adding', 'showing'):
             round_num = len(model.sequence)
-            line_idx = min(max(round_num - 1, 0), len(self._emo_lines) - 1)
+            line_idx = max(round_num - 1, 0) % len(self._emo_lines)
             emo_text = self._emo_lines[line_idx]
             emo_surf = self.font_emo.render(emo_text, True, (200, 150, 220))
             emo_surf.set_alpha(200)

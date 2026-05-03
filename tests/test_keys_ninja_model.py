@@ -106,9 +106,64 @@ def test_get_keys_per_spawn_thresholds():
         assert model._get_keys_per_spawn() == 3
 
 
-def test_spawn_interval_constant():
+def test_spawn_interval_scales_with_score():
     model, _ = _make_model()
+
+    model.score = 0
     assert model._get_spawn_interval() == 2500
+
+    # Drops by 100ms per 50 points
+    model.score = 100
+    assert model._get_spawn_interval() == 2300
+
+    model.score = 250
+    assert model._get_spawn_interval() == 2000
+
+    # Floor at 1000ms regardless of how high score climbs
+    model.score = 5000
+    assert model._get_spawn_interval() == 1000
+
+
+def test_speed_multiplier_scales_with_score():
+    model, _ = _make_model()
+
+    model.score = 0
+    assert model._get_speed_multiplier() == 1.0
+
+    model.score = 500
+    assert model._get_speed_multiplier() == 1.5
+
+    # Capped at 1.6x
+    model.score = 5000
+    assert model._get_speed_multiplier() == 1.6
+
+
+def test_update_staggers_multi_key_waves_over_time():
+    """A multi-key wave should not all land on the same frame — only the first
+    key spawns immediately, the rest land later when their pending time hits."""
+    model, _ = _make_model()
+    model.score = 250  # 3-key waves possible
+    model.last_spawn_time = 0
+
+    # Force a 3-key wave with a known stagger window so timing is deterministic.
+    with patch("game.core.keys_ninja_model.random.choice", return_value=3), \
+         patch("game.core.keys_ninja_model.random.shuffle", lambda lst: None), \
+         patch("game.core.keys_ninja_model.random.randint", return_value=500), \
+         patch("game.core.keys_ninja_model.random.uniform", return_value=1.0):
+        # First update at t=3000 schedules the wave; one key spawns immediately
+        # (offset=0), the other two are pending at t+500.
+        model.update(now=3000, screen_width=800, screen_height=600)
+        assert len(model.keys) == 1
+        assert len(model._pending_spawns) == 2
+
+        # 200ms later, the staggered keys are not yet due.
+        model.update(now=3200, screen_width=800, screen_height=600)
+        assert len(model.keys) == 1
+
+        # By t=3500 the pending spawns are due and drain in.
+        model.update(now=3500, screen_width=800, screen_height=600)
+        assert len(model.keys) == 3
+        assert model._pending_spawns == []
 
 
 def test_update_does_not_spawn_when_max_keys():

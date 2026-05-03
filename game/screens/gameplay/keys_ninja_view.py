@@ -80,15 +80,35 @@ class KeysNinjaView(GameView):
         font_size = int(52 * key_obj.scale)
         char_font = pygame.font.SysFont('Arial', font_size, bold=True)
         
+        # Lift the character so the underline can sit inside the key with a
+        # visible gap below the glyph.
+        char_y_shift = max(14, int(16 * key_obj.scale))
+
         # Character shadow for depth
         char_shadow = char_font.render(char_text, True, (0, 0, 0, 150))
-        char_shadow_rect = char_shadow.get_rect(center=(center + 2, center + 2))
+        char_shadow_rect = char_shadow.get_rect(center=(center + 2, center - char_y_shift + 2))
         key_surf.blit(char_shadow, char_shadow_rect)
-        
+
         # Main character
         char_surf = char_font.render(char_text, True, (255, 255, 255))
-        char_rect = char_surf.get_rect(center=(center, center))
+        char_rect = char_surf.get_rect(center=(center, center - char_y_shift))
         key_surf.blit(char_surf, char_rect)
+
+        # Underline anchored near the bottom of the key body — also a
+        # "this side up" marker for symmetric letters when the key rotates.
+        underline_thickness = max(2, int(3 * key_obj.scale))
+        underline_y = rect.bottom - underline_thickness - max(6, int(7 * key_obj.scale))
+        underline_inset = max(2, char_rect.width // 8)
+        underline_start = (char_rect.left + underline_inset, underline_y)
+        underline_end = (char_rect.right - underline_inset, underline_y)
+        # Shadow first, then the bright underline on top
+        pygame.draw.line(key_surf, (0, 0, 0, 150),
+                         (underline_start[0] + 2, underline_y + 2),
+                         (underline_end[0] + 2, underline_y + 2),
+                         underline_thickness)
+        pygame.draw.line(key_surf, (255, 255, 255),
+                         underline_start, underline_end,
+                         underline_thickness)
         
         # Apply alpha
         key_surf.set_alpha(int(key_obj.alpha))
@@ -138,7 +158,9 @@ class KeysNinjaView(GameView):
             "gravity doesn't care about your feelings.",
             "dodge the bombs or dont",
         ]
-        emo_idx = model.score % len(ninja_emo_lines)
+        # Score grows by 10 per key, so plain `score % 6` only ever lands on
+        # three of the six lines. Divide first so every line is reachable.
+        emo_idx = (model.score // 10) % len(ninja_emo_lines)
         emo_surf = self.font_emo.render(ninja_emo_lines[emo_idx], True, (180, 150, 220))
         emo_surf.set_alpha(200)
         self.screen.blit(emo_surf, emo_surf.get_rect(center=(W // 1.7, hud_h // 2)))

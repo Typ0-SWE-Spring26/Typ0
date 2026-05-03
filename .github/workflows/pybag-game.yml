@@ -165,13 +165,14 @@ jobs:
             FAILED=1
           fi
 
-          # Score API
+          # Score API — leaderboards are now per-difficulty; ping the
+          # `_normal` bucket as a representative health check.
           SCORE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            --max-time 10 "$BASE/scores/simon")
+            --max-time 10 "$BASE/scores/simon_normal")
           if [ "$SCORE_STATUS" = "200" ]; then
-            echo "✓ Score API         /scores/simon    →  HTTP $SCORE_STATUS"
+            echo "✓ Score API         /scores/simon_normal  →  HTTP $SCORE_STATUS"
           else
-            echo "✗ Score API         /scores/simon    →  HTTP $SCORE_STATUS (expected 200)"
+            echo "✗ Score API         /scores/simon_normal  →  HTTP $SCORE_STATUS (expected 200)"
             FAILED=1
           fi
 

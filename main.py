@@ -104,7 +104,7 @@ async def _run_multiplayer(screen, keybinds):
         # res == "lobby" → loop back to lobby screen
 
 
-async def _run_single_player_post_game(screen, game_mode, score, reason, hs_name):
+async def _run_single_player_post_game(screen, game_mode, difficulty, score, reason, hs_name):
     """Run the game-over/high-scores/credits loop and return next navigation state."""
     result = "high_scores"
 
@@ -116,7 +116,8 @@ async def _run_single_player_post_game(screen, game_mode, score, reason, hs_name
             if result == "high_scores":
                 hs_screen = HighScoresScreen(
                     screen,
-                    game_type=game_mode,
+                    game_mode=game_mode,
+                    difficulty=difficulty,
                     highlight_name=hs_name,
                     highlight_score=score if hs_name else None,
                 )
@@ -136,49 +137,6 @@ async def _run_single_player(screen, keybinds, game_mode):
     
     """Run config -> gameplay -> post-game loop for one single-player mode."""
     pause_overlay = PauseOverlay(screen)
-
-    # Keys Ninja mode skips config and goes straight to gameplay
-    if game_mode == "keys_ninja":
-        result = "retry"
-        while result == "retry":
-            game_screen = KeysNinjaScreen(
-                screen,
-                keybinds,
-                pause_overlay=pause_overlay,
-                difficulty="normal",  # Not used, difficulty auto-scales
-            )
-            game_result = await game_screen.run()
-
-            if game_result == "quit":
-                return "quit"
-
-            # Player used the in-game menu to go to main menu
-            if isinstance(game_result, tuple) and game_result and game_result[0] == "main_menu":
-                return "menu"
-
-            # Player used the in-game menu to switch modes
-            if isinstance(game_result, tuple) and game_result and game_result[0] == "switch_mode":
-                target = game_result[1] if len(game_result) > 1 else "simon"
-                return f"start_{target}"
-
-            # game_result is ("gameover", score, reason)
-            _, score, reason = game_result
-
-            # Arcade-style: name entry if high score
-            hs_name = None
-            if await is_high_score_async(score, game_mode):
-                name_entry = NameEntryScreen(screen, score)
-                name_result = await name_entry.run()
-                if name_result == "quit":
-                    return "quit"
-                hs_name = name_result
-                await add_score_async(hs_name, score, game_mode)
-
-            result = await _run_single_player_post_game(
-                screen, game_mode, score, reason, hs_name
-            )
-
-        return result
 
     # Persist previous selection across retries so the config screen feels continuous.
     selected_inverted = False
@@ -206,6 +164,13 @@ async def _run_single_player(screen, keybinds, game_mode):
 
         if game_mode == "bopit":
             game_screen = BopItScreen(
+                screen,
+                keybinds,
+                pause_overlay=pause_overlay,
+                difficulty=selected_difficulty,
+            )
+        elif game_mode == "keys_ninja":
+            game_screen = KeysNinjaScreen(
                 screen,
                 keybinds,
                 pause_overlay=pause_overlay,
@@ -243,18 +208,22 @@ async def _run_single_player(screen, keybinds, game_mode):
         # game_result is ("gameover", score, reason)
         _, score, reason = game_result
 
+        # Per-difficulty leaderboard: each difficulty has its own bucket so
+        # easy-mode runs don't compete against hard-mode runs.
+        leaderboard_id = f"{game_mode}_{selected_difficulty}"
+
         # Arcade-style: name entry if high score
         hs_name = None
-        if await is_high_score_async(score, game_mode):
+        if await is_high_score_async(score, leaderboard_id):
             name_entry = NameEntryScreen(screen, score)
             name_result = await name_entry.run()
             if name_result == "quit":
                 return "quit"
             hs_name = name_result
-            await add_score_async(hs_name, score, game_mode)
+            await add_score_async(hs_name, score, leaderboard_id)
 
         result = await _run_single_player_post_game(
-            screen, game_mode, score, reason, hs_name
+            screen, game_mode, selected_difficulty, score, reason, hs_name
         )
 
     return result
@@ -301,6 +270,21 @@ async def main():
                         if cr == "quit":
                             result = "quit"
                             break
+                    continue  # back to menu
+                if result == "high_scores":
+                    # Browse mode: show mode + difficulty tabs, default to
+                    # Simon Normal so first-time visitors land on the most
+                    # populated board.
+                    hs_screen = HighScoresScreen(
+                        screen,
+                        game_mode="simon",
+                        difficulty="normal",
+                        browse_mode=True,
+                    )
+                    hs_result = await hs_screen.run()
+                    if hs_result == "quit":
+                        result = "quit"
+                        break
                     continue  # back to menu
                 break  # "start_simon", "start_bopit", "multiplayer", or "quit"
 

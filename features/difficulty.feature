@@ -88,3 +88,64 @@ Feature: Difficulty settings
     Given a fresh Bop-It model with "easy" difficulty
     And a fresh Bop-It model with "hard" difficulty as "hard_bopit"
     Then the Bop-It easy round delay should be greater than the hard round delay
+
+  # ── Keys Ninja mode ───────────────────────────────────────────────────────
+
+  Scenario Outline: Keys Ninja remembers which difficulty it was started with
+    Given a fresh Keys Ninja model with "<difficulty>" difficulty
+    Then the Keys Ninja difficulty attribute should equal "<difficulty>"
+
+    Examples:
+      | difficulty |
+      | easy       |
+      | normal     |
+      | hard       |
+
+  Scenario: Keys Ninja Easy starts with more lives than Normal
+    Given a fresh Keys Ninja model with "easy" difficulty
+    And a fresh Keys Ninja model with "normal" difficulty as "normal_ninja"
+    Then the Keys Ninja easy starting lives should be greater than the normal starting lives
+
+  Scenario: Keys Ninja Hard starts with fewer lives than Normal
+    Given a fresh Keys Ninja model with "hard" difficulty
+    And a fresh Keys Ninja model with "normal" difficulty as "normal_ninja"
+    Then the Keys Ninja hard starting lives should be less than the normal starting lives
+
+  Scenario: Keys Ninja Easy spawns slower than Hard at score zero
+    Given a fresh Keys Ninja model with "easy" difficulty
+    And a fresh Keys Ninja model with "hard" difficulty as "hard_ninja"
+    Then the Keys Ninja easy spawn interval should be greater than the hard spawn interval
+
+  Scenario: Keys Ninja Hard ramps fall speed faster than Easy
+    Given a fresh Keys Ninja model with "easy" difficulty
+    And a fresh Keys Ninja model with "hard" difficulty as "hard_ninja"
+    And both Keys Ninja models have score 200
+    Then the Keys Ninja hard speed multiplier should be greater than the easy speed multiplier
+
+  Scenario: Keys Ninja Easy delays bombs past Normal's threshold
+    Given a fresh Keys Ninja model with "easy" difficulty
+    And the Keys Ninja score is 100
+    Then the Keys Ninja bomb chance should be 0
+
+  Scenario: Keys Ninja Hard starts bombs before Normal does
+    Given a fresh Keys Ninja model with "hard" difficulty
+    And a fresh Keys Ninja model with "normal" difficulty as "normal_ninja"
+    And both Keys Ninja models have score 50
+    Then the Keys Ninja hard bomb chance should be greater than 0
+    And the Keys Ninja normal bomb chance should be 0
+
+  Scenario: Keys Ninja Hard cannot exceed its speed cap
+    Given a fresh Keys Ninja model with "hard" difficulty
+    And the Keys Ninja score is 1000000
+    Then the Keys Ninja speed multiplier should not exceed the hard speed cap
+
+  Scenario: Keys Ninja unknown difficulty falls back to Normal
+    Given a fresh Keys Ninja model with "impossible" difficulty
+    And a fresh Keys Ninja model with "normal" difficulty as "normal_ninja"
+    Then the Keys Ninja starting lives should equal the normal starting lives
+    And the Keys Ninja difficulty attribute should equal "normal"
+
+  Scenario: Keys Ninja reset preserves chosen difficulty
+    Given a fresh Keys Ninja model with "easy" difficulty
+    When the Keys Ninja model is damaged and reset
+    Then the Keys Ninja starting lives should equal the easy starting lives

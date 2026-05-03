@@ -69,8 +69,12 @@ class MenuOverlay:
                 if target != self.game_mode:
                     switch_targets.append((target, label))
         show_main_menu = self.game_mode is not None
-        button_count = 3 + len(switch_targets) + (1 if show_main_menu else 0)
-        spacing = 60
+        # 4 fixed entries (volume, music, how-to-play, high-scores) + switch
+        # targets + optional main-menu shortcut.
+        button_count = 4 + len(switch_targets) + (1 if show_main_menu else 0)
+        # Tighten spacing slightly so the extra row still fits inside the
+        # brick popup; 56px keeps the overlap below the button height.
+        spacing = 56 if button_count > 5 else 60
         total_h = button_count * button_height + (button_count - 1) * (spacing - button_height)
         first_y = popup_center_y - total_h // 2
 
@@ -85,11 +89,12 @@ class MenuOverlay:
         self.volume_rect = _rect_at(0)
         self.music_rect = _rect_at(1)
         self.about_rect = _rect_at(2)
+        self.high_scores_rect = _rect_at(3)
         self.switch_rects = [
-            _rect_at(3 + i) for i in range(len(switch_targets))
+            _rect_at(4 + i) for i in range(len(switch_targets))
         ]
         self._switch_targets = switch_targets
-        self.main_menu_rect = _rect_at(3 + len(switch_targets)) if show_main_menu else None
+        self.main_menu_rect = _rect_at(4 + len(switch_targets)) if show_main_menu else None
 
         # Initialize submenus
         self.volume_menu = VolumeMenu(screen, self.font_manager)
@@ -146,9 +151,10 @@ class MenuOverlay:
             self.music_menu.draw(self.bg_rect)
         elif self.open:
             items = [
-                (self.volume_rect, "VOLUME"),
-                (self.music_rect,  "MUSIC"),
-                (self.about_rect,  "HOW TO PLAY"),
+                (self.volume_rect,      "VOLUME"),
+                (self.music_rect,       "MUSIC"),
+                (self.about_rect,       "HOW TO PLAY"),
+                (self.high_scores_rect, "HIGH SCORES"),
             ]
             for rect, (_, label) in zip(self.switch_rects, self._switch_targets):
                 items.append((rect, label))
@@ -219,6 +225,9 @@ class MenuOverlay:
                 if self.about_rect.collidepoint(event.pos):
                     self.open = False
                     return "how_to_play"
+                if self.high_scores_rect.collidepoint(event.pos):
+                    self.open = False
+                    return "high_scores"
                 for rect, (target, _label) in zip(self.switch_rects, self._switch_targets):
                     if rect.collidepoint(event.pos):
                         self.open = False

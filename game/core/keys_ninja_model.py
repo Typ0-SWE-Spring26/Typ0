@@ -2,9 +2,54 @@ import random
 import string
 
 # Base settings - simple and slow
-_BASE_SPAWN_INTERVAL = 2500  # 2.5 seconds between spawns (slower)
 _BASE_RISE_SPEED = 11.0      # Rise speed
 _MAX_KEYS_ON_SCREEN = 8      # Maximum keys that can be on screen at once
+
+
+# Difficulty presets — Easy is gentler, Hard ratchets up the pressure.
+# Each preset tunes the auto-scaling curves (it doesn't replace them) so the
+# in-run ramp still happens, just from a different starting point.
+#
+#   starting_lives    — initial life count
+#   spawn_base        — starting ms between spawn waves (before score reduction)
+#   spawn_floor       — minimum ms between spawn waves once fully ramped
+#   spawn_step_score  — how many points before the spawn interval drops 100ms
+#   speed_cap         — maximum fall-speed multiplier
+#   speed_per_point   — how quickly the fall-speed multiplier climbs with score
+#   bomb_start_score  — score at which bombs start appearing
+#   bomb_chance       — bomb spawn probability past the start threshold
+_DIFFICULTY_PRESETS = {
+    'easy':   {
+        'starting_lives':   4,
+        'spawn_base':       3000,
+        'spawn_floor':      1400,
+        'spawn_step_score': 75,
+        'speed_cap':        1.4,
+        'speed_per_point':  1 / 1400,
+        'bomb_start_score': 200,
+        'bomb_chance':      0.10,
+    },
+    'normal': {
+        'starting_lives':   3,
+        'spawn_base':       2500,
+        'spawn_floor':      1000,
+        'spawn_step_score': 50,
+        'speed_cap':        1.6,
+        'speed_per_point':  1 / 1000,
+        'bomb_start_score': 100,
+        'bomb_chance':      0.15,
+    },
+    'hard':   {
+        'starting_lives':   2,
+        'spawn_base':       2000,
+        'spawn_floor':      700,
+        'spawn_step_score': 35,
+        'speed_cap':        1.8,
+        'speed_per_point':  1 / 700,
+        'bomb_start_score': 50,
+        'bomb_chance':      0.22,
+    },
+}
 
 
 class KeyObject:
@@ -34,13 +79,17 @@ class KeysNinjaModel:
     
     def __init__(self, event_bus, difficulty: str = 'normal'):
         self._bus = event_bus
+        self._preset = _DIFFICULTY_PRESETS.get(
+            difficulty, _DIFFICULTY_PRESETS['normal']
+        )
+        self.difficulty = difficulty if difficulty in _DIFFICULTY_PRESETS else 'normal'
         self.reset()
-    
+
     @property
     def time_limit(self) -> int:
         """No timer in Keys Ninja mode, but needed for compatibility."""
         return 999999
-    
+
     def _get_keys_per_spawn(self) -> int:
         """How many keys to spawn at once based on score - random selection."""
         if self.score < 60:
@@ -52,26 +101,43 @@ class KeysNinjaModel:
         else:
             # Late game: randomly 1, 2, or 3 keys
             return random.choice([1, 2, 2, 3])  # 25% 1-key, 50% 2-keys, 25% 3-keys
-    
+
     def _get_spawn_interval(self) -> int:
-        """Spawn interval - stays constant, no speed increase."""
-        return 2500  # Always 2.5 seconds
-    
+        """Spawn interval shrinks as score climbs — more keys, faster."""
+        step = self._preset['spawn_step_score']
+        reduction = (self.score // step) * 100
+        return max(self._preset['spawn_floor'],
+                   self._preset['spawn_base'] - reduction)
+
+    def _get_speed_multiplier(self) -> float:
+        """Rise/fall speed multiplier — keys move faster at higher scores."""
+        return min(self._preset['speed_cap'],
+                   1.0 + self.score * self._preset['speed_per_point'])
+
+    def _get_stagger_window(self) -> int:
+        """Max ms to spread a wave's keys across — wider window at higher scores."""
+        # 600ms baseline, +200ms per 100 points, capped at 1400ms.
+        # Wider window means waves drip in over a longer span instead of
+        # arriving as a wall.
+        return min(1400, 600 + (self.score // 100) * 200)
+
     def _get_bomb_chance(self) -> float:
         """Bomb chance based on score."""
-        if self.score < 100:
-            return 0.0  # No bombs early game
-        else:
-            return 0.15  # 15% chance after 100 points
-    
+        if self.score < self._preset['bomb_start_score']:
+            return 0.0
+        return self._preset['bomb_chance']
+
     def reset(self):
         self.score = 0
         self.combo = 0
         self.max_combo = 0
-        self.lives = 3  # Start with 3 lives
+        self.lives = self._preset['starting_lives']
         self.state = 'playing'
         self.keys: list[KeyObject] = []
         self.last_spawn_time = 0
+        # Pending (spawn_time_ms, position) tuples — lets a wave's keys arrive
+        # at staggered random times instead of all at the same instant.
+        self._pending_spawns: list[tuple[int, str]] = []
         self.gameover_reason = "Out of lives!"
         
         # Visual state
@@ -84,13 +150,7 @@ class KeysNinjaModel:
         self.player_index = 0
         self.current_command = None
     
-    def _spawn_key(self, now: int, screen_width: int, screen_height: int):
-        """Spawn a new key at the bottom of the screen with arc trajectory."""
-        # Random spawn position
-        spawn_side = random.choice(['left', 'center', 'right'])
-        self._spawn_key_at_position(now, screen_width, screen_height, spawn_side)
-    
-    def _spawn_key_at_position(self, now: int, screen_width: int, screen_height: int, position: str):
+    def _spawn_key_at_position(self, screen_width: int, screen_height: int, position: str):
         """Spawn a key at a specific position to avoid overlap."""
         # Random character (A-Z, excluding P, excluding letters already on screen
         # so handle_input always has an unambiguous match).
@@ -117,46 +177,70 @@ class KeysNinjaModel:
         # Bombs keep their random letter - they just look red
         
         key_obj = KeyObject(char, x, y, is_bomb)
-        
+
+        speed_mult = self._get_speed_multiplier()
+
         # Set initial velocities for arc motion (like Fruit Ninja)
-        key_obj.velocity_y = -_BASE_RISE_SPEED
-        
+        key_obj.velocity_y = -_BASE_RISE_SPEED * speed_mult
+
         # Add horizontal velocity for arc effect
         center_x = screen_width // 2
         if x < center_x:
-            key_obj.velocity_x = random.uniform(0.5, 2.0)  # Move right
+            key_obj.velocity_x = random.uniform(0.5, 2.0) * speed_mult  # Move right
         else:
-            key_obj.velocity_x = random.uniform(-2.0, -0.5)  # Move left
+            key_obj.velocity_x = random.uniform(-2.0, -0.5) * speed_mult  # Move left
         
         self.keys.append(key_obj)
-        self.last_spawn_time = now
+        # Note: wave timing (`last_spawn_time`) is owned by the update loop now,
+        # so individual staggered spawns inside a wave don't reset the clock.
     
     def update(self, now: int, screen_width: int, screen_height: int) -> bool:
         """Update all keys positions and spawn new ones."""
         if self.state != 'playing':
             return False
         
-        # Spawn multiple keys at once based on score
+        # On interval tick, schedule a wave of keys to arrive at staggered
+        # random times (instead of all at once).
         spawn_interval = self._get_spawn_interval()
         if now - self.last_spawn_time >= spawn_interval:
-            if len(self.keys) < _MAX_KEYS_ON_SCREEN:
-                # Spawn multiple keys at once with spacing
-                keys_to_spawn = self._get_keys_per_spawn()
-                
-                # Calculate spawn positions to avoid overlap
-                if keys_to_spawn == 1:
-                    self._spawn_key(now, screen_width, screen_height)
-                elif keys_to_spawn == 2:
-                    # Spawn one on left, one on right
-                    self._spawn_key_at_position(now, screen_width, screen_height, 'left')
-                    self._spawn_key_at_position(now, screen_width, screen_height, 'right')
-                elif keys_to_spawn == 3:
-                    # Spawn left, center, right
-                    self._spawn_key_at_position(now, screen_width, screen_height, 'left')
-                    self._spawn_key_at_position(now, screen_width, screen_height, 'center')
-                    self._spawn_key_at_position(now, screen_width, screen_height, 'right')
+            keys_to_spawn = self._get_keys_per_spawn()
+            if keys_to_spawn == 1:
+                positions = [random.choice(['left', 'center', 'right'])]
+            elif keys_to_spawn == 2:
+                positions = ['left', 'right']
+            else:
+                positions = ['left', 'center', 'right']
+            random.shuffle(positions)
+
+            stagger_window = self._get_stagger_window()
+            for i, position in enumerate(positions):
+                # First key in the wave arrives immediately so the cadence
+                # never stalls; the rest land at random offsets within the
+                # stagger window.
+                offset = 0 if i == 0 else random.randint(120, stagger_window)
+                self._pending_spawns.append((now + offset, position))
+            self.last_spawn_time = now
+
+        # Drain any pending spawns whose time has come.
+        if self._pending_spawns:
+            still_pending = []
+            active_keys = sum(
+                1 for key in self.keys if key.state in ('rising', 'falling')
+            )
+            for spawn_at, position in self._pending_spawns:
+                if spawn_at <= now and active_keys < _MAX_KEYS_ON_SCREEN:
+                    self._spawn_key_at_position(screen_width, screen_height, position)
+                    active_keys += 1
+                elif spawn_at > now:
+                    still_pending.append((spawn_at, position))
+                # else: screen is full at the scheduled moment — drop it.
+            self._pending_spawns = still_pending
         
         # Update existing keys
+        speed_mult = self._get_speed_multiplier()
+        # Square the multiplier on gravity so total flight time scales down
+        # (v*s, g*s^2 keeps apex height stable while shrinking flight time by s).
+        gravity = 0.15 * speed_mult * speed_mult
         keys_to_remove = []
         for key in self.keys:
             if key.state == 'hit':
@@ -166,14 +250,13 @@ class KeysNinjaModel:
                 if key.alpha <= 0:
                     keys_to_remove.append(key)
                 continue
-            
+
             # Update position (arc motion like Fruit Ninja)
             key.y += key.velocity_y
             key.x += key.velocity_x
             key.rotation += key.rotation_speed
-            
-            # Apply gravity to vertical velocity (reduced gravity for higher arc)
-            key.velocity_y += 0.15  # Reduced from 0.20 - keys will go higher
+
+            key.velocity_y += gravity
             
             # State transitions based on velocity
             if key.state == 'rising' and key.velocity_y >= 0:
