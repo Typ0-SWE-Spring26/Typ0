@@ -224,9 +224,13 @@ class KeysNinjaModel:
         # Drain any pending spawns whose time has come.
         if self._pending_spawns:
             still_pending = []
+            active_keys = sum(
+                1 for key in self.keys if key.state in ('rising', 'falling')
+            )
             for spawn_at, position in self._pending_spawns:
-                if spawn_at <= now and len(self.keys) < _MAX_KEYS_ON_SCREEN:
+                if spawn_at <= now and active_keys < _MAX_KEYS_ON_SCREEN:
                     self._spawn_key_at_position(screen_width, screen_height, position)
+                    active_keys += 1
                 elif spawn_at > now:
                     still_pending.append((spawn_at, position))
                 # else: screen is full at the scheduled moment — drop it.
