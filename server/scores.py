@@ -11,7 +11,17 @@ import os
 from pathlib import Path
 
 MAX_SCORES = 10
-VALID_GAME_TYPES = {"simon", "bopit", "keys_ninja", "multiplayer"}
+
+# Per-mode leaderboards are split by difficulty, e.g. "simon_easy",
+# "simon_normal", "simon_hard". Multiplayer is shared across difficulties
+# because both players agree on a seed and there's no preset selector.
+_DIFFICULTIES = ("easy", "normal", "hard")
+_SINGLE_PLAYER_MODES = ("simon", "bopit", "keys_ninja")
+VALID_GAME_TYPES = {
+    f"{mode}_{difficulty}"
+    for mode in _SINGLE_PLAYER_MODES
+    for difficulty in _DIFFICULTIES
+} | {"multiplayer"}
 
 
 def _scores_dir() -> Path:
@@ -23,6 +33,26 @@ def _scores_dir() -> Path:
 
 def _scores_file(game_type: str) -> Path:
     return _scores_dir() / f"{game_type}_scores.json"
+
+
+def _migrate_legacy_scores() -> None:
+    """One-shot migration: move legacy {mode}_scores.json into {mode}_normal.
+
+    Earlier versions stored a single leaderboard per mode; per-difficulty
+    leaderboards split that into three. Existing data is treated as Normal
+    runs (the previous default) so longtime players don't lose their scores.
+    Runs only when the legacy file exists *and* the normal-bucket file does
+    not — a destination-exists check is the migration's idempotency guard.
+    """
+    base = _scores_dir()
+    for mode in _SINGLE_PLAYER_MODES:
+        legacy = base / f"{mode}_scores.json"
+        target = base / f"{mode}_normal_scores.json"
+        if legacy.exists() and not target.exists():
+            legacy.rename(target)
+
+
+_migrate_legacy_scores()
 
 
 def load_scores(game_type: str) -> list:

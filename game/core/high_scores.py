@@ -6,6 +6,16 @@ from pathlib import Path
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 MAX_SCORES = 10
 
+# Single-player modes whose leaderboards split by difficulty.
+_SINGLE_PLAYER_MODES = ("simon", "bopit", "keys_ninja")
+
+
+def _scores_dir() -> Path:
+    scores_dir = os.environ.get("SCORES_DIR")
+    base = Path(scores_dir) if scores_dir else _PROJECT_ROOT
+    base.mkdir(parents=True, exist_ok=True)
+    return base
+
 
 def _scores_file(game_type: str) -> Path:
     """Return the path to the scores file for a given game type.
@@ -14,10 +24,30 @@ def _scores_file(game_type: str) -> Path:
     volume on a server), so scores survive redeployments.  Falls back to
     the project root for local development.
     """
-    scores_dir = os.environ.get("SCORES_DIR")
-    base = Path(scores_dir) if scores_dir else _PROJECT_ROOT
-    base.mkdir(parents=True, exist_ok=True)
-    return base / f"{game_type}_scores.json"
+    return _scores_dir() / f"{game_type}_scores.json"
+
+
+def _migrate_legacy_scores() -> None:
+    """One-shot migration of legacy `{mode}_scores.json` → `{mode}_normal_scores.json`.
+
+    The leaderboards were split per-difficulty after release; existing
+    scores are migrated into the Normal bucket (the previous default) so
+    they aren't lost. Idempotent: skips when the destination already exists.
+    """
+    base = _scores_dir()
+    for mode in _SINGLE_PLAYER_MODES:
+        legacy = base / f"{mode}_scores.json"
+        target = base / f"{mode}_normal_scores.json"
+        if legacy.exists() and not target.exists():
+            try:
+                legacy.rename(target)
+            except OSError:
+                # Best-effort — a failure here just leaves legacy data behind
+                # rather than crashing the game on launch.
+                pass
+
+
+_migrate_legacy_scores()
 
 
 def _coerce_entry(entry):

@@ -104,7 +104,7 @@ async def _run_multiplayer(screen, keybinds):
         # res == "lobby" → loop back to lobby screen
 
 
-async def _run_single_player_post_game(screen, game_mode, score, reason, hs_name):
+async def _run_single_player_post_game(screen, game_mode, difficulty, score, reason, hs_name):
     """Run the game-over/high-scores/credits loop and return next navigation state."""
     result = "high_scores"
 
@@ -116,7 +116,8 @@ async def _run_single_player_post_game(screen, game_mode, score, reason, hs_name
             if result == "high_scores":
                 hs_screen = HighScoresScreen(
                     screen,
-                    game_type=game_mode,
+                    game_mode=game_mode,
+                    difficulty=difficulty,
                     highlight_name=hs_name,
                     highlight_score=score if hs_name else None,
                 )
@@ -207,18 +208,22 @@ async def _run_single_player(screen, keybinds, game_mode):
         # game_result is ("gameover", score, reason)
         _, score, reason = game_result
 
+        # Per-difficulty leaderboard: each difficulty has its own bucket so
+        # easy-mode runs don't compete against hard-mode runs.
+        leaderboard_id = f"{game_mode}_{selected_difficulty}"
+
         # Arcade-style: name entry if high score
         hs_name = None
-        if await is_high_score_async(score, game_mode):
+        if await is_high_score_async(score, leaderboard_id):
             name_entry = NameEntryScreen(screen, score)
             name_result = await name_entry.run()
             if name_result == "quit":
                 return "quit"
             hs_name = name_result
-            await add_score_async(hs_name, score, game_mode)
+            await add_score_async(hs_name, score, leaderboard_id)
 
         result = await _run_single_player_post_game(
-            screen, game_mode, score, reason, hs_name
+            screen, game_mode, selected_difficulty, score, reason, hs_name
         )
 
     return result

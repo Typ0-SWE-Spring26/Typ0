@@ -3,29 +3,98 @@
 import pygame
 import asyncio
 from game.utils import animation_utils
+from game.utils.button import Button
 from game.core.high_scores import load_scores_async
 
 
+_DIFFICULTIES = ("easy", "normal", "hard")
+# Color the active tab with the per-difficulty accent used by ConfigScreen
+# so the leaderboard's identity matches the difficulty selector.
+_TAB_COLORS = {
+    "easy":   (60, 140, 90),
+    "normal": (80, 120, 200),
+    "hard":   (180, 70, 70),
+}
+_TAB_HOVER = {
+    "easy":   (80, 170, 115),
+    "normal": (100, 145, 225),
+    "hard":   (210, 95, 95),
+}
+
+
 class HighScoresScreen:
-    def __init__(self, screen, game_type: str, highlight_name=None, highlight_score=None):
+    def __init__(
+        self,
+        screen,
+        game_mode: str = None,
+        difficulty: str = "normal",
+        highlight_name=None,
+        highlight_score=None,
+        # Back-compat: callers that still pass `game_type="simon"` (legacy
+        # single-leaderboard usage) keep working — we treat the bare mode as
+        # the user's current selection and default the tab to Normal.
+        game_type: str = None,
+    ):
+        if game_mode is None:
+            if game_type is None:
+                raise TypeError("HighScoresScreen requires game_mode")
+            game_mode = game_type
         self.screen = screen
-        self.game_type = game_type
+        self.game_mode = game_mode
+        self.difficulty = difficulty if difficulty in _DIFFICULTIES else "normal"
+        # Multiplayer is shared across difficulties — no tabs, no composite key.
+        self._has_difficulty_tabs = game_mode != "multiplayer"
         self.highlight_name = highlight_name
         self.highlight_score = highlight_score
         self.gradient_top = (10, 10, 50)
         self.gradient_bottom = (0, 0, 15)
         self.running = True
-        self.scores = []  # loaded async at start of run()
+        self.scores = []  # loaded async at start of run() and on tab change
 
         self.font_rank = pygame.font.Font(None, 36)
         self.font_name = pygame.font.Font(None, 40)
         self.font_score = pygame.font.Font(None, 40)
         self.font_empty = pygame.font.Font(None, 30)
+        self.font_tab = pygame.font.Font(None, 28)
         self.close_rect = pygame.Rect(0, 0, 0, 0)
+
+    @property
+    def game_type(self) -> str:
+        """Composite leaderboard ID — '<mode>_<difficulty>' for single-player,
+        bare 'multiplayer' for the multiplayer board."""
+        if not self._has_difficulty_tabs:
+            return self.game_mode
+        return f"{self.game_mode}_{self.difficulty}"
+
+    def _build_tab_buttons(self):
+        """Lay out one tab per difficulty just under the title."""
+        cx = self.screen.get_width() // 2
+        tab_w, tab_h = 110, 36
+        gap = 12
+        total_w = len(_DIFFICULTIES) * tab_w + (len(_DIFFICULTIES) - 1) * gap
+        y = 105
+        tabs = {}
+        for i, diff in enumerate(_DIFFICULTIES):
+            rect = pygame.Rect(
+                cx - total_w // 2 + i * (tab_w + gap),
+                y,
+                tab_w,
+                tab_h,
+            )
+            if diff == self.difficulty:
+                color = _TAB_COLORS[diff]
+                hover = _TAB_HOVER[diff]
+            else:
+                color = None  # Button defaults
+                hover = None
+            tabs[diff] = Button(rect, diff.capitalize(), self.font_tab,
+                                color=color, hover_color=hover)
+        return tabs
 
     async def run(self):
         self.scores = await load_scores_async(self.game_type)
         clock = pygame.time.Clock()
+        tab_buttons = self._build_tab_buttons() if self._has_difficulty_tabs else {}
 
         while self.running:
             self.close_rect = pygame.Rect(
@@ -34,6 +103,7 @@ class HighScoresScreen:
                 36,
                 36,
             )
+            tab_changed = False
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     return "quit"
@@ -48,6 +118,19 @@ class HighScoresScreen:
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     if self.close_rect.collidepoint(event.pos):
                         return "menu"
+
+                if self._has_difficulty_tabs:
+                    for diff, btn in tab_buttons.items():
+                        if btn.handle_event(event) and diff != self.difficulty:
+                            self.difficulty = diff
+                            tab_changed = True
+
+            if tab_changed:
+                # Highlight a row only on the run that produced it; switching
+                # tabs after that is a navigation action, not a celebration.
+                self.highlight_score = None
+                self.scores = await load_scores_async(self.game_type)
+                tab_buttons = self._build_tab_buttons()
 
             animation_utils.draw_gradient(
                 self.screen, self.gradient_top, self.gradient_bottom
@@ -66,6 +149,12 @@ class HighScoresScreen:
                 wave_speed=0.3,
             )
 
+            list_top_y = 130
+            if self._has_difficulty_tabs:
+                for btn in tab_buttons.values():
+                    btn.draw(self.screen)
+                list_top_y = 175  # leave room for the tab strip
+
             if not self.scores:
                 empty_surface = self.font_empty.render(
                     "No scores yet! Be the first!", True, (150, 150, 150)
@@ -81,7 +170,7 @@ class HighScoresScreen:
 
                 # Draw each score
                 for i, entry in enumerate(self.scores):
-                    y = 130 + i * 42
+                    y = list_top_y + i * 38
                     rank = f"{i + 1}."
                     name = entry["name"]
                     score = str(entry["score"])
