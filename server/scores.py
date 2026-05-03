@@ -9,6 +9,7 @@ survive redeployments.  Falls back to the directory containing this file.
 import json
 import os
 from pathlib import Path
+import logging
 
 MAX_SCORES = 10
 
@@ -45,11 +46,22 @@ def _migrate_legacy_scores() -> None:
     not — a destination-exists check is the migration's idempotency guard.
     """
     base = _scores_dir()
+    logger = logging.getLogger(__name__)
     for mode in _SINGLE_PLAYER_MODES:
         legacy = base / f"{mode}_scores.json"
         target = base / f"{mode}_normal_scores.json"
         if legacy.exists() and not target.exists():
-            legacy.rename(target)
+            try:
+                legacy.rename(target)
+            except OSError as err:
+                # Migration is best-effort during import; do not abort import
+                # if the filesystem operation fails. Log a non-fatal warning
+                # including the paths and the caught error for troubleshooting.
+                logger.warning(
+                    "Failed to migrate legacy scores from %s to %s: %s",
+                    str(legacy), str(target), err,
+                    exc_info=True,
+                )
 
 
 _migrate_legacy_scores()

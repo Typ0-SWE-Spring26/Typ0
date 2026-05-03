@@ -52,7 +52,19 @@ class HighScoresScreen:
         if game_mode is None:
             if game_type is None:
                 raise TypeError("HighScoresScreen requires game_mode")
-            game_mode = game_type
+            # Accept composite legacy ids like "keys_ninja_hard" and
+            # parse them into (mode, difficulty). If the suffix is a known
+            # difficulty use it; otherwise treat the whole value as the
+            # (legacy) game_mode and keep the default difficulty.
+            if isinstance(game_type, str) and "_" in game_type:
+                mode_part, diff_part = game_type.rsplit("_", 1)
+                if diff_part in _DIFFICULTIES:
+                    game_mode = mode_part
+                    difficulty = diff_part
+                else:
+                    game_mode = game_type
+            else:
+                game_mode = game_type
         self.screen = screen
         self.game_mode = game_mode
         self.difficulty = difficulty if difficulty in _DIFFICULTIES else "normal"
