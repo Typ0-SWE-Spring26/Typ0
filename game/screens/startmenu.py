@@ -64,6 +64,8 @@ class StartMenu:
                         return "credits"
                     if action == "how_to_play":
                         return "how_to_play"
+                    if action == "high_scores":
+                        return "high_scores"
                     continue
 
                 for btn, result in [

@@ -21,6 +21,16 @@ _TAB_HOVER = {
     "hard":   (210, 95, 95),
 }
 
+# Browseable single-player modes — multiplayer has a separate flow.
+_BROWSE_MODES = ("simon", "bopit", "keys_ninja")
+_MODE_LABELS = {
+    "simon":      "Simon",
+    "bopit":      "Bop It",
+    "keys_ninja": "Keys Ninja",
+}
+_MODE_ACCENT = (200, 170, 90)
+_MODE_ACCENT_HOVER = (230, 200, 110)
+
 
 class HighScoresScreen:
     def __init__(
@@ -30,6 +40,10 @@ class HighScoresScreen:
         difficulty: str = "normal",
         highlight_name=None,
         highlight_score=None,
+        # Browse mode (default False) is what the start-menu Settings →
+        # High Scores entry uses: shows mode tabs (Simon/Bop It/Keys Ninja),
+        # disables the Retry shortcut, and never highlights a row.
+        browse_mode: bool = False,
         # Back-compat: callers that still pass `game_type="simon"` (legacy
         # single-leaderboard usage) keep working — we treat the bare mode as
         # the user's current selection and default the tab to Normal.
@@ -44,6 +58,9 @@ class HighScoresScreen:
         self.difficulty = difficulty if difficulty in _DIFFICULTIES else "normal"
         # Multiplayer is shared across difficulties — no tabs, no composite key.
         self._has_difficulty_tabs = game_mode != "multiplayer"
+        # Browse mode is only meaningful for single-player modes — multiplayer
+        # has its own dedicated leaderboard with no mode picker.
+        self.browse_mode = bool(browse_mode) and game_mode != "multiplayer"
         self.highlight_name = highlight_name
         self.highlight_score = highlight_score
         self.gradient_top = (10, 10, 50)
@@ -66,13 +83,39 @@ class HighScoresScreen:
             return self.game_mode
         return f"{self.game_mode}_{self.difficulty}"
 
-    def _build_tab_buttons(self):
-        """Lay out one tab per difficulty just under the title."""
+    def _build_mode_tabs(self):
+        """Lay out one tab per browseable mode just under the title."""
+        cx = self.screen.get_width() // 2
+        tab_w, tab_h = 140, 36
+        gap = 12
+        total_w = len(_BROWSE_MODES) * tab_w + (len(_BROWSE_MODES) - 1) * gap
+        y = 105
+        tabs = {}
+        for i, mode in enumerate(_BROWSE_MODES):
+            rect = pygame.Rect(
+                cx - total_w // 2 + i * (tab_w + gap),
+                y,
+                tab_w,
+                tab_h,
+            )
+            if mode == self.game_mode:
+                color = _MODE_ACCENT
+                hover = _MODE_ACCENT_HOVER
+            else:
+                color = None
+                hover = None
+            tabs[mode] = Button(rect, _MODE_LABELS[mode], self.font_tab,
+                                color=color, hover_color=hover)
+        return tabs
+
+    def _build_difficulty_tabs(self):
+        """Lay out one tab per difficulty below the title (or below the mode
+        strip in browse mode)."""
         cx = self.screen.get_width() // 2
         tab_w, tab_h = 110, 36
         gap = 12
         total_w = len(_DIFFICULTIES) * tab_w + (len(_DIFFICULTIES) - 1) * gap
-        y = 105
+        y = 153 if self.browse_mode else 105
         tabs = {}
         for i, diff in enumerate(_DIFFICULTIES):
             rect = pygame.Rect(
@@ -85,7 +128,7 @@ class HighScoresScreen:
                 color = _TAB_COLORS[diff]
                 hover = _TAB_HOVER[diff]
             else:
-                color = None  # Button defaults
+                color = None
                 hover = None
             tabs[diff] = Button(rect, diff.capitalize(), self.font_tab,
                                 color=color, hover_color=hover)
@@ -94,7 +137,8 @@ class HighScoresScreen:
     async def run(self):
         self.scores = await load_scores_async(self.game_type)
         clock = pygame.time.Clock()
-        tab_buttons = self._build_tab_buttons() if self._has_difficulty_tabs else {}
+        diff_buttons = self._build_difficulty_tabs() if self._has_difficulty_tabs else {}
+        mode_buttons = self._build_mode_tabs() if self.browse_mode else {}
 
         while self.running:
             self.close_rect = pygame.Rect(
@@ -108,7 +152,8 @@ class HighScoresScreen:
                 if event.type == pygame.QUIT:
                     return "quit"
                 if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_r:
+                    # Retry only makes sense after a real run — skip it in browse mode.
+                    if event.key == pygame.K_r and not self.browse_mode:
                         return "retry"
                     if (
                         event.key == pygame.K_ESCAPE
@@ -119,8 +164,14 @@ class HighScoresScreen:
                     if self.close_rect.collidepoint(event.pos):
                         return "menu"
 
+                if self.browse_mode:
+                    for mode, btn in mode_buttons.items():
+                        if btn.handle_event(event) and mode != self.game_mode:
+                            self.game_mode = mode
+                            tab_changed = True
+
                 if self._has_difficulty_tabs:
-                    for diff, btn in tab_buttons.items():
+                    for diff, btn in diff_buttons.items():
                         if btn.handle_event(event) and diff != self.difficulty:
                             self.difficulty = diff
                             tab_changed = True
@@ -130,7 +181,9 @@ class HighScoresScreen:
                 # tabs after that is a navigation action, not a celebration.
                 self.highlight_score = None
                 self.scores = await load_scores_async(self.game_type)
-                tab_buttons = self._build_tab_buttons()
+                diff_buttons = self._build_difficulty_tabs()
+                if self.browse_mode:
+                    mode_buttons = self._build_mode_tabs()
 
             animation_utils.draw_gradient(
                 self.screen, self.gradient_top, self.gradient_bottom
@@ -150,17 +203,20 @@ class HighScoresScreen:
             )
 
             list_top_y = 130
-            if self._has_difficulty_tabs:
-                for btn in tab_buttons.values():
+            if self.browse_mode:
+                for btn in mode_buttons.values():
                     btn.draw(self.screen)
-                list_top_y = 175  # leave room for the tab strip
+            if self._has_difficulty_tabs:
+                for btn in diff_buttons.values():
+                    btn.draw(self.screen)
+                list_top_y = 220 if self.browse_mode else 175
 
             if not self.scores:
                 empty_surface = self.font_empty.render(
                     "No scores yet! Be the first!", True, (150, 150, 150)
                 )
                 self.screen.blit(
-                    empty_surface, empty_surface.get_rect(center=(cx, 300))
+                    empty_surface, empty_surface.get_rect(center=(cx, 320))
                 )
             else:
                 # Table header
@@ -170,7 +226,7 @@ class HighScoresScreen:
 
                 # Draw each score
                 for i, entry in enumerate(self.scores):
-                    y = list_top_y + i * 38
+                    y = list_top_y + i * 36
                     rank = f"{i + 1}."
                     name = entry["name"]
                     score = str(entry["score"])
@@ -214,10 +270,11 @@ class HighScoresScreen:
                         dots_surface = self.font_rank.render("." * num_dots, True, (60, 60, 80))
                         self.screen.blit(dots_surface, dots_surface.get_rect(midleft=(dot_start, y)))
 
-            # Prompt
+            # Prompt — Retry shortcut isn't shown in browse mode (no run to retry).
+            prompt = "ESC  Main Menu" if self.browse_mode else "R  Retry  |  ESC  Main Menu"
             animation_utils.flashing_text(
                 self.screen,
-                "R  Retry  |  ESC  Main Menu",
+                prompt,
                 (cx, self.screen.get_height() - 50),
             )
 

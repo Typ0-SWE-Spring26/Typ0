@@ -41,7 +41,31 @@ def _safe_stop(context, attr):
         pass
 
 
+def _cleanup_per_difficulty_scores(context):
+    """Tear down the temp SCORES_DIR set up by per_difficulty_high_scores_steps."""
+    if not hasattr(context, "_pdh_scores_dir") or context._pdh_scores_dir is None:
+        return
+    prev = getattr(context, "_pdh_prev_env", None)
+    if prev is None:
+        os.environ.pop("SCORES_DIR", None)
+    else:
+        os.environ["SCORES_DIR"] = prev
+    try:
+        import importlib
+        import game.core.high_scores as hs_mod
+        importlib.reload(hs_mod)
+    except Exception:
+        pass
+    try:
+        import shutil
+        shutil.rmtree(context._pdh_scores_dir, ignore_errors=True)
+    except Exception:
+        pass
+    context._pdh_scores_dir = None
+
+
 def after_scenario(context, scenario):
+    _cleanup_per_difficulty_scores(context)
     for attr in (
         "_menu_pg_patch",
         "_menu_fm_patch",
@@ -58,6 +82,11 @@ def after_scenario(context, scenario):
         "_ne_anim_patch",
         "_mm_pg_patch",
         "_mm_anim_patch",
+        "_bhs_pg_patch",
+        "_bhs_vol_patch",
+        "_bhs_mus_patch",
+        "_bhs_fl_patch",
+        "_bhs_hs_pg_patch",
     ):
         _safe_stop(context, attr)
 

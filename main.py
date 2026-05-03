@@ -271,6 +271,21 @@ async def main():
                             result = "quit"
                             break
                     continue  # back to menu
+                if result == "high_scores":
+                    # Browse mode: show mode + difficulty tabs, default to
+                    # Simon Normal so first-time visitors land on the most
+                    # populated board.
+                    hs_screen = HighScoresScreen(
+                        screen,
+                        game_mode="simon",
+                        difficulty="normal",
+                        browse_mode=True,
+                    )
+                    hs_result = await hs_screen.run()
+                    if hs_result == "quit":
+                        result = "quit"
+                        break
+                    continue  # back to menu
                 break  # "start_simon", "start_bopit", "multiplayer", or "quit"
 
         if result == "quit":

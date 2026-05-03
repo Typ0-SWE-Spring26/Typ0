@@ -158,3 +158,134 @@ def step_bopit_easy_delay_gt_hard(ctx):
     assert easy_delay > hard_delay, (
         f'Easy round_delay {easy_delay} not > Hard {hard_delay}'
     )
+
+
+# ---------------------------------------------------------------------------
+# Given/When — Keys Ninja model setup
+# ---------------------------------------------------------------------------
+
+@given('a fresh Keys Ninja model with "{difficulty}" difficulty')
+def step_fresh_ninja_model(ctx, difficulty):
+    from unittest.mock import Mock
+    from game.core.keys_ninja_model import KeysNinjaModel
+    bus = Mock()
+    bus.emit = Mock()
+    ctx.ninja_model = KeysNinjaModel(bus, difficulty=difficulty)
+    ctx.difficulty = difficulty
+
+
+@given('a fresh Keys Ninja model with "{difficulty}" difficulty as "{alias}"')
+def step_fresh_ninja_model_alias(ctx, difficulty, alias):
+    from unittest.mock import Mock
+    from game.core.keys_ninja_model import KeysNinjaModel
+    bus = Mock()
+    bus.emit = Mock()
+    setattr(ctx, alias, KeysNinjaModel(bus, difficulty=difficulty))
+
+
+@given('the Keys Ninja score is {n:d}')
+def step_set_ninja_score(ctx, n):
+    ctx.ninja_model.score = n
+
+
+@given('both Keys Ninja models have score {n:d}')
+def step_both_ninja_models_score(ctx, n):
+    ctx.ninja_model.score = n
+    # Find whichever named alias exists in this scenario.
+    for alias in ('normal_ninja', 'hard_ninja', 'easy_ninja'):
+        other = getattr(ctx, alias, None)
+        if other is not None:
+            other.score = n
+
+
+@when('the Keys Ninja model is damaged and reset')
+def step_damage_and_reset_ninja(ctx):
+    ctx.ninja_model.lives = 0
+    ctx.ninja_model.score = 500
+    ctx.ninja_model.reset()
+
+
+# ---------------------------------------------------------------------------
+# Then — Keys Ninja difficulty assertions
+# ---------------------------------------------------------------------------
+
+@then('the Keys Ninja difficulty attribute should equal "{expected}"')
+def step_ninja_difficulty_attr(ctx, expected):
+    actual = ctx.ninja_model.difficulty
+    assert actual == expected, f'Expected difficulty {expected!r}, got {actual!r}'
+
+
+@then('the Keys Ninja easy starting lives should be greater than the normal starting lives')
+def step_ninja_easy_lives_gt_normal(ctx):
+    assert ctx.ninja_model.lives > ctx.normal_ninja.lives, (
+        f'Easy lives {ctx.ninja_model.lives} not > Normal {ctx.normal_ninja.lives}'
+    )
+
+
+@then('the Keys Ninja hard starting lives should be less than the normal starting lives')
+def step_ninja_hard_lives_lt_normal(ctx):
+    assert ctx.ninja_model.lives < ctx.normal_ninja.lives, (
+        f'Hard lives {ctx.ninja_model.lives} not < Normal {ctx.normal_ninja.lives}'
+    )
+
+
+@then('the Keys Ninja easy spawn interval should be greater than the hard spawn interval')
+def step_ninja_easy_spawn_gt_hard(ctx):
+    easy_iv = ctx.ninja_model._get_spawn_interval()
+    hard_iv = ctx.hard_ninja._get_spawn_interval()
+    assert easy_iv > hard_iv, (
+        f'Easy spawn interval {easy_iv} not > Hard {hard_iv}'
+    )
+
+
+@then('the Keys Ninja hard speed multiplier should be greater than the easy speed multiplier')
+def step_ninja_hard_speed_gt_easy(ctx):
+    easy_speed = ctx.ninja_model._get_speed_multiplier()
+    hard_speed = ctx.hard_ninja._get_speed_multiplier()
+    assert hard_speed > easy_speed, (
+        f'Hard speed {hard_speed} not > Easy {easy_speed}'
+    )
+
+
+@then('the Keys Ninja bomb chance should be 0')
+def step_ninja_bomb_chance_zero(ctx):
+    chance = ctx.ninja_model._get_bomb_chance()
+    assert chance == 0.0, f'Expected bomb chance 0, got {chance}'
+
+
+@then('the Keys Ninja hard bomb chance should be greater than 0')
+def step_ninja_hard_bomb_gt_zero(ctx):
+    chance = ctx.ninja_model._get_bomb_chance()
+    assert chance > 0.0, f'Expected hard bomb chance > 0 at this score, got {chance}'
+
+
+@then('the Keys Ninja normal bomb chance should be 0')
+def step_ninja_normal_bomb_zero(ctx):
+    chance = ctx.normal_ninja._get_bomb_chance()
+    assert chance == 0.0, (
+        f'Expected normal bomb chance 0 at this score, got {chance}'
+    )
+
+
+@then('the Keys Ninja speed multiplier should not exceed the hard speed cap')
+def step_ninja_speed_within_cap(ctx):
+    from game.core.keys_ninja_model import _DIFFICULTY_PRESETS
+    cap = _DIFFICULTY_PRESETS['hard']['speed_cap']
+    actual = ctx.ninja_model._get_speed_multiplier()
+    assert actual <= cap, f'Speed multiplier {actual} exceeded cap {cap}'
+
+
+@then('the Keys Ninja starting lives should equal the normal starting lives')
+def step_ninja_lives_eq_normal(ctx):
+    assert ctx.ninja_model.lives == ctx.normal_ninja.lives, (
+        f'Expected lives {ctx.normal_ninja.lives}, got {ctx.ninja_model.lives}'
+    )
+
+
+@then('the Keys Ninja starting lives should equal the easy starting lives')
+def step_ninja_lives_eq_easy(ctx):
+    from game.core.keys_ninja_model import _DIFFICULTY_PRESETS
+    expected = _DIFFICULTY_PRESETS['easy']['starting_lives']
+    assert ctx.ninja_model.lives == expected, (
+        f'Expected easy lives {expected}, got {ctx.ninja_model.lives}'
+    )
