@@ -36,7 +36,7 @@ class HighScoresScreen:
     def __init__(
         self,
         screen,
-        game_mode: str = None,
+        game_mode: str | None = None,
         difficulty: str = "normal",
         highlight_name=None,
         highlight_score=None,
@@ -47,7 +47,7 @@ class HighScoresScreen:
         # Back-compat: callers that still pass `game_type="simon"` (legacy
         # single-leaderboard usage) keep working — we treat the bare mode as
         # the user's current selection and default the tab to Normal.
-        game_type: str = None,
+        game_type: str | None = None,
     ):
         if game_mode is None:
             if game_type is None:

@@ -187,7 +187,7 @@ class TestHighScoresScreenTabSwitch:
             # Every difficulty has a tab.
             assert set(tabs) == set(_DIFFICULTIES)
             # And the active one renders with its accent color, not the default.
-            assert tabs["normal"].color != tabs["easy"].color or \
+            assert tabs["normal"].color != tabs["easy"].color and \
                    tabs["normal"].color != tabs["hard"].color
 
     def test_active_difficulty_tab_uses_distinctive_color(self):

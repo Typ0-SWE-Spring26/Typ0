@@ -1,6 +1,6 @@
 """Given/When/Then steps for difficulty.feature."""
 from unittest.mock import patch
-from behave import given, then
+from behave import given, when, then
 
 
 # ---------------------------------------------------------------------------

@@ -81,7 +81,7 @@ class ConfigScreen:
     START_HOVER_COLOR = (85, 195, 120)
 
     # Modes that don't have a left/right/up/down semantic to invert.
-    _NO_INVERTED_MODES = {"keys_ninja"}
+    _NO_INVERTED_MODES = frozenset(("keys_ninja",))
 
     def __init__(
         self,
