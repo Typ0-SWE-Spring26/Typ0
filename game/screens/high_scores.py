@@ -209,7 +209,10 @@ class HighScoresScreen:
             if self._has_difficulty_tabs:
                 for btn in diff_buttons.values():
                     btn.draw(self.screen)
-                list_top_y = 220 if self.browse_mode else 175
+                list_top_y = 215 if self.browse_mode else 175
+            # Tighter row pitch in browse mode keeps row 10 above the
+            # bottom prompt now that the mode-tab strip eats vertical space.
+            row_step = 32 if self.browse_mode else 36
 
             if not self.scores:
                 empty_surface = self.font_empty.render(
@@ -226,7 +229,7 @@ class HighScoresScreen:
 
                 # Draw each score
                 for i, entry in enumerate(self.scores):
-                    y = list_top_y + i * 36
+                    y = list_top_y + i * row_step
                     rank = f"{i + 1}."
                     name = entry["name"]
                     score = str(entry["score"])
