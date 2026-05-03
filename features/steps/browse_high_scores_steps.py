@@ -67,12 +67,6 @@ def _build_overlay(ctx, game_mode):
     from game.screens.menu import MenuOverlay
     ctx.overlay = MenuOverlay(_mock_screen(), game_mode=game_mode)
     ctx.overlay_pg = mock_pg
-    
-    # Stop patches to prevent mock leaks between scenarios
-    ctx._bhs_pg_patch.stop()
-    ctx._bhs_vol_patch.stop()
-    ctx._bhs_mus_patch.stop()
-    ctx._bhs_fl_patch.stop()
 
 
 @given('a Settings overlay opened from the start menu')
@@ -134,9 +128,6 @@ def _build_hs_screen(ctx, game_mode, difficulty="normal", browse_mode=False):
         browse_mode=browse_mode,
     )
     ctx.hs_pg = mock_pg
-    
-    # Stop patch to prevent mock leaks between scenarios
-    ctx._bhs_hs_pg_patch.stop()
 
 
 @given('a high scores screen in browse mode for "{mode}"')
