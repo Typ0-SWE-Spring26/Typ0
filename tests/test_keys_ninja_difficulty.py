@@ -7,12 +7,7 @@ mode and hide the inverted toggle for it.
 import sys
 from unittest.mock import MagicMock, Mock, patch
 
-_PYGAME_PATCH = patch.dict(sys.modules, {"pygame": MagicMock()})
-_PYGAME_PATCH.start()
-
-
-def teardown_module(_module):
-    _PYGAME_PATCH.stop()
+sys.modules["pygame"] = MagicMock()
 
 import pytest
 
