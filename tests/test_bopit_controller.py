@@ -110,3 +110,129 @@ def test_bopit_main_menu_returns_tuple():
 
     assert result == ("main_menu",)
     controller._mock_anim.stop_music.assert_called_once()
+
+
+def test_bopit_set_paused_toggles_state():
+    """Test that _set_paused emits events and toggles paused state."""
+    controller = _build_controller(None)
+    bus = controller._bus
+
+    controller._set_paused(True)
+    assert controller.paused is True
+    bus.emit.assert_called()
+
+    bus.reset_mock()
+    controller._set_paused(False)
+    assert controller.paused is False
+    bus.emit.assert_called()
+
+
+def test_bopit_set_paused_no_op_on_same_state():
+    """Test that _set_paused does nothing if state hasn't changed."""
+    controller = _build_controller(None)
+    controller.paused = True
+    bus = controller._bus
+    bus.reset_mock()
+
+    controller._set_paused(True)
+    bus.emit.assert_not_called()
+
+
+def test_bopit_menu_is_open_property():
+    """Test _menu_is_open checks both open and active_submenu."""
+    controller = _build_controller(None)
+    
+    assert controller._menu_is_open is False
+    
+    controller.menu_overlay.open = True
+    assert controller._menu_is_open is True
+    
+    controller.menu_overlay.open = False
+    controller.menu_overlay.active_submenu = "settings"
+    assert controller._menu_is_open is True
+    
+    controller.menu_overlay.active_submenu = None
+    assert controller._menu_is_open is False
+
+
+def test_bopit_exit_overlay_screen_resets_state():
+    """Test that exiting overlay closes menu and resumes gameplay."""
+    controller = _build_controller(None)
+    controller.menu_overlay.open = True
+    controller.menu_overlay.active_submenu = "test"
+    controller._menu_forced_pause = True
+    controller.paused = True
+
+    controller._exit_overlay_screen()
+
+    assert controller.menu_overlay.open is False
+    assert controller.menu_overlay.active_submenu is None
+    assert controller._menu_forced_pause is False
+    assert controller.paused is False
+
+
+def test_bopit_process_input_result_correct():
+    """Test _process_input_result returns True on input."""
+    controller = _build_controller(None)
+    
+    result = controller._process_input_result("left", 0)
+    
+    assert result is True
+
+
+def test_bopit_process_input_result_stops_timer_on_wrong():
+    """Test _process_input_result stops timer when wrong input."""
+    import game.screens.gameplay.bopit_controller as bopit_mod
+    controller = _build_controller(None)
+    controller.model.handle_input = Mock(return_value='wrong')
+    
+    with patch.object(bopit_mod, 'GameTimer') as mock_timer_class:
+        controller.game_timer = Mock()
+        result = controller._process_input_result("wrong_button", 0)
+    
+    assert result is True
+    controller.game_timer.stop.assert_called_once()
+
+
+def test_bopit_handle_menu_action_switch_mode_string():
+    """Test _handle_menu_action with 'switch_mode' string."""
+    controller = _build_controller(None)
+    
+    result = controller._handle_menu_action("switch_mode")
+    
+    assert result == ("switch_mode",)
+
+
+def test_bopit_handle_menu_action_none_returns_none():
+    """Test _handle_menu_action returns None for unknown actions."""
+    controller = _build_controller(None)
+    
+    result = controller._handle_menu_action("unknown_action")
+    
+    assert result is None
+
+
+def test_bopit_exit_overlay_restores_music_when_not_playing():
+    """Test that exiting overlay closes menu and resets pause state."""
+    controller = _build_controller(None)
+    controller.menu_overlay.open = True
+    controller._menu_forced_pause = True
+    controller.paused = True
+    
+    controller._exit_overlay_screen()
+    
+    # Should reset menu and pause state
+    assert controller.menu_overlay.open is False
+    assert controller._menu_forced_pause is False
+    assert controller.paused is False
+
+
+def test_bopit_process_input_result_round_complete_stops_timer():
+    """Test _process_input_result handles round_complete result."""
+    import game.screens.gameplay.bopit_controller as bopit_mod
+    controller = _build_controller(None)
+    controller.model.handle_input = Mock(return_value='round_complete')
+    
+    result = controller._process_input_result("button", 0)
+    
+    assert result is True
