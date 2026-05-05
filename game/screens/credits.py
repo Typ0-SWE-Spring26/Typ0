@@ -14,6 +14,7 @@ CREDIT_ENTRIES = [
     {"section": "Core Team", "name": "Gabi", "roles": ["Input Development"]},
     {"section": "Core Team", "name": "Jude", "roles": ["Flavor and Polish"]},
     {"section": "Core Team", "name": "Kregg", "roles": ["Architectural Consultant"]},
+    {"section": "Core Team", "name": "Lanzede Lagi", "roles": ["Artist"]},
     {"section": "Custom Music", "name": "Ben", "roles": ["Composer"]},
     {"section": "Art", "name": "Charlie", "roles": ["Artist"]},
     {"section": "Default Music", "name": "Eric Matyas", "roles": ["www.soundimage.org"]},
