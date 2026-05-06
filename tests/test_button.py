@@ -101,7 +101,6 @@ class TestButtonDraw:
 
         mock_pg = MagicMock()
         mock_pg.Rect.side_effect = lambda *args, **kwargs: args[0] if len(args) == 1 and hasattr(args[0], 'x') else _Rect(*args)
-        mock_pg.mouse.get_pos.return_value = (60, 45)  # Inside button
         mock_pg.draw.rect = Mock()
 
         with patch.object(btn_mod, "pygame", mock_pg):
@@ -112,12 +111,23 @@ class TestButtonDraw:
             button = btn_mod.Button(rect, "Click", font, hover_color=custom_hover)
             surface = Mock()
 
+            # Hovered: mouse inside the button rect → second draw.rect uses hover_color
+            mock_pg.mouse.get_pos.return_value = (60, 45)
             button.draw(surface)
 
-            # Extract the color argument from the second rect.draw call (the main button)
-            # The first call is shadow, second is the button with color
             calls = mock_pg.draw.rect.call_args_list
             assert len(calls) >= 2
+            # call(surface, color, rect, ...) — color is positional arg index 1
+            assert calls[1].args[1] == custom_hover
+
+            # Not hovered: mouse outside → second draw.rect uses normal color
+            mock_pg.draw.rect.reset_mock()
+            mock_pg.mouse.get_pos.return_value = (500, 500)
+            button.draw(surface)
+
+            calls = mock_pg.draw.rect.call_args_list
+            assert len(calls) >= 2
+            assert calls[1].args[1] == button.color
 
 
 class TestButtonHandleEvent:

@@ -182,14 +182,12 @@ def test_bopit_process_input_result_correct():
 
 def test_bopit_process_input_result_stops_timer_on_wrong():
     """Test _process_input_result stops timer when wrong input."""
-    import game.screens.gameplay.bopit_controller as bopit_mod
     controller = _build_controller(None)
     controller.model.handle_input = Mock(return_value='wrong')
-    
-    with patch.object(bopit_mod, 'GameTimer') as mock_timer_class:
-        controller.game_timer = Mock()
-        result = controller._process_input_result("wrong_button", 0)
-    
+    controller.game_timer = Mock()
+
+    result = controller._process_input_result("wrong_button", 0)
+
     assert result is True
     controller.game_timer.stop.assert_called_once()
 
@@ -213,26 +211,34 @@ def test_bopit_handle_menu_action_none_returns_none():
 
 
 def test_bopit_exit_overlay_restores_music_when_not_playing():
-    """Test that exiting overlay closes menu and resets pause state."""
+    """When music isn't playing on overlay exit, the controller restarts it."""
+    import game.screens.gameplay.bopit_controller as bopit_mod
+
     controller = _build_controller(None)
     controller.menu_overlay.open = True
     controller._menu_forced_pause = True
     controller.paused = True
-    
-    controller._exit_overlay_screen()
-    
-    # Should reset menu and pause state
+
+    # Re-patch animation_utils for the call: _build_controller's patch context
+    # has already exited by the time we get here.
+    with patch.object(bopit_mod, "animation_utils") as mock_anim:
+        mock_anim.is_music_playing.return_value = False
+        mock_anim.get_user_music_selection.return_value = "assets/Techno.ogg"
+        controller._exit_overlay_screen()
+
     assert controller.menu_overlay.open is False
     assert controller._menu_forced_pause is False
     assert controller.paused is False
+    mock_anim.play_music.assert_called_once_with("assets/Techno.ogg")
 
 
 def test_bopit_process_input_result_round_complete_stops_timer():
-    """Test _process_input_result handles round_complete result."""
-    import game.screens.gameplay.bopit_controller as bopit_mod
+    """`round_complete` result must stop the game timer."""
     controller = _build_controller(None)
     controller.model.handle_input = Mock(return_value='round_complete')
-    
+    controller.game_timer = Mock()
+
     result = controller._process_input_result("button", 0)
-    
+
     assert result is True
+    controller.game_timer.stop.assert_called_once()

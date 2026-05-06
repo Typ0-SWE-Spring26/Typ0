@@ -48,7 +48,7 @@ class _FakeView:
         pass
 
 
-def _build_controller(menu_action):
+def _build_controller(menu_action, pause_overlay=None):
     import game.screens.gameplay.keys_ninja_controller as kn_mod
 
     mock_pg = MagicMock()
@@ -79,6 +79,7 @@ def _build_controller(menu_action):
             _FakeView(),
             event_bus=Mock(),
             keybinds=Mock(),
+            pause_overlay=pause_overlay,
             menu_overlay=menu,
         )
         controller._mock_anim = mock_anim
@@ -213,31 +214,30 @@ def test_menu_is_open_no_overlay():
 
 
 def test_pause_overlay_subscription():
-    """Test that pause overlay is subscribed to event bus."""
-    controller = _build_controller(None)
+    """When constructed with a pause_overlay, the controller subscribes it to its bus."""
     pause_overlay = Mock()
-    
-    with patch.object(controller, "_bus"):
-        kn_mod = sys.modules["game.screens.gameplay.keys_ninja_controller"]
-        with patch.object(kn_mod, "animation_utils"):
-            controller = _build_controller(None)
-            controller.pause_overlay = pause_overlay
-            
-            # pause_overlay.subscribe should be called with _bus
-            if pause_overlay:
-                pause_overlay.subscribe.assert_not_called()  # subscribe happens in __init__
+    controller = _build_controller(None, pause_overlay=pause_overlay)
+
+    pause_overlay.subscribe.assert_called_once_with(controller._bus)
 
 
 def test_exit_overlay_restores_music_when_not_playing():
-    """Test that exiting overlay closes menu and resets pause state."""
+    """When music isn't playing on overlay exit, the controller restarts it."""
+    import game.screens.gameplay.keys_ninja_controller as kn_mod
+
     controller = _build_controller(None)
     controller.menu_overlay.open = True
     controller._menu_forced_pause = True
     controller.paused = True
-    
-    controller._exit_overlay_screen()
-    
-    # Should reset menu and pause state
+
+    # Re-patch animation_utils for the call: _build_controller's patch context
+    # has already exited by the time we get here.
+    with patch.object(kn_mod, "animation_utils") as mock_anim:
+        mock_anim.is_music_playing.return_value = False
+        mock_anim.get_user_music_selection.return_value = "assets/Techno.ogg"
+        controller._exit_overlay_screen()
+
     assert controller.menu_overlay.open is False
     assert controller._menu_forced_pause is False
     assert controller.paused is False
+    mock_anim.play_music.assert_called_once_with("assets/Techno.ogg")

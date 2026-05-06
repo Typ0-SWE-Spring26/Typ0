@@ -22,7 +22,7 @@ CREDIT_ENTRIES = [
 
 TECH_STACK = [
     "Python",
-    "pygame",
+    "pygame-ce",
     "pygbag",
     "websockets",
     "TypeScript",
@@ -234,15 +234,19 @@ class CreditsScreen:
             for entry in row:
                 if isinstance(entry, str) and "\u2014" in entry:
                     parts = entry.split("\u2014", 1)
-                    nm = parts[0].strip(); rl = parts[1].strip()
+                    nm = parts[0].strip()
+                    rl = parts[1].strip()
                 elif isinstance(entry, str) and " - " in entry:
                     parts = entry.split(" - ", 1)
-                    nm = parts[0].strip(); rl = parts[1].strip()
+                    nm = parts[0].strip()
+                    rl = parts[1].strip()
                 elif isinstance(entry, str) and " — " in entry:
                     parts = entry.split(" — ", 1)
-                    nm = parts[0].strip(); rl = parts[1].strip()
+                    nm = parts[0].strip()
+                    rl = parts[1].strip()
                 else:
-                    nm = entry; rl = None
+                    nm = entry
+                    rl = None
                 row_parsed.append((entry, nm, rl))
 
             row_widths = [self._keycap_size(nm, font_size, pad_x, pad_y)[0] for (_orig, nm, _rl) in row_parsed]
@@ -281,12 +285,15 @@ class CreditsScreen:
     def _measure_content(self, max_row_width):
         y = 0
         y += self._title_height(font_size=34, pad_x=10, pad_y=8) + 24
-        # Per-section, one-name-per-line measurement
-        name_font = 34
+        # Per-section, one-name-per-line measurement — match the font/pad
+        # values used in run() so measurement reflects what's drawn. The
+        # Tech Stack section is already produced by _build_sections(), so
+        # do not add it again at the end of this method.
+        name_font = 48
         role_font = 18
-        pad_x = 10
-        pad_y = 8
-        spacing = 16
+        pad_x = 14
+        pad_y = 10
+        spacing = 18
         role_header_font = 36
         for section, entries in self._build_sections():
             y += role_header_font + 8
@@ -296,24 +303,22 @@ class CreditsScreen:
                 role_part = None
                 if isinstance(entry, str) and "\u2014" in entry:
                     parts = entry.split("\u2014", 1)
-                    name_part = parts[0].strip(); role_part = parts[1].strip()
+                    name_part = parts[0].strip()
+                    role_part = parts[1].strip()
                 elif isinstance(entry, str) and " - " in entry:
                     parts = entry.split(" - ", 1)
-                    name_part = parts[0].strip(); role_part = parts[1].strip()
+                    name_part = parts[0].strip()
+                    role_part = parts[1].strip()
                 elif isinstance(entry, str) and " — " in entry:
                     parts = entry.split(" — ", 1)
-                    name_part = parts[0].strip(); role_part = parts[1].strip()
+                    name_part = parts[0].strip()
+                    role_part = parts[1].strip()
 
-                face_w, face_h = self._keycap_size(name_part, name_font, pad_x, pad_y)
+                _face_w, face_h = self._keycap_size(name_part, name_font, pad_x, pad_y)
                 y += face_h + self._KEY_DEPTH
                 if role_part:
                     y += int(role_font * 1.2)
                 y += spacing
-
-        if TECH_STACK:
-            y += 28
-            tech_used_h = self._keycap_size("X", 18, pad_x=10, pad_y=5)[1] + self._KEY_DEPTH
-            y += tech_used_h + 10
 
         y += 10
         return y
@@ -392,15 +397,18 @@ class CreditsScreen:
                     role_part = None
                     if isinstance(entry, str) and "\u2014" in entry:
                         parts = entry.split("\u2014", 1)
-                        name_part = parts[0].strip(); role_part = parts[1].strip()
+                        name_part = parts[0].strip()
+                        role_part = parts[1].strip()
                     elif isinstance(entry, str) and " - " in entry:
                         parts = entry.split(" - ", 1)
-                        name_part = parts[0].strip(); role_part = parts[1].strip()
+                        name_part = parts[0].strip()
+                        role_part = parts[1].strip()
                     elif isinstance(entry, str) and " — " in entry:
                         parts = entry.split(" — ", 1)
-                        name_part = parts[0].strip(); role_part = parts[1].strip()
+                        name_part = parts[0].strip()
+                        role_part = parts[1].strip()
 
-                    face_w, face_h = self._keycap_size(name_part, name_font, pad_x, pad_y)
+                    _face_w, face_h = self._keycap_size(name_part, name_font, pad_x, pad_y)
                     # draw centered keycap for the name
                     self._draw_keycap(name_part, (cx, y + face_h // 2), font_size=name_font, pad_x=pad_x, pad_y=pad_y)
                     y += face_h + self._KEY_DEPTH

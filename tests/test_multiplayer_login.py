@@ -30,10 +30,14 @@ class _Rect:
         self.bottom = y + h
         self.centerx = x + w // 2
         self.centery = y + h // 2
+        self.center = (self.centerx, self.centery)
 
     def collidepoint(self, pos):
         px, py = pos
         return self.left <= px <= self.right and self.top <= py <= self.bottom
+
+    def move(self, dx, dy):
+        return _Rect(self.x + dx, self.y + dy, self.width, self.height)
 
 
 class TestMultiplayerLoginCloseButton:
@@ -176,15 +180,44 @@ class TestMultiplayerLoginName:
         assert result == "back"
 
     def test_backspace_removes_character(self):
-        screen, mock_pg, mock_client = _make_login_screen()
-        
-        # Simulate typing "ABC"
-        screen.name = "ABC"
-        assert screen.name == "ABC"
-        
-        # In actual execution, backspace would be handled, so name would be shorter
-        # This just tests the name property works
-        screen.name = "AB"
+        import game.screens.multiplayer.login as login_mod
+
+        mock_pg = MagicMock()
+        mock_pg.QUIT = 256
+        mock_pg.KEYDOWN = 768
+        mock_pg.K_ESCAPE = 27
+        mock_pg.K_BACKSPACE = 8
+        mock_pg.K_RETURN = 13
+        mock_pg.time.Clock.return_value = Mock()
+        mock_pg.time.get_ticks.return_value = 0
+        mock_pg.mouse.get_pos.return_value = (0, 0)
+        mock_pg.Rect.side_effect = lambda x, y, w, h: _Rect(x, y, w, h)
+        mock_pg.font.Font.return_value = Mock(render=Mock(return_value=Mock(get_rect=Mock(return_value=Mock()))))
+
+        mock_screen = Mock()
+        mock_screen.get_width.return_value = 800
+        mock_screen.get_height.return_value = 600
+        mock_screen.present = Mock()
+
+        mock_client = Mock()
+        mock_client.poll.return_value = None
+
+        backspace_ev = Mock()
+        backspace_ev.type = mock_pg.KEYDOWN
+        backspace_ev.key = mock_pg.K_BACKSPACE
+
+        quit_ev = Mock()
+        quit_ev.type = mock_pg.QUIT
+
+        with patch.object(login_mod, "pygame", mock_pg), \
+             patch.object(login_mod, "animation_utils"), \
+             patch.object(login_mod, "Button", return_value=Mock(handle_event=Mock(return_value=False))):
+            screen = login_mod.MultiplayerLoginScreen(mock_screen, mock_client)
+            screen.name = "ABC"
+            # First iteration handles backspace; second iteration quits.
+            mock_pg.event.get.side_effect = [[backspace_ev], [quit_ev]]
+            run_async(screen.run())
+
         assert screen.name == "AB"
 
     def test_joined_message_returns_lobby(self):
@@ -222,6 +255,8 @@ class TestMultiplayerLoginName:
         mock_pg = MagicMock()
         mock_pg.QUIT = 256
         mock_pg.time.Clock.return_value = Mock()
+        mock_pg.time.get_ticks.return_value = 0
+        mock_pg.mouse.get_pos.return_value = (0, 0)
         mock_pg.Rect.side_effect = lambda x, y, w, h: _Rect(x, y, w, h)
         mock_pg.font.Font.return_value = Mock(render=Mock(return_value=Mock(get_rect=Mock(return_value=Mock()))))
 
@@ -232,16 +267,22 @@ class TestMultiplayerLoginName:
 
         mock_client = Mock()
         error_msg = {"type": "error", "message": "Name taken"}
+        # poll() is called repeatedly within each frame; first iteration yields
+        # the error then None to break the inner loop. Pad with None for
+        # subsequent frames before the quit event ends the outer loop.
+        mock_client.poll.side_effect = [error_msg, None, None]
+
         quit_ev = Mock()
         quit_ev.type = mock_pg.QUIT
 
         with patch.object(login_mod, "pygame", mock_pg), \
              patch.object(login_mod, "animation_utils"), \
-             patch.object(login_mod, "Button"):
-            mock_pg.event.get.return_value = []
+             patch.object(login_mod, "Button", return_value=Mock(handle_event=Mock(return_value=False))):
+            # First iter: no events (error gets processed via poll); second iter: quit.
+            mock_pg.event.get.side_effect = [[], [quit_ev]]
             screen = login_mod.MultiplayerLoginScreen(mock_screen, mock_client)
-            mock_client.poll.side_effect = [error_msg, None]
-            # Just verify the screen can handle error responses
-            assert screen.error == ""
-            screen.error = "Name taken"
-            assert screen.error == "Name taken"
+            result = run_async(screen.run())
+
+        assert result == "quit"
+        assert screen.error == "Name taken"
+        assert screen.connecting is False

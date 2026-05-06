@@ -1,12 +1,11 @@
 """Unit tests for high scores system — load, save, ranking."""
 import json
-import pytest
 import asyncio
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch
 from game.core.high_scores import (
     load_scores, save_scores, is_high_score, add_score, MAX_SCORES,
-    load_scores_async, is_high_score_async, add_score_async, _coerce_entry,
-    _migrate_legacy_scores, _scores_dir
+    load_scores_async, is_high_score_async, _coerce_entry,
+    _migrate_legacy_scores,
 )
 
 
@@ -245,16 +244,18 @@ class TestAsyncFunctions:
         p, f = _patch_scores_file(tmp_path)
         f.write_text(json.dumps([{"name": "AAA", "score": 100}]))
         with p, patch("game.core.high_scores._IN_BROWSER", False):
-            # Can't easily test async in this environment, but we can verify the conditional
-            assert not patch("game.core.high_scores._IN_BROWSER", False).__enter__().__bool__()
+            result = asyncio.run(load_scores_async("simon"))
+        assert result == [{"name": "AAA", "score": 100}]
 
     def test_is_high_score_async_uses_native_when_not_browser(self, tmp_path):
         """When not in browser, is_high_score_async delegates to native is_high_score."""
         p, f = _patch_scores_file(tmp_path)
-        f.write_text(json.dumps([{"name": f"P{i}", "score": (i+1)*10} for i in range(MAX_SCORES)]))
-        with p:
-            # The async function uses native is_high_score when not in browser
-            assert is_high_score(11, "simon") is True
+        f.write_text(json.dumps([{"name": f"P{i}", "score": (i + 1) * 10} for i in range(MAX_SCORES)]))
+        with p, patch("game.core.high_scores._IN_BROWSER", False):
+            qualifies = asyncio.run(is_high_score_async(11, "simon"))
+            does_not_qualify = asyncio.run(is_high_score_async(5, "simon"))
+        assert qualifies is True
+        assert does_not_qualify is False
 
 
 class TestMigrateLegacyScores:
@@ -262,15 +263,16 @@ class TestMigrateLegacyScores:
 
     def test_migrate_renames_legacy_file(self, tmp_path, monkeypatch):
         monkeypatch.setenv("SCORES_DIR", str(tmp_path))
-        # Create legacy file
         legacy = tmp_path / "simon_scores.json"
-        legacy.write_text(json.dumps([{"name": "OLD", "score": 100}]))
-        
-        with patch("game.core.high_scores._migrate_legacy_scores") as mock_migrate:
-            mock_migrate()
-        
-        # Verify original function was called
-        mock_migrate.assert_called_once()
+        target = tmp_path / "simon_normal_scores.json"
+        legacy_data = [{"name": "OLD", "score": 100}]
+        legacy.write_text(json.dumps(legacy_data))
+
+        _migrate_legacy_scores()
+
+        assert not legacy.exists()
+        assert target.exists()
+        assert json.loads(target.read_text()) == legacy_data
 
     def test_migrate_idempotent_when_target_exists(self, tmp_path, monkeypatch):
         monkeypatch.setenv("SCORES_DIR", str(tmp_path))
