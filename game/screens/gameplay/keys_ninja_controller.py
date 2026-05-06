@@ -134,8 +134,9 @@ class KeysNinjaController:
                         return immediate
                 
                 if event.type == pygame.KEYDOWN:
-                    # P key is disabled in Keys Ninja mode - ignore it completely
+                    # Toggle pause on P (same behavior as other modes)
                     if event.key == pygame.K_p:
+                        self._set_paused(not self.paused)
                         continue
                     
                     # Ctrl+E debug shortcut

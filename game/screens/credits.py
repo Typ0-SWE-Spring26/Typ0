@@ -176,15 +176,42 @@ class CreditsScreen:
 
     def _draw_name_keys(self, names, center_x, top_y, max_width,
                         font_size=18, pad_x=10, pad_y=5, gap=7, row_gap=6,
-                        draw=True):
-        """Draw a set of name-keycaps centered horizontally, wrapping rows."""
-        widths = [self._keycap_size(n, font_size, pad_x, pad_y)[0] for n in names]
+                        draw=True, role_position='above'):
+        """Draw a set of name-keycaps centered horizontally, wrapping rows.
+
+        Supports entries of the form "Name — Role". The keycap is sized to the
+        name only while the role (if present) is rendered above or below the
+        keycap depending on `role_position` ("above" or "below").
+        """
+        # Support entries that contain a role after a dash ("Name — Role1, Role2").
+        # For layout and keycap sizing we only measure the name portion; if a
+        # role is present we'll render it above the corresponding keycap.
+        parsed = []
+        for n in names:
+            if isinstance(n, str) and "\u2014" in n:  # em-dash present
+                parts = n.split("\u2014", 1)
+                name_part = parts[0].strip()
+                role_part = parts[1].strip()
+            elif isinstance(n, str) and " - " in n:
+                parts = n.split(" - ", 1)
+                name_part = parts[0].strip()
+                role_part = parts[1].strip()
+            elif isinstance(n, str) and " — " in n:
+                parts = n.split(" — ", 1)
+                name_part = parts[0].strip()
+                role_part = parts[1].strip()
+            else:
+                name_part = n
+                role_part = None
+            parsed.append((n, name_part, role_part))
+
+        widths = [self._keycap_size(name_part, font_size, pad_x, pad_y)[0] for (_orig, name_part, _role) in parsed]
         _, face_h = self._keycap_size("X", font_size, pad_x, pad_y)
         row_h = face_h + self._KEY_DEPTH
 
         rows = []
         current, current_w = [], 0
-        for n, w in zip(names, widths):
+        for (_orig, name_part, _role), w in zip(parsed, widths):
             candidate = w if not current else current_w + gap + w
             overflow = False
             try:
@@ -193,24 +220,57 @@ class CreditsScreen:
                 overflow = False
             if overflow and current:
                 rows.append(current)
-                current, current_w = [n], w
+                current, current_w = [_orig], w
             else:
-                current.append(n)
+                current.append(_orig)
                 current_w = candidate
         if current:
             rows.append(current)
 
         y = top_y
         for row in rows:
-            row_widths = [self._keycap_size(n, font_size, pad_x, pad_y)[0] for n in row]
+            # Re-parse the row entries to extract name and optional role
+            row_parsed = []
+            for entry in row:
+                if isinstance(entry, str) and "\u2014" in entry:
+                    parts = entry.split("\u2014", 1)
+                    nm = parts[0].strip()
+                    rl = parts[1].strip()
+                elif isinstance(entry, str) and " - " in entry:
+                    parts = entry.split(" - ", 1)
+                    nm = parts[0].strip()
+                    rl = parts[1].strip()
+                elif isinstance(entry, str) and " — " in entry:
+                    parts = entry.split(" — ", 1)
+                    nm = parts[0].strip()
+                    rl = parts[1].strip()
+                else:
+                    nm = entry
+                    rl = None
+                row_parsed.append((entry, nm, rl))
+
+            row_widths = [self._keycap_size(nm, font_size, pad_x, pad_y)[0] for (_orig, nm, _rl) in row_parsed]
             total_w = sum(row_widths) + gap * (len(row) - 1)
             x = center_x - total_w // 2
-            for n, rw in zip(row, row_widths):
+            for (orig, nm, rl), rw in zip(row_parsed, row_widths):
+                cx = x + rw // 2
                 if draw:
+                    # Draw optional role label (above or below)
+                    if rl and role_position == 'above':
+                        role_surf = self._fm.render_text(rl.upper(), self._ACCENT, int(font_size * 0.8), font_name=SANS_SERIF_PREFERRED)
+                        role_rect = role_surf.get_rect(center=(cx, y - int(face_h * 0.3)))
+                        self.screen.blit(role_surf, role_rect)
+
                     self._draw_keycap(
-                        n, (x + rw // 2, y + row_h // 2),
+                        nm, (cx, y + row_h // 2),
                         font_size=font_size, pad_x=pad_x, pad_y=pad_y,
                     )
+
+                    if rl and role_position == 'below':
+                        # place role just below the keycap body
+                        role_surf = self._fm.render_text(rl, self._HINT_TEXT, int(font_size * 0.6), font_name=SANS_SERIF_PREFERRED)
+                        role_rect = role_surf.get_rect(center=(cx, y + row_h - int(face_h * 0.2)))
+                        self.screen.blit(role_surf, role_rect)
                 x += rw + gap
             y += row_h + row_gap
 
@@ -225,21 +285,41 @@ class CreditsScreen:
     def _measure_content(self, max_row_width):
         y = 0
         y += self._title_height(font_size=34, pad_x=10, pad_y=8) + 24
-        for role, entries in self._build_sections():
-            y += 28
-            used = self._draw_name_keys(
-                entries,
-                center_x=0,
-                top_y=0,
-                max_width=max_row_width,
-                font_size=18,
-                pad_x=10,
-                pad_y=5,
-                gap=7,
-                row_gap=6,
-                draw=False,
-            )
-            y += used + 10
+        # Per-section, one-name-per-line measurement — match the font/pad
+        # values used in run() so measurement reflects what's drawn. The
+        # Tech Stack section is already produced by _build_sections(), so
+        # do not add it again at the end of this method.
+        name_font = 48
+        role_font = 18
+        pad_x = 14
+        pad_y = 10
+        spacing = 18
+        role_header_font = 36
+        for section, entries in self._build_sections():
+            y += role_header_font + 8
+            for entry in entries:
+                # parse "Name — Role" variants
+                name_part = entry
+                role_part = None
+                if isinstance(entry, str) and "\u2014" in entry:
+                    parts = entry.split("\u2014", 1)
+                    name_part = parts[0].strip()
+                    role_part = parts[1].strip()
+                elif isinstance(entry, str) and " - " in entry:
+                    parts = entry.split(" - ", 1)
+                    name_part = parts[0].strip()
+                    role_part = parts[1].strip()
+                elif isinstance(entry, str) and " — " in entry:
+                    parts = entry.split(" — ", 1)
+                    name_part = parts[0].strip()
+                    role_part = parts[1].strip()
+
+                _face_w, face_h = self._keycap_size(name_part, name_font, pad_x, pad_y)
+                y += face_h + self._KEY_DEPTH
+                if role_part:
+                    y += int(role_font * 1.2)
+                y += spacing
+
         y += 10
         return y
 
@@ -299,17 +379,47 @@ class CreditsScreen:
                                             font_size=34, pad_x=10, pad_y=8, gap=4)
 
             y = y + title_h + 24
+            role_header_font = 36
             for role, names in self._build_sections():
-                role_surf = self._fm.render_text(role.upper(), self._ACCENT, 24, font_name=SANS_SERIF_PREFERRED)
+                role_surf = self._fm.render_text(role.upper(), self._ACCENT, role_header_font, font_name=SANS_SERIF_PREFERRED)
                 self.screen.blit(role_surf, role_surf.get_rect(center=(cx, y)))
-                y += 28
+                y += role_header_font + 8
 
-                used = self._draw_name_keys(
-                    names, center_x=cx, top_y=y,
-                    max_width=max_row_width,
-                    font_size=18, pad_x=10, pad_y=5, gap=7, row_gap=6,
-                )
-                y += used + 10
+                # Draw one large centered name per line with subtitle roles beneath
+                name_font = 48
+                role_font = 18
+                pad_x = 14
+                pad_y = 10
+                spacing = 18
+                for entry in names:
+                    # parse name and role
+                    name_part = entry
+                    role_part = None
+                    if isinstance(entry, str) and "\u2014" in entry:
+                        parts = entry.split("\u2014", 1)
+                        name_part = parts[0].strip()
+                        role_part = parts[1].strip()
+                    elif isinstance(entry, str) and " - " in entry:
+                        parts = entry.split(" - ", 1)
+                        name_part = parts[0].strip()
+                        role_part = parts[1].strip()
+                    elif isinstance(entry, str) and " — " in entry:
+                        parts = entry.split(" — ", 1)
+                        name_part = parts[0].strip()
+                        role_part = parts[1].strip()
+
+                    _face_w, face_h = self._keycap_size(name_part, name_font, pad_x, pad_y)
+                    # draw centered keycap for the name
+                    self._draw_keycap(name_part, (cx, y + face_h // 2), font_size=name_font, pad_x=pad_x, pad_y=pad_y)
+                    y += face_h + self._KEY_DEPTH
+
+                    # draw subtitle roles beneath the name
+                    if role_part:
+                        role_surf = self._fm.render_text(role_part, self._HINT_TEXT, role_font, font_name=SANS_SERIF_PREFERRED)
+                        self.screen.blit(role_surf, role_surf.get_rect(center=(cx, y + int(role_font * 0.6))))
+                        y += int(role_font * 1.2)
+
+                    y += spacing
 
             self.screen.set_clip(None)
 

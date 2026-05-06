@@ -1,8 +1,12 @@
 """Unit tests for high scores system — load, save, ranking."""
 import json
-import pytest
+import asyncio
 from unittest.mock import patch
-from game.core.high_scores import load_scores, save_scores, is_high_score, add_score, MAX_SCORES
+from game.core.high_scores import (
+    load_scores, save_scores, is_high_score, add_score, MAX_SCORES,
+    load_scores_async, is_high_score_async, _coerce_entry,
+    _migrate_legacy_scores,
+)
 
 
 def _patch_scores_file(tmp_path, game_type="simon"):
@@ -185,3 +189,100 @@ class TestAddScore:
         assert load_scores("simon") == [{"name": "AAA", "score": 100}]
         assert load_scores("bopit") == [{"name": "BBB", "score": 200}]
         assert load_scores("multiplayer") == [{"name": "CCC", "score": 300}]
+
+
+class TestCoerceEntry:
+    """Verify entry coercion for data validation."""
+
+    def test_coerce_valid_entry(self):
+        entry = {"name": "ABC", "score": 100}
+        assert _coerce_entry(entry) == entry
+
+    def test_coerce_rejects_non_dict(self):
+        assert _coerce_entry("not a dict") is None
+        assert _coerce_entry([]) is None
+        assert _coerce_entry(123) is None
+
+    def test_coerce_rejects_missing_name(self):
+        assert _coerce_entry({"score": 100}) is None
+
+    def test_coerce_rejects_missing_score(self):
+        assert _coerce_entry({"name": "ABC"}) is None
+
+    def test_coerce_rejects_non_string_name(self):
+        assert _coerce_entry({"name": 123, "score": 100}) is None
+        assert _coerce_entry({"name": [], "score": 100}) is None
+
+    def test_coerce_rejects_bool_score(self):
+        assert _coerce_entry({"name": "ABC", "score": True}) is None
+        assert _coerce_entry({"name": "ABC", "score": False}) is None
+
+    def test_coerce_converts_string_score(self):
+        assert _coerce_entry({"name": "ABC", "score": "42"})["score"] == 42
+        assert _coerce_entry({"name": "ABC", "score": "  99  "})["score"] == 99
+
+    def test_coerce_converts_float_score(self):
+        assert _coerce_entry({"name": "ABC", "score": 42.7})["score"] == 42
+
+    def test_coerce_rejects_empty_string_score(self):
+        assert _coerce_entry({"name": "ABC", "score": ""}) is None
+        assert _coerce_entry({"name": "ABC", "score": "   "}) is None
+
+    def test_coerce_rejects_non_numeric_string_score(self):
+        assert _coerce_entry({"name": "ABC", "score": "abc"}) is None
+
+    def test_coerce_rejects_invalid_type_score(self):
+        assert _coerce_entry({"name": "ABC", "score": []}) is None
+        assert _coerce_entry({"name": "ABC", "score": {}}) is None
+
+
+class TestAsyncFunctions:
+    """Verify async wrapper functions route correctly."""
+
+    def test_load_scores_async_uses_native_when_not_browser(self, tmp_path):
+        """When not in browser, async function delegates to native load_scores."""
+        p, f = _patch_scores_file(tmp_path)
+        f.write_text(json.dumps([{"name": "AAA", "score": 100}]))
+        with p, patch("game.core.high_scores._IN_BROWSER", False):
+            result = asyncio.run(load_scores_async("simon"))
+        assert result == [{"name": "AAA", "score": 100}]
+
+    def test_is_high_score_async_uses_native_when_not_browser(self, tmp_path):
+        """When not in browser, is_high_score_async delegates to native is_high_score."""
+        p, f = _patch_scores_file(tmp_path)
+        f.write_text(json.dumps([{"name": f"P{i}", "score": (i + 1) * 10} for i in range(MAX_SCORES)]))
+        with p, patch("game.core.high_scores._IN_BROWSER", False):
+            qualifies = asyncio.run(is_high_score_async(11, "simon"))
+            does_not_qualify = asyncio.run(is_high_score_async(5, "simon"))
+        assert qualifies is True
+        assert does_not_qualify is False
+
+
+class TestMigrateLegacyScores:
+    """Verify legacy score migration."""
+
+    def test_migrate_renames_legacy_file(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("SCORES_DIR", str(tmp_path))
+        legacy = tmp_path / "simon_scores.json"
+        target = tmp_path / "simon_normal_scores.json"
+        legacy_data = [{"name": "OLD", "score": 100}]
+        legacy.write_text(json.dumps(legacy_data))
+
+        _migrate_legacy_scores()
+
+        assert not legacy.exists()
+        assert target.exists()
+        assert json.loads(target.read_text()) == legacy_data
+
+    def test_migrate_idempotent_when_target_exists(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("SCORES_DIR", str(tmp_path))
+        # Create both legacy and target
+        legacy = tmp_path / "simon_scores.json"
+        target = tmp_path / "simon_normal_scores.json"
+        legacy.write_text(json.dumps([{"name": "OLD", "score": 100}]))
+        target.write_text(json.dumps([{"name": "NEW", "score": 200}]))
+        
+        _migrate_legacy_scores()
+        
+        # Target should remain unchanged
+        assert json.loads(target.read_text()) == [{"name": "NEW", "score": 200}]

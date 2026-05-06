@@ -48,7 +48,7 @@ class _FakeView:
         pass
 
 
-def _build_controller(menu_action):
+def _build_controller(menu_action, pause_overlay=None):
     import game.screens.gameplay.keys_ninja_controller as kn_mod
 
     mock_pg = MagicMock()
@@ -79,6 +79,7 @@ def _build_controller(menu_action):
             _FakeView(),
             event_bus=Mock(),
             keybinds=Mock(),
+            pause_overlay=pause_overlay,
             menu_overlay=menu,
         )
         controller._mock_anim = mock_anim
@@ -103,3 +104,140 @@ def test_menu_main_menu_returns_tuple():
 
     assert result == ("main_menu",)
     controller._mock_anim.stop_music.assert_called_once()
+
+
+def test_set_paused_toggles_state():
+    """Test that _set_paused emits events and toggles paused state."""
+    controller = _build_controller(None)
+    bus = controller._bus
+
+    controller._set_paused(True)
+    assert controller.paused is True
+    bus.emit.assert_called()
+
+    bus.reset_mock()
+    controller._set_paused(False)
+    assert controller.paused is False
+    bus.emit.assert_called()
+
+
+def test_set_paused_no_op_on_same_state():
+    """Test that _set_paused does nothing if state hasn't changed."""
+    controller = _build_controller(None)
+    controller.paused = True
+    bus = controller._bus
+    bus.reset_mock()
+
+    controller._set_paused(True)
+    bus.emit.assert_not_called()
+
+
+def test_menu_is_open_property():
+    """Test _menu_is_open checks both open and active_submenu."""
+    controller = _build_controller(None)
+    
+    assert controller._menu_is_open is False
+    
+    controller.menu_overlay.open = True
+    assert controller._menu_is_open is True
+    
+    controller.menu_overlay.open = False
+    controller.menu_overlay.active_submenu = "settings"
+    assert controller._menu_is_open is True
+    
+    controller.menu_overlay.active_submenu = None
+    assert controller._menu_is_open is False
+
+
+def test_exit_overlay_screen_resets_state():
+    """Test that exiting overlay closes menu and resumes gameplay."""
+    controller = _build_controller(None)
+    controller.menu_overlay.open = True
+    controller.menu_overlay.active_submenu = "test"
+    controller._menu_forced_pause = True
+    controller.paused = True
+
+    controller._exit_overlay_screen()
+
+    assert controller.menu_overlay.open is False
+    assert controller.menu_overlay.active_submenu is None
+    assert controller._menu_forced_pause is False
+    assert controller.paused is False
+
+
+def test_handle_menu_action_switch_mode_string():
+    """Test _handle_menu_action with 'switch_mode' string."""
+    controller = _build_controller(None)
+    
+    result = controller._handle_menu_action("switch_mode")
+    
+    assert result == ("switch_mode",)
+
+
+def test_handle_menu_action_none_returns_none():
+    """Test _handle_menu_action returns None for unknown actions."""
+    controller = _build_controller(None)
+    
+    result = controller._handle_menu_action("unknown_action")
+    
+    assert result is None
+
+
+def test_handle_menu_action_empty_tuple():
+    """Test _handle_menu_action handles empty tuple gracefully."""
+    controller = _build_controller(None)
+    
+    result = controller._handle_menu_action(())
+    
+    assert result is None
+
+
+def test_menu_is_open_no_overlay():
+    """Test _menu_is_open is falsy when menu_overlay is None."""
+    import game.screens.gameplay.keys_ninja_controller as kn_mod
+    
+    mock_pg = MagicMock()
+    mock_pg.time.Clock.return_value = Mock()
+    
+    controller = None
+    with patch.object(kn_mod, "pygame", mock_pg):
+        controller = kn_mod.KeysNinjaController(
+            Mock(),
+            _FakeModel(),
+            _FakeView(),
+            event_bus=Mock(),
+            keybinds=Mock(),
+            menu_overlay=None,
+        )
+    
+    assert not controller._menu_is_open
+
+
+def test_pause_overlay_subscription():
+    """When constructed with a pause_overlay, the controller subscribes it to its bus."""
+    pause_overlay = Mock()
+    controller = _build_controller(None, pause_overlay=pause_overlay)
+
+    pause_overlay.subscribe.assert_called_once_with(controller._bus)
+
+
+def test_exit_overlay_restores_music_when_not_playing():
+    """When music isn't playing on overlay exit, the controller restarts it."""
+    import game.screens.gameplay.keys_ninja_controller as kn_mod
+
+    controller = _build_controller(None)
+    controller.menu_overlay.open = True
+    controller._menu_forced_pause = True
+    controller.paused = True
+
+    # Re-patch animation_utils for the call: _build_controller's patch context
+    # has already exited by the time we get here.
+    with patch.object(kn_mod, "animation_utils") as mock_anim:
+        mock_anim.is_music_playing.return_value = False
+        mock_anim.get_user_music_selection.return_value = "assets/Techno.ogg"
+        controller._exit_overlay_screen()
+
+    assert controller.menu_overlay.open is False
+    assert controller._menu_forced_pause is False
+    assert controller.paused is False
+    mock_anim.play_music.assert_called_once_with("assets/Techno.ogg")
